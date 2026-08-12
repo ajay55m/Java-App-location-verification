@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group
+        android:id="@+id/group_main_nav"
+        android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_profile"
+            android:icon="@drawable/ic_baseline_person_24"
+            android:title="Labour" />
+
+        <item
+            android:id="@+id/nav_move_site"
+            android:icon="@drawable/ic_baseline_move_site_24"
+            android:title="Move Site" />
+
+        <item
+            android:id="@+id/nav_manage_attendance"
+            android:icon="@drawable/ic_baseline_assignment_24"
+            android:title="Manage Attendance" />
+
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_baseline_assignment_24"
+            android:title="Leave Request" />
+
+        <item
+            android:id="@+id/nav_calendar"
+            android:icon="@drawable/ic_baseline_check_24"
+            android:title="Leave Approval" />
+    </group>
+
+</menu>

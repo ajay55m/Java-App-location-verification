@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft glow under glass value text -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="24dp"
+        android:startColor="#4DFFFFFF"
+        android:endColor="#00FFFFFF" />
+</shape>

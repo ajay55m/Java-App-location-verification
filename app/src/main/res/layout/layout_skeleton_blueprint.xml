@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/blueprint_skeleton"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#F4FAFC"
+    android:gravity="center"
+    android:visibility="visible">
+
+    <!-- Integrated Loading/Animation View -->
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp">
+
+        <FrameLayout
+            android:id="@+id/verify_progress"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/bg_dashed_ring">
+
+            <ImageView
+                android:id="@+id/construction_icon"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_construction_loading"
+                android:contentDescription="Loading" />
+        </FrameLayout>
+
+        <ImageView
+            android:id="@+id/verify_status_icon"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_centerInParent="true"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/blueprint_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="DRAFTING COORDINATES..."
+        android:letterSpacing="0.2"
+        android:textColor="#0077B6"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-black"
+        android:layout_marginBottom="16dp"
+        android:textAlignment="center"/>
+
+    <!-- Selected Location Info -->
+    <TextView
+        android:id="@+id/blueprint_selected_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text=""
+        android:textColor="#03045E"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginBottom="16dp"
+        android:textAlignment="center"
+        android:visibility="gone" />
+
+
+    <!-- Accuracy Pill Badge -->
+    <TextView
+        android:id="@+id/tv_accuracy_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_chip"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:text="GPS ACCURACY: Checking..."
+        android:textColor="#0077B6"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:visibility="gone" />
+
+    <!-- Success Actions Container -->
+    <LinearLayout
+        android:id="@+id/container_blueprint_success"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_blueprint_proceed"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:text="Proceed to Capture"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            app:backgroundTint="#03045E"
+            app:cornerRadius="12dp" />
+    </LinearLayout>
+
+    <!-- Failure Actions Container -->
+    <LinearLayout
+        android:id="@+id/container_blueprint_failure"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_blueprint_retry"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Try Again"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            app:backgroundTint="@null"
+            android:background="@drawable/btn_premium_gradient"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_blueprint_reselect"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Location Verification"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#0077B6"
+            app:strokeColor="#0077B6"
+            app:strokeWidth="1.5dp"
+            app:backgroundTint="@android:color/transparent"
+            app:cornerRadius="12dp"
+            android:layout_marginBottom="8dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_blueprint_leave"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Request Leave"
+            android:textSize="14sp"
+            android:textColor="#475569"
+            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+    </LinearLayout>
+
+</LinearLayout>

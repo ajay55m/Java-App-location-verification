@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1009395096103",
+    "project_id": "stonemart-cladding-systems",
+    "storage_bucket": "stonemart-cladding-systems.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1009395096103:android:c77eea2a808ba288a3cc02",
+        "android_client_info": {
+          "package_name": "com.app.fourscontracting"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1009395096103-h61bl74mlre64npd5607m2ni15cdj2i3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDgws7obdWdkrA8RMRsLtyGlLUtYYOyD8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1009395096103-h61bl74mlre64npd5607m2ni15cdj2i3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

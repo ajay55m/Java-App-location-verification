@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/nav_home">
+
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="com.app.fourscontracting.ui.home.HomeFragment"
+        android:label="Leave Request"
+        tools:layout="@layout/fragment_home" />
+
+    <fragment
+        android:id="@+id/nav_calendar"
+        android:name="com.app.fourscontracting.ui.slideshow.SlideshowFragment"
+        android:label="Leave Approval"
+        tools:layout="@layout/fragment_slideshow" />
+
+    <fragment
+        android:id="@+id/nav_profile"
+        android:name="com.app.fourscontracting.SettingFragment"
+        android:label="Labour Management"
+        tools:layout="@layout/fragment_setting" />
+
+    <fragment
+        android:id="@+id/nav_move_site"
+        android:name="com.app.fourscontracting.ui.move.MoveSiteFragment"
+        android:label="Move Site"
+        tools:layout="@layout/fragment_move_site" />
+
+    <fragment
+        android:id="@+id/nav_manage_attendance"
+        android:name="com.app.fourscontracting.ui.attendance.ManageAttendanceFragment"
+        android:label="Manage Attendance"
+        tools:layout="@layout/fragment_manage_attendance" />
+
+</navigation>

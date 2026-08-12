@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96"
+    android:tint="?attr/colorPrimary">
+
+    <!-- Hard hat body -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M48,20 C64,20 76,32 76,48 L76,52 L20,52 L20,48 C20,32 32,20 48,20 Z" />
+
+    <!-- Hard hat brim -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M14,52 L82,52 C84,52 85,54 85,56 C85,58 84,60 82,60 L14,60 C12,60 11,58 11,56 C11,54 12,52 14,52 Z" />
+
+    <!-- Center ridge detail -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M46,20 L50,20 L50,52 L46,52 Z" />
+
+    <!-- Side vent detail -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M30,34 C32,30 36,27 40,26 L40,32 C37,33 34,35 32,38 Z" />
+
+</vector>

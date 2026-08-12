@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/drawable/bg_dashed_ring.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="ring"
+    android:innerRadiusRatio="2.6"
+    android:thicknessRatio="18"
+    android:useLevel="false">
+
+    <solid android:color="#00000000" />
+    <stroke
+        android:width="3dp"
+        android:color="#90CAF9"
+        android:dashWidth="8dp"
+        android:dashGap="6dp" />
+</shape>

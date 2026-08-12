@@ -1,0 +1,44 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="150dp"
+    android:height="95dp"
+    android:viewportWidth="150"
+    android:viewportHeight="95">
+
+  <!-- Dark Teal Map Background -->
+  <path
+      android:fillColor="#3A506B"
+      android:pathData="M0,0h150v95h-150z"/>
+
+  <!-- Road Grid Lines -->
+  <path
+      android:strokeColor="#5BC0BE"
+      android:strokeWidth="2.5"
+      android:pathData="M0,35 L150,45 M30,0 L50,95 M100,0 L85,95 M0,70 L150,65 M75,0 L75,95"/>
+
+  <!-- Secondary Thin Roads -->
+  <path
+      android:strokeColor="#486581"
+      android:strokeWidth="1.2"
+      android:pathData="M0,15 L150,20 M0,85 L150,80 M15,0 L25,95 M130,0 L120,95"/>
+
+  <!-- Green Park Areas -->
+  <path
+      android:fillColor="#2D6A4F"
+      android:pathData="M10,10 h30 v20 h-30 z M90,50 h40 v30 h-40 z"/>
+
+  <!-- Pulsing Blue Location Circle Center -->
+  <path
+      android:fillColor="#3300B4D8"
+      android:pathData="M55,42 m-18,0 a18,18 0 1,0 36,0 a18,18 0 1,0 -36,0"/>
+  <path
+      android:fillColor="#00B4D8"
+      android:pathData="M55,42 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0"/>
+
+  <!-- Map Pin Badge -->
+  <path
+      android:fillColor="#0077B6"
+      android:pathData="M115,22 C110.58,22 107,25.58 107,30 C107,36 115,44 115,44 C115,44 123,36 123,30 C123,25.58 119.42,22 115,22 Z"/>
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M115,30 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"/>
+</vector>

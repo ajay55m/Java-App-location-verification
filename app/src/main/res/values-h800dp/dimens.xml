@@ -1,0 +1,5 @@
+<resources>
+    <!-- Scale up for larger/taller screens -->
+    <dimen name="menu_icon_size">28dp</dimen>
+    <dimen name="menu_text_size">13sp</dimen>
+</resources>

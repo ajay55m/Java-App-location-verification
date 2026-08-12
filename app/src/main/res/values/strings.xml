@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">4S Contracting</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">4S Contracting</string>
+    <string name="nav_header_subtitle">4 Seasons International</string>
+    <string name="nav_header_desc">4 Seasons International brand logo</string>
+    <string name="action_settings">Report</string>
+
+    <string name="menu_home">Request Leave</string>
+    <string name="menu_gallery">Assets</string>
+    <string name="menu_slideshow">Leave Approval</string>
+    <string name="menu_move_site">Move Site</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="FCM_PREF">com.app.fourscontracting.fcm_pref</string>
+    <string name="FCM_TOKEN">com.app.fourscontracting.fcm_token</string>
+
+    <string name="title_activity_imageupload">Imageupload</string>
+</resources>

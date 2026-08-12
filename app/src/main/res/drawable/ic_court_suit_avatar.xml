@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Background Circle -->
+    <path
+        android:fillColor="#E0F2FE"
+        android:pathData="M 24,24 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0" />
+
+    <!-- Head -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M 24,21 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+
+    <!-- Suit Shoulders -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M 10,44 C 10,36 16,30 24,30 C 32,30 38,36 38,44 Z" />
+
+    <!-- White Shirt V -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 20,30 L 24,38 L 28,30 Z" />
+
+    <!-- Tie -->
+    <path
+        android:fillColor="#0EA5E9"
+        android:pathData="M 23,30 L 25,30 L 25.5,39 L 24,41 L 22.5,39 Z" />
+</vector>
