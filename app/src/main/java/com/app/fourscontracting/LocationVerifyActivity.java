@@ -16,6 +16,7 @@ import android.widget.Filter;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import android.widget.TextView;
+import android.widget.ImageView;
 import android.util.Log;
 import android.view.View;
 
@@ -80,7 +81,7 @@ public class LocationVerifyActivity extends AppActivity {
         });
     }
     List<JSONObject> locationData = new ArrayList<>();
-    String empId = "", projectId = "", deptId = "", type = "IN", managerUid = "";
+    String empId = "", empName = "", projectId = "", deptId = "", type = "IN", managerUid = "";
     String selectedProjectId = "";
     private boolean isInitialVerify = false;
     private String lockedLocationId = null;
@@ -137,6 +138,7 @@ public class LocationVerifyActivity extends AppActivity {
     private View blueprintOverlay;
     private android.view.View verifyProgress;
     private android.widget.ImageView verifyStatusIcon;
+    private android.view.View verifyStatusBadge;
     private TextView blueprintStatus;
     private TextView tvAccuracyBadge;
     private TextView tvSelectedLocation;
@@ -145,13 +147,25 @@ public class LocationVerifyActivity extends AppActivity {
 
     private TextView tvVerifyUserName;
     private TextView tvVerifyDateTime;
+    private TextView tvVerifyProjectLocation;
+    private TextView tvBlueprintEmpName;
+    private TextView tvBlueprintDateTime;
+    private TextView tvBlueprintProjectLocation;
+    private View cardBlueprintEmpAvatar;
+    private ImageView imgBlueprintEmpPhoto;
+    private View imgBlueprintEmpAvatarFallback;
+    private TextView tvBlueprintEmpSubtitle;
+    private String photoUrl = "";
     private final android.os.Handler liveClockHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable liveClockRunnable = new Runnable() {
         @Override
         public void run() {
+            String currentDateTime = new java.text.SimpleDateFormat("EEE, dd MMM yyyy | hh:mm:ss a", java.util.Locale.getDefault()).format(new java.util.Date());
             if (tvVerifyDateTime != null) {
-                String currentDateTime = new java.text.SimpleDateFormat("EEE, dd MMM yyyy | hh:mm:ss a", java.util.Locale.getDefault()).format(new java.util.Date());
                 tvVerifyDateTime.setText(currentDateTime);
+            }
+            if (tvBlueprintDateTime != null) {
+                tvBlueprintDateTime.setText(currentDateTime);
             }
             liveClockHandler.postDelayed(this, 1000);
         }
@@ -167,6 +181,8 @@ public class LocationVerifyActivity extends AppActivity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putString("saved_emp_id", empId);
+        outState.putString("saved_emp_name", empName);
+        outState.putString("saved_photo_url", photoUrl);
         outState.putString("saved_project_id", projectId);
         outState.putString("saved_dept_id", deptId);
         outState.putString("saved_type", type);
@@ -195,6 +211,18 @@ public class LocationVerifyActivity extends AppActivity {
             }
 
             empId = intent.getStringExtra("empid") != null ? intent.getStringExtra("empid") : "";
+            empName = intent.getStringExtra("emp_name");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("empname");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("employee_name");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("name");
+            if (empName == null) empName = "";
+
+            photoUrl = intent.getStringExtra("photo_url");
+            if (photoUrl == null || photoUrl.isEmpty()) photoUrl = intent.getStringExtra("photo");
+            if (photoUrl == null || photoUrl.isEmpty()) photoUrl = intent.getStringExtra("emp_photo");
+            if ((photoUrl == null || photoUrl.isEmpty()) && empId != null && !empId.isEmpty()) {
+                photoUrl = com.app.fourscontracting.data.ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId;
+            }
             projectId = intent.getStringExtra("projname") != null ? intent.getStringExtra("projname") : "";
             managerUid = intent.getStringExtra("uid") != null ? intent.getStringExtra("uid") : "";
             type = intent.getStringExtra("type") != null ? intent.getStringExtra("type") : "IN";
@@ -232,6 +260,7 @@ public class LocationVerifyActivity extends AppActivity {
             progressProjectsLoading = findViewById(R.id.progress_projects_loading);
             tvVerifyUserName = findViewById(R.id.tv_verify_user_name);
             tvVerifyDateTime = findViewById(R.id.tv_verify_datetime);
+            tvVerifyProjectLocation = findViewById(R.id.tv_verify_project_location);
             tvGpsLat = findViewById(R.id.tv_gps_lat);
             tvGpsLng = findViewById(R.id.tv_gps_lng);
             tvVerifyProgressPct = findViewById(R.id.tv_verify_progress_pct);
@@ -246,6 +275,8 @@ public class LocationVerifyActivity extends AppActivity {
 
             if (savedInstanceState != null) {
                 empId = savedInstanceState.getString("saved_emp_id", "");
+                empName = savedInstanceState.getString("saved_emp_name", "");
+                photoUrl = savedInstanceState.getString("saved_photo_url", "");
                 projectId = savedInstanceState.getString("saved_project_id", "");
                 deptId = savedInstanceState.getString("saved_dept_id", "");
                 type = savedInstanceState.getString("saved_type", "IN");
@@ -287,6 +318,7 @@ public class LocationVerifyActivity extends AppActivity {
             if (blueprintOverlay != null) {
                 verifyProgress = blueprintOverlay.findViewById(R.id.verify_progress);
                 verifyStatusIcon = blueprintOverlay.findViewById(R.id.verify_status_icon);
+                verifyStatusBadge = blueprintOverlay.findViewById(R.id.verify_status_icon_badge);
                 blueprintStatus = blueprintOverlay.findViewById(R.id.blueprint_status);
                 tvAccuracyBadge = blueprintOverlay.findViewById(R.id.tv_accuracy_badge);
                 containerSuccess = blueprintOverlay.findViewById(R.id.container_blueprint_success);
@@ -296,7 +328,23 @@ public class LocationVerifyActivity extends AppActivity {
                 btnBlueprintLeave = blueprintOverlay.findViewById(R.id.btn_blueprint_leave);
                 btnBlueprintReselect = blueprintOverlay.findViewById(R.id.btn_blueprint_reselect);
                 tvSelectedLocation = blueprintOverlay.findViewById(R.id.blueprint_selected_location);
+                tvBlueprintEmpName = blueprintOverlay.findViewById(R.id.tv_blueprint_emp_name);
+                tvBlueprintDateTime = blueprintOverlay.findViewById(R.id.tv_blueprint_datetime);
+                tvBlueprintProjectLocation = blueprintOverlay.findViewById(R.id.tv_blueprint_project_location);
+                cardBlueprintEmpAvatar = blueprintOverlay.findViewById(R.id.card_blueprint_emp_avatar);
+                imgBlueprintEmpPhoto = blueprintOverlay.findViewById(R.id.img_blueprint_emp_photo);
+                imgBlueprintEmpAvatarFallback = blueprintOverlay.findViewById(R.id.img_blueprint_emp_avatar_fallback);
+                tvBlueprintEmpSubtitle = blueprintOverlay.findViewById(R.id.tv_blueprint_emp_subtitle);
+                View btnTopBack = blueprintOverlay.findViewById(R.id.btn_blueprint_top_back);
+                if (btnTopBack != null) {
+                    btnTopBack.setOnClickListener(v -> finish());
+                }
+                if (cardBlueprintEmpAvatar != null) {
+                    cardBlueprintEmpAvatar.setOnClickListener(v -> showWhatsAppProfileView());
+                }
             }
+            bindVerifyUserInfo();
+            updateSelectedLocationDisplay();
 
             if (isAutoStartVerify) {
                 if (inputSelectionCard != null) {
@@ -375,21 +423,51 @@ public class LocationVerifyActivity extends AppActivity {
     }
 
     private void bindVerifyUserInfo() {
+        String displayName = "";
+        boolean isSelf = false;
+        UserLocalStore userLocalStore = new UserLocalStore(this);
+        User user = userLocalStore.getLoggedInUser();
+        String val = (user != null && user.username != null) ? user.username : "";
+        String[] val_list = UserLocalStore.parseUserInfo(val);
+        String selfName = (val_list.length > 2 && !val_list[2].isEmpty()) ? val_list[2] : "";
+
+        if (empName != null && !empName.trim().isEmpty()) {
+            displayName = empName.trim();
+            if (!selfName.isEmpty() && displayName.equalsIgnoreCase(selfName.trim())) {
+                isSelf = true;
+            }
+        } else {
+            displayName = !selfName.isEmpty() ? selfName : "Supervisor";
+            isSelf = true;
+        }
+
+        String formattedName = isSelf ? displayName + " (You)" : displayName;
+
         if (tvVerifyUserName != null) {
-            UserLocalStore userLocalStore = new UserLocalStore(this);
-            User user = userLocalStore.getLoggedInUser();
-            String val = (user != null && user.username != null) ? user.username : "";
-            String[] val_list = UserLocalStore.parseUserInfo(val);
-            String displayName = "";
-            if (val_list.length > 2 && !val_list[2].isEmpty()) {
-                displayName = val_list[2];
-            } else if (val_list.length > 0 && !val_list[0].isEmpty()) {
-                displayName = val_list[0];
-            }
-            if (displayName.isEmpty()) {
-                displayName = "Supervisor";
-            }
             tvVerifyUserName.setText(displayName);
+        }
+        if (tvBlueprintEmpName != null) {
+            tvBlueprintEmpName.setText(formattedName);
+        }
+        if (tvBlueprintEmpSubtitle != null) {
+            if (empId != null && !empId.trim().isEmpty()) {
+                tvBlueprintEmpSubtitle.setText("Worker ID: #" + empId.trim());
+            } else {
+                tvBlueprintEmpSubtitle.setText("Refining GPS Coordinates");
+            }
+        }
+        if (photoUrl != null && !photoUrl.trim().isEmpty()) {
+            com.app.fourscontracting.data.ImageLoaderHelper.loadImage(this, photoUrl, imgBlueprintEmpPhoto, imgBlueprintEmpAvatarFallback);
+        }
+        if (blueprintOverlay != null) {
+            TextView tvCardWorkerId = blueprintOverlay.findViewById(R.id.tv_card_worker_id);
+            if (tvCardWorkerId != null) {
+                if (empId != null && !empId.trim().isEmpty()) {
+                    tvCardWorkerId.setText("#" + empId.trim());
+                } else {
+                    tvCardWorkerId.setText("#--");
+                }
+            }
         }
     }
 
@@ -860,6 +938,9 @@ public class LocationVerifyActivity extends AppActivity {
             if (verifyStatusIcon != null) {
                 verifyStatusIcon.setVisibility(View.GONE);
             }
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.GONE);
+            }
             
             // Text & Badge
             blueprintStatus.setText("DRAFTING COORDINATES...");
@@ -885,7 +966,17 @@ public class LocationVerifyActivity extends AppActivity {
                 stopProgressAnimation();
                 verifyProgress.setVisibility(View.GONE);
             }
-            if (verifyStatusIcon != null) {
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.VISIBLE);
+                verifyStatusBadge.setScaleX(0f);
+                verifyStatusBadge.setScaleY(0f);
+                verifyStatusBadge.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(500)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f))
+                    .start();
+            } else if (verifyStatusIcon != null) {
                 verifyStatusIcon.setVisibility(View.VISIBLE);
                 verifyStatusIcon.setImageResource(R.drawable.ic_baseline_check_24);
                 verifyStatusIcon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#22C55E")));
@@ -902,6 +993,9 @@ public class LocationVerifyActivity extends AppActivity {
             }
             
             // Text & Badge
+            if (matchedPointName != null && !matchedPointName.trim().isEmpty() && !isNumeric(matchedPointName.trim())) {
+                projectId = matchedPointName.trim();
+            }
             blueprintStatus.setText("VERIFICATION SUCCESSFUL\n" + matchType);
             blueprintStatus.setTextColor(android.graphics.Color.parseColor("#22C55E"));
             updateSelectedLocationDisplay();
@@ -960,6 +1054,9 @@ public class LocationVerifyActivity extends AppActivity {
             if (isInitialVerify) {
                 setResult(RESULT_OK);
                 blueprintStatus.setText("SUPERVISOR LOCATION VERIFIED!\nSession locked for 24 hours.");
+                if (btnBlueprintProceed != null) {
+                    btnBlueprintProceed.setText("PROCEED");
+                }
                 final Runnable finishTask = new Runnable() {
                     @Override
                     public void run() {
@@ -1102,21 +1199,91 @@ public class LocationVerifyActivity extends AppActivity {
         }
     }
 
-    private void updateSelectedLocationDisplay() {
-        if (tvSelectedLocation != null) {
-            String siteText = "";
-            if (projectId != null && !projectId.isEmpty()) {
-                siteText = "Selected Site: " + projectId;
-            } else if (selectedProjectId != null && !selectedProjectId.isEmpty()) {
-                siteText = "Selected Site ID: " + selectedProjectId;
+    private String getResolvedProjectName() {
+        if (projectId != null && !projectId.trim().isEmpty() && !isNumeric(projectId.trim())) {
+            return projectId.trim();
+        }
+        SessionPrefs session = new SessionPrefs(this);
+        String savedName = session.getProjectName();
+        if (savedName != null && !savedName.trim().isEmpty() && !isNumeric(savedName.trim())) {
+            return savedName.trim();
+        }
+        UserLocalStore userLocalStore = new UserLocalStore(this);
+        UserLocation loc = userLocalStore.getLoggedInUserLocation();
+        if (loc != null && loc.locationname != null && !loc.locationname.trim().isEmpty() && !isNumeric(loc.locationname.trim())) {
+            return loc.locationname.trim();
+        }
+        String targetId = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : targetLocationId;
+        if (targetId != null && !targetId.isEmpty()) {
+            java.util.List<Project> cached = session.getCachedProjectList();
+            for (Project p : cached) {
+                if (p != null && (targetId.equalsIgnoreCase(p.id) || targetId.equalsIgnoreCase(p.name))) {
+                    if (p.name != null && !p.name.trim().isEmpty()) {
+                        return p.name.trim();
+                    }
+                }
             }
-            
-            if (!siteText.isEmpty()) {
-                tvSelectedLocation.setText(siteText);
-                tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (projectId != null && !projectId.trim().isEmpty()) {
+            return isNumeric(projectId.trim()) ? "Site " + projectId.trim() : projectId.trim();
+        }
+        if (targetId != null && !targetId.trim().isEmpty()) {
+            return "Site " + targetId.trim();
+        }
+        return "Location Verification";
+    }
+
+    private static boolean isNumeric(String str) {
+        if (str == null || str.isEmpty()) return false;
+        for (char c : str.toCharArray()) {
+            if (!Character.isDigit(c)) return false;
+        }
+        return true;
+    }
+
+    private void showWhatsAppProfileView() {
+        try {
+            android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_whatsapp_profile_view, null);
+            ImageView imgDialogPhoto = dialogView.findViewById(R.id.img_dialog_photo);
+            View imgDialogFallback = dialogView.findViewById(R.id.img_dialog_fallback);
+            TextView tvDialogName = dialogView.findViewById(R.id.tv_dialog_name);
+            TextView tvDialogSubtitle = dialogView.findViewById(R.id.tv_dialog_subtitle);
+            TextView tvDialogLocation = dialogView.findViewById(R.id.tv_dialog_location);
+
+            String name = tvBlueprintEmpName != null ? tvBlueprintEmpName.getText().toString() : "Employee";
+            tvDialogName.setText(name);
+            if (empId != null && !empId.isEmpty()) {
+                tvDialogSubtitle.setText("Worker ID: #" + empId);
             } else {
-                tvSelectedLocation.setVisibility(View.GONE);
+                tvDialogSubtitle.setText("Supervisor / Worker Profile");
             }
+            tvDialogLocation.setText("Location: " + getResolvedProjectName());
+
+            if (photoUrl != null && !photoUrl.trim().isEmpty()) {
+                com.app.fourscontracting.data.ImageLoaderHelper.loadImage(this, photoUrl, imgDialogPhoto, imgDialogFallback);
+            }
+
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setView(dialogView)
+                    .setPositiveButton("Close", (dialog, which) -> dialog.dismiss())
+                    .show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSelectedLocationDisplay() {
+        String siteText = getResolvedProjectName();
+
+        if (tvSelectedLocation != null) {
+            tvSelectedLocation.setText("Selected Site: " + siteText);
+            tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setText(siteText);
+        }
+        if (tvVerifyProjectLocation != null) {
+            tvVerifyProjectLocation.setText("Project: " + siteText);
         }
     }
 
@@ -1546,6 +1713,9 @@ public class LocationVerifyActivity extends AppActivity {
                     double dbLon = loc.getDouble("longitude");
                     double maxLat = loc.optDouble("max_latitude", 0.0);
                     double maxLon = loc.optDouble("max_longtitude", 0.0);
+                    if (maxLon == 0.0) {
+                        maxLon = loc.optDouble("max_longitude", 0.0);
+                    }
                     String tempId = loc.optString("projectid", loc.optString("id", ""));
 
                     // Step 4 logic: If lockedLocationId is specified, ONLY verify against that location
@@ -1557,7 +1727,7 @@ public class LocationVerifyActivity extends AppActivity {
 
                     boolean hasBoundaryBox = (maxLat != 0.0) && (maxLon != 0.0);
 
-                    // 1. Calculate true site boundaries and center point
+                    // 1. Calculate true site boundaries from DB latitude/longitude & max_latitude/max_longtitude
                     double minLat = hasBoundaryBox ? Math.min(dbLat, maxLat) : dbLat;
                     double maxLatBound = hasBoundaryBox ? Math.max(dbLat, maxLat) : dbLat;
                     double minLon = hasBoundaryBox ? Math.min(dbLon, maxLon) : dbLon;
@@ -1566,7 +1736,7 @@ public class LocationVerifyActivity extends AppActivity {
                     double centerLat = hasBoundaryBox ? (minLat + maxLatBound) / 2.0 : dbLat;
                     double centerLon = hasBoundaryBox ? (minLon + maxLonBound) / 2.0 : dbLon;
 
-                    // 2. Center-point distance check (radius includes site half-diagonal if box exists)
+                    // 2. Distance check from site center with 20m tolerance buffer
                     float[] centerDistResults = new float[1];
                     Location.distanceBetween(liveLat, liveLon, centerLat, centerLon, centerDistResults);
                     float distanceToCenter = centerDistResults[0];
@@ -1578,12 +1748,12 @@ public class LocationVerifyActivity extends AppActivity {
                         boxHalfDiagonal = diagResults[0];
                     }
 
-                    float effectiveRadius = Math.max(GEOFENCE_RADIUS_M, boxHalfDiagonal)
-                            + Math.min(Math.max(location.getAccuracy(), 0f), GEOFENCE_ACCURACY_BUFFER_CAP_M) + 20.0f; // 20m tolerance buffer
+                    // 20 meter tolerance buffer
+                    float effectiveRadius = (hasBoundaryBox ? boxHalfDiagonal : 0f) + 20.0f;
                     boolean isCenterMatch = distanceToCenter <= effectiveRadius;
 
-                    // 3. Bounding box range check with dynamic GPS accuracy tolerance buffer
-                    double bufferMeters = Math.max(30.0, location.getAccuracy()); // Minimum 30m buffer around box
+                    // 3. Bounding box range check with 20m tolerance buffer
+                    double bufferMeters = 20.0; // 20m tolerance buffer
                     double latBuffer = bufferMeters / 111111.0;
                     double lngBuffer = bufferMeters / (111111.0 * Math.cos(Math.toRadians(liveLat)));
 

@@ -1,0 +1,522 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/blueprint_skeleton"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F4FAFC"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="visible">
+
+    <!-- 1. Top Navigation Bar (Executive Sleek Theme) -->
+    <RelativeLayout
+        android:id="@+id/top_nav_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/btn_blueprint_top_back"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_baseline_arrow_back_24"
+            app:tint="#03045E" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="7dp"
+                android:layout_height="7dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/online_indicator" />
+
+            <TextView
+                android:id="@+id/tv_top_nav_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.08"
+                android:text="REFINING COORDINATES"
+                android:textColor="#03045E"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_blueprint_top_menu"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="2dp"
+            android:src="@drawable/ic_baseline_more_vert_24"
+            app:tint="#03045E" />
+    </RelativeLayout>
+
+    <!-- Scrollable Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottom_actions_container"
+        android:layout_below="@id/top_nav_bar"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp">
+
+            <!-- ULTRA-PREMIUM LIGHT BLUE GRADIENT CONTAINER CARD -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="10dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_premium_light_blue_card"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- Profile Avatar Container with Ambient Cyan Glow -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_blueprint_emp_avatar"
+                        android:layout_width="128dp"
+                        android:layout_height="128dp"
+                        android:layout_marginBottom="12dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardCornerRadius="64dp"
+                        app:cardElevation="8dp"
+                        app:strokeColor="#0EA5E9"
+                        app:strokeWidth="3.5dp">
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="3dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                app:cardBackgroundColor="#E0F2FE"
+                                app:cardCornerRadius="60dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
+
+                                <FrameLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent">
+
+                                    <ImageView
+                                        android:id="@+id/img_blueprint_emp_avatar_fallback"
+                                        android:layout_width="56dp"
+                                        android:layout_height="56dp"
+                                        android:layout_gravity="center"
+                                        android:src="@drawable/ic_baseline_person_24"
+                                        app:tint="#03045E" />
+
+                                    <ImageView
+                                        android:id="@+id/img_blueprint_emp_photo"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:scaleType="centerCrop"
+                                        android:visibility="gone" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+                        </FrameLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Worker Name -->
+                    <TextView
+                        android:id="@+id/tv_blueprint_emp_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-black"
+                        android:letterSpacing="-0.01"
+                        android:text="Worker Profile"
+                        android:textAlignment="center"
+                        android:textColor="#03045E"
+                        android:textSize="23sp" />
+
+                    <!-- Worker Subtitle Pill Chip -->
+                    <TextView
+                        android:id="@+id/tv_blueprint_emp_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_chip"
+                        android:fontFamily="sans-serif-bold"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="5dp"
+                        android:text="Worker ID: #--"
+                        android:textColor="#0077B6"
+                        android:textSize="12sp" />
+
+                    <!-- Verification Progress / Green Checkmark Badge Container -->
+                    <RelativeLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp">
+
+                        <!-- Animated Dashed Ring Progress -->
+                        <FrameLayout
+                            android:id="@+id/verify_progress"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:layout_centerInParent="true"
+                            android:background="@drawable/bg_dashed_ring">
+
+                            <ImageView
+                                android:id="@+id/construction_icon"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="Loading"
+                                android:src="@drawable/ic_construction_loading" />
+                        </FrameLayout>
+
+                        <!-- Green Success Checkmark Badge (Hidden during loading, shown on success) -->
+                        <FrameLayout
+                            android:id="@+id/verify_status_icon_badge"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:layout_centerInParent="true"
+                            android:background="@drawable/bg_premium_success_badge"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:id="@+id/verify_status_icon"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_baseline_check_24"
+                                app:tint="#16A34A" />
+                        </FrameLayout>
+                    </RelativeLayout>
+
+                    <TextView
+                        android:id="@+id/blueprint_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginBottom="16dp"
+                        android:fontFamily="sans-serif-black"
+                        android:letterSpacing="0.08"
+                        android:text="REFINING GPS COORDINATES..."
+                        android:textAlignment="center"
+                        android:textColor="#0077B6"
+                        android:textSize="13sp" />
+
+                    <!-- Hidden legacy compatibility view -->
+                    <TextView
+                        android:id="@+id/blueprint_selected_location"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_top_blueprint_header"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                    <!-- HIGH-SEGMENT GLASSIUM BLUE LITE CARDS BLOCK -->
+                    
+                    <!-- Row 1: WORKER ID & HIGHLIGHTED PROJECT LOCATION CARD -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:orientation="horizontal">
+
+                        <!-- WORKER ID CARD (Glassmorphism Blue Lite) -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="5dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_premium_glassium_card"
+                            android:elevation="3dp"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-bold"
+                                android:letterSpacing="0.06"
+                                android:text="WORKER ID"
+                                android:textColor="#0077B6"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:id="@+id/tv_card_worker_id"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
+                                android:fontFamily="sans-serif-black"
+                                android:maxLines="1"
+                                android:text="#--"
+                                android:textColor="#03045E"
+                                android:textSize="18sp" />
+                        </LinearLayout>
+
+                        <!-- HIGHLIGHTED PROJECT LOCATION CARD (Glassmorphism Cyan Glow) -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="5dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_premium_highlight_card"
+                            android:elevation="4dp"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="12dp"
+                                    android:layout_height="12dp"
+                                    android:layout_marginEnd="4dp"
+                                    android:src="@drawable/ic_location_pin_blue"
+                                    app:tint="#0077B6" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="sans-serif-bold"
+                                    android:letterSpacing="0.06"
+                                    android:text="PROJECT LOCATION"
+                                    android:textColor="#0077B6"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tv_blueprint_project_location"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
+                                android:fontFamily="sans-serif-black"
+                                android:maxLines="1"
+                                android:text="Verified Site"
+                                android:textColor="#03045E"
+                                android:textSize="18sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Row 2: GPS ACCURACY CARD (Glassmorphism Blue Lite) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:background="@drawable/bg_premium_glassium_card"
+                        android:elevation="3dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
+
+                        <ImageView
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="12dp"
+                            android:src="@drawable/bg_map_preview_graphic" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_accuracy_badge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-black"
+                                android:letterSpacing="0.04"
+                                android:text="GPS ACCURACY: --"
+                                android:textColor="#16A34A"
+                                android:textSize="13sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:fontFamily="sans-serif-bold"
+                                android:letterSpacing="0.08"
+                                android:text="COORDINATES LOCKED"
+                                android:textColor="#0077B6"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Row 3: TIME STAMP CARD (Glassmorphism Blue Lite) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_premium_glassium_card"
+                        android:elevation="3dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_marginEnd="10dp"
+                            android:src="@drawable/ic_baseline_calendar_today_24"
+                            app:tint="#0077B6" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-bold"
+                                android:letterSpacing="0.08"
+                                android:text="TIME STAMP:"
+                                android:textColor="#0077B6"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:id="@+id/tv_blueprint_datetime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:fontFamily="sans-serif-black"
+                                android:text="--:-- --"
+                                android:textColor="#03045E"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Actions Container -->
+    <FrameLayout
+        android:id="@+id/bottom_actions_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:padding="16dp">
+
+        <!-- Success Actions -->
+        <LinearLayout
+            android:id="@+id/container_blueprint_success"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_blueprint_proceed"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.05"
+                android:text="PROCEED WITH CAPTURE"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                app:backgroundTint="#03045E"
+                app:cornerRadius="28dp"
+                app:elevation="8dp"
+                app:icon="@drawable/ic_baseline_camera_alt_24"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp"
+                app:iconTint="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Failure Actions -->
+        <LinearLayout
+            android:id="@+id/container_blueprint_failure"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_blueprint_retry"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="sans-serif-bold"
+                android:text="RETRY VERIFICATION"
+                android:textColor="#FFFFFF"
+                app:backgroundTint="#EF4444"
+                app:cornerRadius="26dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_blueprint_reselect"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:text="CHANGE SITE"
+                    android:textColor="#0077B6"
+                    app:cornerRadius="23dp"
+                    app:strokeColor="#0077B6" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_blueprint_leave"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:text="EXIT"
+                    android:textColor="#64748B"
+                    app:cornerRadius="23dp"
+                    app:strokeColor="#CBD5E1" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </FrameLayout>
+
+</RelativeLayout>

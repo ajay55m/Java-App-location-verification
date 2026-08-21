@@ -5,149 +5,194 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
+    android:padding="16dp"
     android:background="#F4FAFC"
-    android:gravity="center"
     android:visibility="visible">
 
-    <!-- Integrated Loading/Animation View -->
-    <RelativeLayout
-        android:layout_width="wrap_content"
+    <!-- General Page Preloader Header Card (User Info, Date & Time, Location) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_top_blueprint_header"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp">
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:strokeColor="#E2E8F0"
+        app:strokeWidth="1dp">
 
-        <FrameLayout
-            android:id="@+id/verify_progress"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_centerInParent="true"
-            android:background="@drawable/bg_dashed_ring">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <!-- Top Row: User Name & Time Date -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/ic_baseline_person_24"
+                        app:tint="#03045E" />
+
+                    <TextView
+                        android:id="@+id/tv_blueprint_emp_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-black"
+                        android:maxLines="1"
+                        android:text="4S-Contracting"
+                        android:textColor="#03045E"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="15dp"
+                        android:layout_height="15dp"
+                        android:layout_marginEnd="4dp"
+                        android:src="@drawable/ic_baseline_calendar_today_24"
+                        app:tint="#0077B6" />
+
+                    <TextView
+                        android:id="@+id/tv_blueprint_datetime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Live Date &amp; Time"
+                        android:textColor="#0077B6"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp"
+                android:background="#E2E8F0" />
+
+            <!-- Location Row: Project Location -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="6dp"
+                    android:src="@drawable/ic_location_pin_blue"
+                    app:tint="#0077B6" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-bold"
+                    android:letterSpacing="0.04"
+                    android:text="LOCATION: "
+                    android:textColor="#64748B"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/tv_blueprint_project_location"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-black"
+                    android:maxLines="1"
+                    android:text="Project Workspace"
+                    android:textColor="#03045E"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Center Content: General Construction Preloader -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp">
+
+            <FrameLayout
+                android:id="@+id/verify_progress"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_centerInParent="true"
+                android:background="@drawable/bg_dashed_ring">
+
+                <ImageView
+                    android:id="@+id/construction_icon"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_construction_loading"
+                    android:contentDescription="Loading" />
+            </FrameLayout>
 
             <ImageView
-                android:id="@+id/construction_icon"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_construction_loading"
-                android:contentDescription="Loading" />
-        </FrameLayout>
+                android:id="@+id/verify_status_icon"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_centerInParent="true"
+                android:visibility="gone" />
+        </RelativeLayout>
 
-        <ImageView
-            android:id="@+id/verify_status_icon"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:layout_centerInParent="true"
+        <TextView
+            android:id="@+id/blueprint_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="DRAFTING BLUEPRINT..."
+            android:letterSpacing="0.2"
+            android:textColor="#0077B6"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-black"
+            android:layout_marginBottom="16dp"
+            android:textAlignment="center"/>
+
+        <!-- Compatibility Views -->
+        <TextView
+            android:id="@+id/blueprint_selected_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:visibility="gone" />
 
-    </RelativeLayout>
+        <TextView
+            android:id="@+id/tv_accuracy_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
-    <TextView
-        android:id="@+id/blueprint_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="DRAFTING COORDINATES..."
-        android:letterSpacing="0.2"
-        android:textColor="#0077B6"
-        android:textSize="14sp"
-        android:fontFamily="sans-serif-black"
-        android:layout_marginBottom="16dp"
-        android:textAlignment="center"/>
-
-    <!-- Selected Location Info -->
-    <TextView
-        android:id="@+id/blueprint_selected_location"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text=""
-        android:textColor="#03045E"
-        android:textSize="14sp"
-        android:fontFamily="sans-serif-medium"
-        android:layout_marginBottom="16dp"
-        android:textAlignment="center"
-        android:visibility="gone" />
-
-
-    <!-- Accuracy Pill Badge -->
-    <TextView
-        android:id="@+id/tv_accuracy_badge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:background="@drawable/bg_chip"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp"
-        android:text="GPS ACCURACY: Checking..."
-        android:textColor="#0077B6"
-        android:textSize="11sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="24dp"
-        android:visibility="gone" />
-
-    <!-- Success Actions Container -->
-    <LinearLayout
-        android:id="@+id/container_blueprint_success"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_blueprint_proceed"
-            android:layout_width="match_parent"
-            android:layout_height="55dp"
-            android:text="Proceed to Capture"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            app:backgroundTint="#03045E"
-            app:cornerRadius="12dp" />
-    </LinearLayout>
-
-    <!-- Failure Actions Container -->
-    <LinearLayout
-        android:id="@+id/container_blueprint_failure"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_blueprint_retry"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:text="Try Again"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            app:backgroundTint="@null"
-            android:background="@drawable/btn_premium_gradient"
-            android:layout_marginBottom="8dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_blueprint_reselect"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:text="Location Verification"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="#0077B6"
-            app:strokeColor="#0077B6"
-            app:strokeWidth="1.5dp"
-            app:backgroundTint="@android:color/transparent"
-            app:cornerRadius="12dp"
-            android:layout_marginBottom="8dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_blueprint_leave"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:text="Request Leave"
-            android:textSize="14sp"
-            android:textColor="#475569"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
     </LinearLayout>
 
 </LinearLayout>

@@ -35,8 +35,6 @@ import com.app.fourscontracting.data.AttendanceFeedAdapter;
 import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
-import com.app.fourscontracting.data.MoveFeedAdapter;
-import com.app.fourscontracting.data.MoveRecordModel;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -44,7 +42,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class ManageAttendanceFragment extends Fragment
-        implements AttendanceFeedAdapter.Listener, MoveFeedAdapter.Listener {
+        implements AttendanceFeedAdapter.Listener {
 
     private UserLocalStore userLocalStore;
     private final ManageAttendanceApi api = new ManageAttendanceApi();
@@ -53,8 +51,6 @@ public class ManageAttendanceFragment extends Fragment
     private Spinner spinnerDay;
     private Spinner spinnerMonth;
     private Spinner spinnerYear;
-    private Button btnTabAttendance;
-    private Button btnTabMove;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private LinearLayout llEmptyState;
@@ -62,21 +58,18 @@ public class ManageAttendanceFragment extends Fragment
     private ProgressBar progressBar;
 
     private AttendanceFeedAdapter attendanceAdapter;
-    private MoveFeedAdapter moveAdapter;
 
     private String uid = "";
     private String selectedProjectId = "all";
     private String selDay = "";
     private String selMonth = "";
     private String selYear = "";
-    private boolean isAttendanceTab = true;
     private boolean projectSpinnerInitialized = false;
     private boolean isInitializingDateSpinners = true;
     private boolean isUpdatingProjects = false;
 
     private final List<AllocatedProjectModel> allocatedProjects = new ArrayList<>();
     private final List<AttendanceRecordModel> currentAttendanceList = new ArrayList<>();
-    private final List<MoveRecordModel> currentMoveList = new ArrayList<>();
 
     @Nullable
     @Override
@@ -99,10 +92,8 @@ public class ManageAttendanceFragment extends Fragment
 
         initViews(view);
         setupDateSpinners();
-        setupTabButtons();
 
         attendanceAdapter = new AttendanceFeedAdapter(this);
-        moveAdapter = new MoveFeedAdapter(this);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
         recyclerView.setAdapter(attendanceAdapter);
@@ -117,6 +108,7 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     private void initViews(View view) {
+        if (view == null) return;
         ImageView imgBack = view.findViewById(R.id.img_back_button);
         TextView tvTitle = view.findViewById(R.id.tv_header_title);
         ImageView btnRefresh = view.findViewById(R.id.btn_refresh_feed);
@@ -128,15 +120,15 @@ public class ManageAttendanceFragment extends Fragment
             tvTitle.setVisibility(View.GONE);
         }
         if (btnRefresh != null) {
-            btnRefresh.setOnClickListener(v -> loadData());
+            btnRefresh.setOnClickListener(v -> {
+                if (isAdded()) loadData();
+            });
         }
 
         spinnerProjects = view.findViewById(R.id.spinner_projects);
         spinnerDay = view.findViewById(R.id.spinner_day);
         spinnerMonth = view.findViewById(R.id.spinner_month);
         spinnerYear = view.findViewById(R.id.spinner_year);
-        btnTabAttendance = view.findViewById(R.id.btn_tab_attendance);
-        btnTabMove = view.findViewById(R.id.btn_tab_move);
         swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
         recyclerView = view.findViewById(R.id.rv_manage_attendance);
         llEmptyState = view.findViewById(R.id.ll_empty_state);
@@ -213,47 +205,21 @@ public class ManageAttendanceFragment extends Fragment
         spinnerMonth.setOnItemSelectedListener(dateChangeListener);
         spinnerYear.setOnItemSelectedListener(dateChangeListener);
 
-        isInitializingDateSpinners = false;
-    }
-
-    private void setupTabButtons() {
-        if (btnTabAttendance != null) {
-            btnTabAttendance.setOnClickListener(v -> switchTab(true));
+        if (getView() != null) {
+            getView().post(() -> isInitializingDateSpinners = false);
+        } else {
+            isInitializingDateSpinners = false;
         }
-        if (btnTabMove != null) {
-            btnTabMove.setOnClickListener(v -> switchTab(false));
-        }
-    }
-
-    private void switchTab(boolean isAttendance) {
-        this.isAttendanceTab = isAttendance;
-        if (btnTabAttendance != null && btnTabMove != null) {
-            if (isAttendance) {
-                btnTabAttendance.setBackgroundResource(R.drawable.bg_tab_btn_selected);
-                btnTabAttendance.setTextColor(0xFF0095FF);
-                btnTabMove.setBackgroundResource(R.drawable.bg_tab_btn_unselected);
-                btnTabMove.setTextColor(0xFF8A8F9E);
-
-                if (recyclerView != null) {
-                    recyclerView.setAdapter(attendanceAdapter);
-                }
-            } else {
-                btnTabMove.setBackgroundResource(R.drawable.bg_tab_btn_selected);
-                btnTabMove.setTextColor(0xFF0095FF);
-                btnTabAttendance.setBackgroundResource(R.drawable.bg_tab_btn_unselected);
-                btnTabAttendance.setTextColor(0xFF8A8F9E);
-
-                if (recyclerView != null) {
-                    recyclerView.setAdapter(moveAdapter);
-                }
-            }
-        }
-        updateEmptyStateView();
     }
 
     private void loadData() {
         Context context = getContext();
         if (context == null || !isAdded()) return;
+
+        if (TextUtils.isEmpty(uid)) {
+            if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+            return;
+        }
 
         if (progressBar != null && swipeRefreshLayout != null && !swipeRefreshLayout.isRefreshing()) {
             progressBar.setVisibility(View.VISIBLE);
@@ -264,7 +230,7 @@ public class ManageAttendanceFragment extends Fragment
             public void onSuccess(String userName,
                                   List<AllocatedProjectModel> projects,
                                   List<AttendanceRecordModel> attendanceRecords,
-                                  List<MoveRecordModel> moveRecords) {
+                                  List<com.app.fourscontracting.data.MoveRecordModel> moveRecords) {
                 if (!isAdded() || getContext() == null) return;
 
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
@@ -282,14 +248,6 @@ public class ManageAttendanceFragment extends Fragment
                     attendanceAdapter.setItems(currentAttendanceList);
                 }
 
-                currentMoveList.clear();
-                if (moveRecords != null) {
-                    currentMoveList.addAll(moveRecords);
-                }
-                if (moveAdapter != null) {
-                    moveAdapter.setItems(currentMoveList);
-                }
-
                 updateEmptyStateView();
             }
 
@@ -298,7 +256,9 @@ public class ManageAttendanceFragment extends Fragment
                 if (!isAdded() || getContext() == null) return;
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
                 if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
-                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                if (message != null) {
+                    Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                }
                 updateEmptyStateView();
             }
         });
@@ -325,8 +285,10 @@ public class ManageAttendanceFragment extends Fragment
                 if (isUpdatingProjects) return;
                 if (position >= 0 && position < allocatedProjects.size()) {
                     AllocatedProjectModel selected = allocatedProjects.get(position);
-                    selectedProjectId = selected.getId();
-                    loadData();
+                    if (selected != null && !selectedProjectId.equals(selected.getId())) {
+                        selectedProjectId = selected.getId();
+                        loadData();
+                    }
                 }
             }
 
@@ -347,20 +309,11 @@ public class ManageAttendanceFragment extends Fragment
             return;
         }
 
-        if (isAttendanceTab) {
-            if (currentAttendanceList.isEmpty()) {
-                llEmptyState.setVisibility(View.VISIBLE);
-                tvEmptyMessage.setText("No attendance found for " + selDay + "/" + selMonth + "/" + selYear);
-            } else {
-                llEmptyState.setVisibility(View.GONE);
-            }
+        if (currentAttendanceList.isEmpty()) {
+            llEmptyState.setVisibility(View.VISIBLE);
+            tvEmptyMessage.setText("No attendance found for " + selDay + "/" + selMonth + "/" + selYear);
         } else {
-            if (currentMoveList.isEmpty()) {
-                llEmptyState.setVisibility(View.VISIBLE);
-                tvEmptyMessage.setText("No site movements found for " + selDay + "/" + selMonth + "/" + selYear);
-            } else {
-                llEmptyState.setVisibility(View.GONE);
-            }
+            llEmptyState.setVisibility(View.GONE);
         }
     }
 
@@ -376,7 +329,7 @@ public class ManageAttendanceFragment extends Fragment
 
     private void showBreakModal(AttendanceRecordModel record) {
         Context context = getContext();
-        if (context == null || record == null) return;
+        if (context == null || record == null || !isAdded()) return;
 
         Dialog dialog = new Dialog(context);
         dialog.setContentView(R.layout.dialog_break_status);
@@ -399,9 +352,13 @@ public class ManageAttendanceFragment extends Fragment
 
         if (btnSave != null && cbBreak != null) {
             btnSave.setOnClickListener(v -> {
+                if (!isAdded() || getContext() == null) {
+                    dialog.dismiss();
+                    return;
+                }
                 boolean isChecked = cbBreak.isChecked();
                 btnSave.setEnabled(false);
-                api.updateBreakStatus(context, record.getAttendId(), isChecked, new ManageAttendanceApi.BreakUpdateCallback() {
+                api.updateBreakStatus(getContext(), record.getAttendId(), isChecked, new ManageAttendanceApi.BreakUpdateCallback() {
                     @Override
                     public void onSuccess(String attendId, double updatedBreakHours) {
                         if (!isAdded() || getContext() == null) return;
@@ -418,7 +375,9 @@ public class ManageAttendanceFragment extends Fragment
                     public void onError(String message) {
                         if (!isAdded() || getContext() == null) return;
                         btnSave.setEnabled(true);
-                        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                        if (message != null) {
+                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
             });

@@ -195,10 +195,8 @@ public class WebviewActivity extends AppActivity {
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
             // Clear footer highlight when on sidebar-only Move Site or Manage Attendance
             if ((destination.getId() == R.id.nav_move_site || destination.getId() == R.id.nav_manage_attendance) && bottom_nav_view != null) {
-                bottom_nav_view.getMenu().setGroupCheckable(0, true, false);
-                for (int i = 0; i < bottom_nav_view.getMenu().size(); i++) {
-                    bottom_nav_view.getMenu().getItem(i).setChecked(false);
-                }
+                bottom_nav_view.getMenu().setGroupCheckable(0, false, true);
+            } else if (bottom_nav_view != null) {
                 bottom_nav_view.getMenu().setGroupCheckable(0, true, true);
             }
 
@@ -270,20 +268,12 @@ public class WebviewActivity extends AppActivity {
             java.util.List<androidx.fragment.app.Fragment> fragments = navHostFragment.getChildFragmentManager().getFragments();
             for (androidx.fragment.app.Fragment fragment : fragments) {
                 if (fragment != null && fragment.isVisible()) {
-                    if (fragment instanceof SettingFragment) {
-                        // Native SettingFragment (no webview history)
-                    } else if (fragment instanceof com.app.fourscontracting.ui.home.HomeFragment) {
-                        com.app.fourscontracting.ui.home.HomeFragment homeFragment = (com.app.fourscontracting.ui.home.HomeFragment) fragment;
-                        if (homeFragment.mWebView != null && homeFragment.mWebView.canGoBack()) {
-                            homeFragment.mWebView.goBack();
-                            return;
-                        }
-                    } else if (fragment instanceof com.app.fourscontracting.ui.slideshow.SlideshowFragment) {
-                        com.app.fourscontracting.ui.slideshow.SlideshowFragment slideshowFragment = (com.app.fourscontracting.ui.slideshow.SlideshowFragment) fragment;
-                        if (slideshowFragment.mWebView != null && slideshowFragment.mWebView.canGoBack()) {
-                            slideshowFragment.mWebView.goBack();
-                            return;
-                        }
+                    if (fragment instanceof SettingFragment || 
+                        fragment instanceof com.app.fourscontracting.ui.move.MoveSiteFragment ||
+                        fragment instanceof com.app.fourscontracting.ui.attendance.ManageAttendanceFragment ||
+                        fragment instanceof com.app.fourscontracting.ui.home.HomeFragment ||
+                        fragment instanceof com.app.fourscontracting.ui.slideshow.SlideshowFragment) {
+                        // Native Fragments (no webview history)
                     }
                 }
             }
@@ -450,11 +440,9 @@ public class WebviewActivity extends AppActivity {
                     } else if (fragment instanceof com.app.fourscontracting.ui.attendance.ManageAttendanceFragment) {
                         ((com.app.fourscontracting.ui.attendance.ManageAttendanceFragment) fragment).refreshList();
                     } else if (fragment instanceof com.app.fourscontracting.ui.home.HomeFragment) {
-                        com.app.fourscontracting.ui.home.HomeFragment f = (com.app.fourscontracting.ui.home.HomeFragment) fragment;
-                        if (f.mWebView != null) f.mWebView.reload();
+                        ((com.app.fourscontracting.ui.home.HomeFragment) fragment).refreshData();
                     } else if (fragment instanceof com.app.fourscontracting.ui.slideshow.SlideshowFragment) {
-                        com.app.fourscontracting.ui.slideshow.SlideshowFragment f = (com.app.fourscontracting.ui.slideshow.SlideshowFragment) fragment;
-                        if (f.mWebView != null) f.mWebView.reload();
+                        ((com.app.fourscontracting.ui.slideshow.SlideshowFragment) fragment).refreshData();
                     }
                 }
             }
@@ -475,7 +463,7 @@ public class WebviewActivity extends AppActivity {
         final String val = user.username != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
 
-        if (val_list.length >= 4) {
+        if (val_list.length >= 4 && val_list[3] != null && !val_list[3].isEmpty()) {
             String[] project_list = val_list[3].split(",");
             spinner = findViewById(R.id.spinner);
             if (spinner != null) {
@@ -486,16 +474,18 @@ public class WebviewActivity extends AppActivity {
                 spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                        if (view != null) {
+                        if (view != null && view instanceof TextView) {
                             ((TextView) view).setTextColor(Color.WHITE);
                         }
-                        String value = parent.getItemAtPosition(position).toString();
-                        Toast.makeText(WebviewActivity.this, value, Toast.LENGTH_SHORT).show();
-                        UserProject user = new UserProject(value);
-                        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-                        SharedPreferences.Editor editor = settings.edit();
-                        editor.putString("projectname", value);
-                        userLocalStore.storeUserProjectData(user);
+                        if (parent != null && parent.getItemAtPosition(position) != null) {
+                            String value = parent.getItemAtPosition(position).toString();
+                            Toast.makeText(WebviewActivity.this, value, Toast.LENGTH_SHORT).show();
+                            UserProject user = new UserProject(value);
+                            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                            SharedPreferences.Editor editor = settings.edit();
+                            editor.putString("projectname", value);
+                            userLocalStore.storeUserProjectData(user);
+                        }
                     }
 
                     @Override
@@ -518,7 +508,7 @@ public class WebviewActivity extends AppActivity {
 
         String getProjectsUrl = "https://4scontracting.com/SMCS_APP/fcm_app/getprojects.php?uid=" + uid;
 
-        JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.POST, getProjectsUrl, null,
+        JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.GET, getProjectsUrl, null,
             response -> {
                 try {
                     String status = response.optString("status", "");

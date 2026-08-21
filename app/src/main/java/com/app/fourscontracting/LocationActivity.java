@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
@@ -230,6 +231,22 @@ public class LocationActivity extends AppActivity implements LocationListener {
         } else {
             savebtnTextSetter.setText("SUBMIT CHECK-IN");
             savebtnTextSetter.setBackgroundColor(Color.parseColor("#0EA5E9"));
+        }
+
+        TextView tvHeaderStatusBadge = findViewById(R.id.tv_header_status_badge);
+        if (tvHeaderStatusBadge != null) {
+            if ("OUT".equals(attendanceType)) {
+                tvHeaderStatusBadge.setText("OUT");
+                tvHeaderStatusBadge.setBackgroundResource(R.drawable.bg_luxury_status_out_badge);
+            } else {
+                tvHeaderStatusBadge.setText("IN");
+                tvHeaderStatusBadge.setBackgroundResource(R.drawable.bg_luxury_status_in_badge);
+            }
+        }
+
+        TextView tvStoryEmpId = findViewById(R.id.tv_story_emp_id);
+        if (tvStoryEmpId != null && employeeId != null && !employeeId.isEmpty()) {
+            tvStoryEmpId.setText("ID: #" + employeeId);
         }
 
         TextView txtStatusLabel = findViewById(R.id.txtStatusLabel);
@@ -494,6 +511,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
     }
 
     // Method to get the current location
+    @SuppressLint("MissingPermission")
     private String getCurrentLocation() {
         if (!AppPermissions.hasLocation(this)) {
             return null;
@@ -608,6 +626,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
         Toast.makeText(LocationActivity.this, "Time is locked to the present live time.", Toast.LENGTH_SHORT).show();
     }
 
+    @SuppressLint("MissingPermission")
     public void getLocation() {
         try {
             LocationManager locationManager2 = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);

@@ -54,7 +54,7 @@ public class CookieHurlStack extends HurlStack {
         String bypass = (saved != null && !saved.isEmpty()) ? saved : DEFAULT_BYPASS_COOKIE;
 
         String wvCookie = cachedWvCookie;
-        if (wvCookie == null) {
+        if (wvCookie == null && android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
             try {
                 wvCookie = android.webkit.CookieManager.getInstance().getCookie(ApiConfig.HOST);
                 if (wvCookie != null && !wvCookie.isEmpty()) {

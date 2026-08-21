@@ -5,11 +5,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
+    android:isScrollContainer="true"
+    android:scrollbars="vertical"
     android:background="#FFFFFF">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:background="#FFFFFF">
 
         <!-- No Internet Bar Section -->
@@ -35,7 +37,6 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 app:srcCompat="@drawable/ic_warning_red"
-                android:tint="#FFFFFF"
                 app:tint="#FFFFFF"
                 android:background="@android:color/transparent" />
 
@@ -68,19 +69,18 @@
                 style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
         </LinearLayout>
 
-        <!-- Top Background Image -->
+        <!-- Top Background Construction Graphic (Lower starting position) -->
         <ImageView
             android:id="@+id/backgroundImg"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:layout_constraintDimensionRatio="4:3"
+            android:layout_height="320dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             android:scaleType="centerCrop"
             android:src="@drawable/pexels_user_30223853" />
 
-        <!-- Optional subtle gradient to fade image at bottom -->
+        <!-- Overlay gradient for subtle image depth -->
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
@@ -88,17 +88,11 @@
             app:layout_constraintBottom_toBottomOf="@+id/backgroundImg"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:background="#20000000" />
+            android:background="#15000000" />
 
-        <Space
-            android:id="@+id/overlap_space"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            app:layout_constraintBottom_toBottomOf="@+id/backgroundImg"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <!-- White filler for the bottom -->
+        <!-- White Background Filler below Image to guarantee 100% white screen -->
         <View
+            android:id="@+id/white_bottom_bg"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="#FFFFFF"
@@ -107,7 +101,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- White Card -->
+        <Space
+            android:id="@+id/overlap_space"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            app:layout_constraintBottom_toBottomOf="@+id/backgroundImg"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Pure White Rounded Login Card (positioned lower, scrolls smoothly with soft keyboard) -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardView"
             android:layout_width="0dp"
@@ -117,12 +118,10 @@
             app:layout_constraintVertical_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:cardBackgroundColor="#F2FFFFFF"
-            app:cardElevation="32dp"
-            app:strokeColor="#80FFFFFF"
-            app:strokeWidth="1.5dp"
-            android:outlineSpotShadowColor="#0EA5E9"
-            android:outlineAmbientShadowColor="#0EA5E9"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardElevation="16dp"
+            app:strokeWidth="0dp"
+            app:cardCornerRadius="28dp"
             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Corner.Top">
 
             <LinearLayout
@@ -130,34 +129,34 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="32dp"
-                android:paddingEnd="32dp"
-                android:paddingTop="24dp"
-                android:paddingBottom="24dp">
+                android:paddingStart="28dp"
+                android:paddingEnd="28dp"
+                android:paddingTop="28dp"
+                android:paddingBottom="36dp"
+                android:background="#FFFFFF">
 
-                <!-- Logo Section -->
+                <!-- Splash Brand Logo (logo_4s_full) -->
                 <ImageView
                     android:id="@+id/imageView"
-                    android:layout_width="190dp"
+                    android:layout_width="220dp"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="4dp"
                     android:layout_marginBottom="16dp"
                     android:adjustViewBounds="true"
                     android:scaleType="fitCenter"
-                    app:srcCompat="@drawable/logo_4s_new" />
+                    android:src="@drawable/logo_4s_full" />
 
                 <TextView
                     android:id="@+id/textView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="20dp"
+                    android:layout_marginBottom="24dp"
                     android:text="Subcontractor Login"
-                    android:textColor="#0F172A"
-                    android:textSize="26sp"
-                    android:textStyle="bold"
+                    android:textColor="#03045E"
+                    android:textSize="24sp"
                     android:gravity="center"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="sans-serif-black"
                     android:letterSpacing="-0.02" />
 
                 <!-- Input Fields Container -->
@@ -173,14 +172,14 @@
                         android:layout_marginBottom="16dp"
                         android:background="@drawable/edit_text_minimalist"
                         android:drawableStart="@drawable/ic_baseline_email_24"
-                        android:drawablePadding="16dp"
-                        android:drawableTint="#94A3B8"
+                        android:drawablePadding="14dp"
+                        android:drawableTint="#0077B6"
                         android:hint="Email or Username"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp"
-                        android:textColor="#0F172A"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp"
+                        android:textColor="#03045E"
                         android:textColorHint="#94A3B8"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <EditText
                         android:id="@+id/password"
@@ -189,37 +188,47 @@
                         android:layout_marginBottom="24dp"
                         android:background="@drawable/edit_text_minimalist"
                         android:drawableStart="@drawable/ic_baseline_lock_24"
-                        android:drawablePadding="16dp"
-                        android:drawableTint="#94A3B8"
+                        android:drawablePadding="14dp"
+                        android:drawableTint="#0077B6"
                         android:hint="Password"
                         android:inputType="textPassword"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp"
-                        android:textColor="#0F172A"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp"
+                        android:textColor="#03045E"
                         android:textColorHint="#94A3B8"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                 </LinearLayout>
 
-                <!-- Login Button -->
+                <!-- Login Action Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/loginbtn"
                     android:layout_width="match_parent"
-                    android:layout_height="60dp"
-                    android:layout_marginBottom="8dp"
-                    app:backgroundTint="@null"
-                    android:background="@drawable/btn_premium_gradient"
+                    android:layout_height="56dp"
+                    android:layout_marginBottom="24dp"
+                    app:backgroundTint="#03045E"
                     android:text="Sign In"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
-                    android:letterSpacing="0.025"
-                    app:elevation="8dp" />
+                    android:letterSpacing="0.03"
+                    app:cornerRadius="16dp"
+                    app:elevation="4dp" />
+
+                <!-- Bottom Tagline Footer -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="4S-CONTRACTING • SUBCONTRACTOR PORTAL"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:letterSpacing="0.08" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

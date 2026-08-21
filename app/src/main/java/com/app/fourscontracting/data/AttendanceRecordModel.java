@@ -64,10 +64,16 @@ public class AttendanceRecordModel {
     }
 
     public String getInPhotoUrl() {
+        if ((inPhotoUrl == null || inPhotoUrl.trim().isEmpty()) && hasIn && !attendId.isEmpty()) {
+            return "view_attendance_img.php?attendance_id=" + attendId + "&type=in";
+        }
         return inPhotoUrl;
     }
 
     public String getOutPhotoUrl() {
+        if ((outPhotoUrl == null || outPhotoUrl.trim().isEmpty()) && hasOut && !attendId.isEmpty()) {
+            return "view_attendance_img.php?attendance_id=" + attendId + "&type=out";
+        }
         return outPhotoUrl;
     }
 

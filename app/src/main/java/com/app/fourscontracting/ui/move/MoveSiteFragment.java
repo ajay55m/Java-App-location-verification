@@ -302,6 +302,8 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
 
         Intent intent = new Intent(requireActivity(), LocationVerifyActivity.class);
         intent.putExtra("empid", employee.id);
+        intent.putExtra("emp_name", employee.firstName);
+        intent.putExtra("photo_url", employee.photoUrl);
         intent.putExtra("uid", managerUid);
         intent.putExtra("projname", projName != null ? projName : "");
         intent.putExtra("selected_project_id", projectId != null ? projectId : "");

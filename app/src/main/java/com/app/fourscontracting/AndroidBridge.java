@@ -39,6 +39,11 @@ public class AndroidBridge {
 
     @JavascriptInterface
     public void performClick(final String id, final String type, final String locId) {
+        performClick(id, type, locId, "");
+    }
+
+    @JavascriptInterface
+    public void performClick(final String id, final String type, final String locId, final String empName) {
         if (activity == null || activity.isFinishing()) {
             return;
         }
@@ -96,6 +101,9 @@ public class AndroidBridge {
             activity.runOnUiThread(() -> {
                 Intent intent = new Intent(activity, LocationVerifyActivity.class);
                 intent.putExtra("empid", empId);
+                if (empName != null && !empName.isEmpty()) {
+                    intent.putExtra("emp_name", empName);
+                }
                 intent.putExtra("type", action);
                 intent.putExtra("uid", uid);
                 intent.putExtra("projname", finalProjName);
@@ -138,6 +146,9 @@ public class AndroidBridge {
             activity.runOnUiThread(() -> {
                 Intent intent = new Intent(activity, LocationVerifyActivity.class);
                 intent.putExtra("empid", empId);
+                if (empName != null && !empName.isEmpty()) {
+                    intent.putExtra("emp_name", empName);
+                }
                 intent.putExtra("type", "MOVE");
                 intent.putExtra("uid", uid);
                 intent.putExtra("is_movement", true);

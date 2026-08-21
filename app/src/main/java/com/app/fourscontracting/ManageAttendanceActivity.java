@@ -53,6 +53,10 @@ public class ManageAttendanceActivity extends AppActivity
     private TextView tvEmptyMessage;
     private ProgressBar progressBar;
 
+    private TextView tvStatTotal;
+    private TextView tvStatActive;
+    private TextView tvStatCompleted;
+
     private AttendanceFeedAdapter attendanceAdapter;
     private MoveFeedAdapter moveAdapter;
 
@@ -125,6 +129,9 @@ public class ManageAttendanceActivity extends AppActivity
         llEmptyState = findViewById(R.id.ll_empty_state);
         tvEmptyMessage = findViewById(R.id.tv_empty_message);
         progressBar = findViewById(R.id.progress_manage_attendance);
+        tvStatTotal = findViewById(R.id.tv_stat_total);
+        tvStatActive = findViewById(R.id.tv_stat_active);
+        tvStatCompleted = findViewById(R.id.tv_stat_completed);
     }
 
     private void setupDateSpinners() {
@@ -319,6 +326,7 @@ public class ManageAttendanceActivity extends AppActivity
     }
 
     private void updateEmptyStateView() {
+        updateMetricsStats();
         if (llEmptyState == null || tvEmptyMessage == null) return;
 
         if (allocatedProjects.size() <= 1 && projectSpinnerInitialized) {
@@ -342,6 +350,24 @@ public class ManageAttendanceActivity extends AppActivity
                 llEmptyState.setVisibility(View.GONE);
             }
         }
+    }
+
+    private void updateMetricsStats() {
+        int total = currentAttendanceList.size();
+        int active = 0;
+        int completed = 0;
+        for (AttendanceRecordModel record : currentAttendanceList) {
+            if (record != null) {
+                if (record.isActive()) {
+                    active++;
+                } else {
+                    completed++;
+                }
+            }
+        }
+        if (tvStatTotal != null) tvStatTotal.setText(String.valueOf(total));
+        if (tvStatActive != null) tvStatActive.setText(String.valueOf(active));
+        if (tvStatCompleted != null) tvStatCompleted.setText(String.valueOf(completed));
     }
 
     @Override

@@ -49,8 +49,21 @@ public final class SessionPrefs {
     public boolean isLocationSessionValid() {
         String id = getLocationId();
         if (TextUtils.isEmpty(id)) return false;
-        long age = System.currentTimeMillis() - getLocationVerifiedAt();
-        return age >= 0 && age <= LOCATION_SESSION_MS;
+        long verifiedAt = getLocationVerifiedAt();
+        long now = System.currentTimeMillis();
+        long age = now - verifiedAt;
+        if (age < 0 || age > LOCATION_SESSION_MS) return false;
+        return isSameCalendarDay(verifiedAt, now);
+    }
+
+    public static boolean isSameCalendarDay(long time1, long time2) {
+        if (time1 <= 0 || time2 <= 0) return false;
+        java.util.Calendar cal1 = java.util.Calendar.getInstance();
+        cal1.setTimeInMillis(time1);
+        java.util.Calendar cal2 = java.util.Calendar.getInstance();
+        cal2.setTimeInMillis(time2);
+        return cal1.get(java.util.Calendar.YEAR) == cal2.get(java.util.Calendar.YEAR)
+                && cal1.get(java.util.Calendar.DAY_OF_YEAR) == cal2.get(java.util.Calendar.DAY_OF_YEAR);
     }
 
     public String getProjectId() {

@@ -54,10 +54,16 @@ public class MoveRecordModel {
     }
 
     public String getInPhotoUrl() {
+        if ((inPhotoUrl == null || inPhotoUrl.trim().isEmpty()) && hasIn && !moveId.isEmpty()) {
+            return "view_move_img.php?move_id=" + moveId + "&type=in";
+        }
         return inPhotoUrl;
     }
 
     public String getOutPhotoUrl() {
+        if ((outPhotoUrl == null || outPhotoUrl.trim().isEmpty()) && hasOut && !moveId.isEmpty()) {
+            return "view_move_img.php?move_id=" + moveId + "&type=out";
+        }
         return outPhotoUrl;
     }
 

@@ -136,4 +136,22 @@ public class ManageAttendanceTest {
         assertEquals(1.0, obj.optDouble("break_hours"), 0.001);
         assertEquals("101", obj.optString("attend_id"));
     }
+
+    @Test
+    public void testManageAttendanceNullSafety() {
+        AttendanceRecordModel nullRecord = new AttendanceRecordModel(null, null, null, null, null, 0.0, false, false, null, null);
+        assertNotNull(nullRecord.getAttendId());
+        assertNotNull(nullRecord.getFirstName());
+        assertNotNull(nullRecord.getProjName());
+        assertNotNull(nullRecord.getTimeIn());
+        assertNotNull(nullRecord.getTimeOut());
+        assertNotNull(nullRecord.getInPhotoUrl());
+        assertNotNull(nullRecord.getOutPhotoUrl());
+        assertEquals("", nullRecord.getAttendId());
+
+        MoveRecordModel nullMove = new MoveRecordModel(null, null, null, null, null, false, false, null, null);
+        assertNotNull(nullMove.getMoveId());
+        assertNotNull(nullMove.getFirstName());
+        assertEquals("", nullMove.getMoveId());
+    }
 }

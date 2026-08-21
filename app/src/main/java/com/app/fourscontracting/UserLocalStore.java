@@ -11,47 +11,66 @@ public class UserLocalStore {
 
     public UserLocalStore(Context context) {
         this.context = context != null ? context.getApplicationContext() : null;
-        if (context != null) {
-            userLocalDatabase = context.getSharedPreferences(SP_NAME, 0);
+        if (this.context != null) {
+            userLocalDatabase = this.context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
         }
     }
 
+    private SharedPreferences getPrefs() {
+        if (userLocalDatabase != null) return userLocalDatabase;
+        if (context != null) {
+            userLocalDatabase = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
+        }
+        return userLocalDatabase;
+    }
+
     public void storeUserData(User user) {
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.putString("username", user.username);
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null || user == null) return;
+        SharedPreferences.Editor spEditor = prefs.edit();
+        spEditor.putString("username", user.username != null ? user.username : "");
         spEditor.apply();
     }
 
     public void storeUserProjectData(UserProject user) {
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.putString("projectname", user.projectname);
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null || user == null) return;
+        SharedPreferences.Editor spEditor = prefs.edit();
+        spEditor.putString("projectname", user.projectname != null ? user.projectname : "");
         spEditor.apply();
     }
 
     public void storeUserProjectID(String projectId) {
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.putString("selected_project_id", projectId);
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null) return;
+        SharedPreferences.Editor spEditor = prefs.edit();
+        spEditor.putString("selected_project_id", projectId != null ? projectId : "");
         spEditor.apply();
     }
 
     public String getLoggedInUserProjectID() {
-        String id = userLocalDatabase != null ? userLocalDatabase.getString("selected_project_id", "") : "";
+        SharedPreferences prefs = getPrefs();
+        String id = prefs != null ? prefs.getString("selected_project_id", "") : "";
         if ((id == null || id.isEmpty()) && context != null) {
-            SessionPrefs session = new SessionPrefs(context);
-            id = session.getProjectId();
+            try {
+                SessionPrefs session = new SessionPrefs(context);
+                id = session.getProjectId();
+            } catch (Exception ignored) {}
         }
         return id != null ? id : "";
     }
 
     public void storeUserLocationData(UserLocation user) {
-        if (userLocalDatabase == null) return;
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.putString("locationname", user.locationname);
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null || user == null) return;
+        SharedPreferences.Editor spEditor = prefs.edit();
+        spEditor.putString("locationname", user.locationname != null ? user.locationname : "");
         spEditor.apply();
     }
 
     public User getLoggedInUser() {
-        String username = userLocalDatabase != null ? userLocalDatabase.getString("username", "") : "";
+        SharedPreferences prefs = getPrefs();
+        String username = prefs != null ? prefs.getString("username", "") : "";
         if ((username == null || username.isEmpty()) && context != null) {
             try {
                 SharedPreferences settings = android.preference.PreferenceManager.getDefaultSharedPreferences(context);
@@ -68,35 +87,41 @@ public class UserLocalStore {
     }
 
     public UserProject getLoggedInUserProject() {
-        String projectname = userLocalDatabase != null ? userLocalDatabase.getString("projectname", "") : "";
+        SharedPreferences prefs = getPrefs();
+        String projectname = prefs != null ? prefs.getString("projectname", "") : "";
         if ((projectname == null || projectname.isEmpty()) && context != null) {
-            SessionPrefs session = new SessionPrefs(context);
-            projectname = session.getProjectName();
+            try {
+                SessionPrefs session = new SessionPrefs(context);
+                projectname = session.getProjectName();
+            } catch (Exception ignored) {}
         }
         return new UserProject(projectname != null ? projectname : "");
     }
 
     public UserLocation getLoggedInUserLocation() {
-        String locationname = userLocalDatabase != null ? userLocalDatabase.getString("locationname", "") : "";
+        SharedPreferences prefs = getPrefs();
+        String locationname = prefs != null ? prefs.getString("locationname", "") : "";
         return new UserLocation(locationname != null ? locationname : "");
     }
 
     public void setUserLoggedIn(boolean loggedIn) {
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null) return;
+        SharedPreferences.Editor spEditor = prefs.edit();
         spEditor.putBoolean("loggedIn", loggedIn);
         spEditor.apply();
     }
 
     public boolean getUserLoggedIn() {
-        if(userLocalDatabase.getBoolean("loggedIn", false) == true) {
-            return true;
-        } else {
-            return false;
-        }
+        SharedPreferences prefs = getPrefs();
+        if (prefs == null) return false;
+        return prefs.getBoolean("loggedIn", false);
     }
 
     public void updateAssignedProjects(java.util.List<String> newProjects, Context context) {
-        String usernameRaw = userLocalDatabase.getString("username", "");
+        if (newProjects == null) return;
+        SharedPreferences prefs = getPrefs();
+        String usernameRaw = prefs != null ? prefs.getString("username", "") : "";
         if (usernameRaw == null || usernameRaw.isEmpty()) {
             return;
         }
@@ -107,7 +132,7 @@ public class UserLocalStore {
                 JSONObject obj = new JSONObject(usernameRaw);
                 org.json.JSONArray arr = new org.json.JSONArray();
                 for (String p : newProjects) {
-                    arr.put(p);
+                    if (p != null) arr.put(p);
                 }
                 obj.put("projects", arr);
                 updatedRaw = obj.toString();
@@ -117,69 +142,86 @@ public class UserLocalStore {
         } else {
             // fallback for ## format
             String[] parts = usernameRaw.split("##");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < newProjects.size(); i++) {
+                if (i > 0) sb.append(",");
+                if (newProjects.get(i) != null) sb.append(newProjects.get(i));
+            }
             if (parts.length >= 4) {
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < newProjects.size(); i++) {
-                    if (i > 0) sb.append(",");
-                    sb.append(newProjects.get(i));
-                }
                 parts[3] = sb.toString();
-
-                // Reconstruct raw string
                 StringBuilder recon = new StringBuilder();
                 for (int i = 0; i < parts.length; i++) {
                     if (i > 0) recon.append("##");
                     recon.append(parts[i]);
                 }
                 updatedRaw = recon.toString();
+            } else {
+                StringBuilder recon = new StringBuilder();
+                for (int i = 0; i < parts.length; i++) {
+                    if (i > 0) recon.append("##");
+                    recon.append(parts[i]);
+                }
+                while (recon.toString().split("##", -1).length < 3) {
+                    recon.append("##");
+                }
+                recon.append("##").append(sb.toString());
+                updatedRaw = recon.toString();
             }
         }
 
-        // Save to userLocalDatabase (userDetails)
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.putString("username", updatedRaw);
-        spEditor.apply();
+        if (prefs != null) {
+            SharedPreferences.Editor spEditor = prefs.edit();
+            spEditor.putString("username", updatedRaw);
+            spEditor.apply();
+        }
 
-        // Save to default shared preferences
-        try {
-            SharedPreferences settings = android.preference.PreferenceManager.getDefaultSharedPreferences(context.getApplicationContext());
-            SharedPreferences.Editor editor = settings.edit();
-            editor.putString("username", updatedRaw);
-            editor.apply();
-        } catch (Exception e) {
-            e.printStackTrace();
+        Context ctx = context != null ? context.getApplicationContext() : this.context;
+        if (ctx != null) {
+            try {
+                SharedPreferences settings = android.preference.PreferenceManager.getDefaultSharedPreferences(ctx);
+                SharedPreferences.Editor editor = settings.edit();
+                editor.putString("username", updatedRaw);
+                editor.apply();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void clearUserData() {
-        SharedPreferences.Editor spEditor = userLocalDatabase.edit();
-        spEditor.clear();
-        spEditor.apply();
+        SharedPreferences prefs = getPrefs();
+        if (prefs != null) {
+            SharedPreferences.Editor spEditor = prefs.edit();
+            spEditor.clear();
+            spEditor.apply();
+        }
     }
 
     public static String[] parseUserInfo(String rawData) {
-        if (rawData == null || rawData.isEmpty()) {
+        if (rawData == null || rawData.trim().isEmpty()) {
             return new String[]{"", "0", "0", "", "", ""};
         }
 
-        if (rawData.trim().startsWith("{")) {
+        String trimmed = rawData.trim();
+        if (trimmed.startsWith("{")) {
             try {
-                JSONObject obj = new JSONObject(rawData);
+                JSONObject obj = new JSONObject(trimmed);
                 String uid = obj.optString("uid", "");
-                if (uid.isEmpty()) {
-                    uid = obj.optString("id", "");
-                }
+                if (uid.isEmpty()) uid = obj.optString("id", "");
+                if (uid.isEmpty()) uid = obj.optString("user_id", "");
+                if (uid.isEmpty()) uid = obj.optString("subadmin_id", "");
+                if (uid.isEmpty()) uid = obj.optString("empid", "");
+
                 String role = obj.optString("role", "");
-                if (role.isEmpty() || role.equals("0")) {
-                    role = obj.optString("flag", "0");
-                }
+                if (role.isEmpty() || role.equals("0")) role = obj.optString("flag", "");
+                if (role.isEmpty()) role = obj.optString("user_type", "0");
+
                 String displayName = obj.optString("displayName", "");
-                if (displayName.isEmpty()) {
-                    displayName = obj.optString("name", "");
-                }
-                if (displayName.isEmpty()) {
-                    displayName = obj.optString("username", "");
-                }
+                if (displayName.isEmpty()) displayName = obj.optString("name", "");
+                if (displayName.isEmpty()) displayName = obj.optString("username", "");
+                if (displayName.isEmpty()) displayName = obj.optString("full_name", "");
+                if (displayName.isEmpty()) displayName = obj.optString("subadmin_name", "");
+
                 String projects = "";
                 org.json.JSONArray projArray = obj.optJSONArray("projects");
                 if (projArray != null) {
@@ -190,7 +232,7 @@ public class UserLocalStore {
                     }
                     projects = sb.toString();
                 } else {
-                    projects = obj.optString("projects", "");
+                    projects = obj.optString("projects", obj.optString("projname", obj.optString("assigned_projects", "")));
                     if (projects.startsWith("[") && projects.endsWith("]")) {
                         try {
                             org.json.JSONArray arr = new org.json.JSONArray(projects);
@@ -211,15 +253,10 @@ public class UserLocalStore {
         }
 
         // Standard ## split fallback
-        String[] parts = rawData.split("##");
-        if (parts.length >= 6) {
-            return parts;
-        }
-
-        // Safe padded fallback
+        String[] parts = trimmed.split("##", -1);
         String[] result = new String[]{"", "0", "0", "", "", ""};
         for (int i = 0; i < parts.length && i < 6; i++) {
-            result[i] = parts[i];
+            result[i] = parts[i] != null ? parts[i] : "";
         }
         return result;
     }
@@ -260,21 +297,21 @@ public class UserLocalStore {
             return false;
         }
         String trimmed = response.trim();
-        if (trimmed.equalsIgnoreCase("error")) {
+        if (trimmed.equalsIgnoreCase("error") || trimmed.equalsIgnoreCase("false") || trimmed.equalsIgnoreCase("failed")) {
             return false;
         }
         if (trimmed.startsWith("{")) {
             try {
                 JSONObject obj = new JSONObject(trimmed);
                 String status = obj.optString("status", "");
-                if ("error".equalsIgnoreCase(status)) {
+                if ("error".equalsIgnoreCase(status) || "false".equalsIgnoreCase(status) || "failed".equalsIgnoreCase(status)) {
                     return false;
                 }
-                if ("success".equalsIgnoreCase(status)) {
+                if ("success".equalsIgnoreCase(status) || "true".equalsIgnoreCase(status) || obj.optBoolean("success", false)) {
                     return true;
                 }
-                String uid = obj.optString("uid", obj.optString("id", ""));
-                if (!uid.isEmpty() && !"error".equalsIgnoreCase(uid)) {
+                String uid = obj.optString("uid", obj.optString("id", obj.optString("user_id", obj.optString("subadmin_id", ""))));
+                if (!uid.isEmpty() && !"error".equalsIgnoreCase(uid) && !"0".equalsIgnoreCase(uid)) {
                     return true;
                 }
                 return false;
@@ -283,8 +320,8 @@ public class UserLocalStore {
             }
         }
         if (trimmed.contains("##")) {
-            String[] parts = trimmed.split("##");
-            if (parts.length >= 3 && !parts[0].equalsIgnoreCase("error")) {
+            String[] parts = trimmed.split("##", -1);
+            if (parts.length >= 1 && !parts[0].equalsIgnoreCase("error") && !parts[0].equalsIgnoreCase("false") && !parts[0].trim().isEmpty()) {
                 return true;
             }
         }
@@ -304,7 +341,7 @@ public class UserLocalStore {
                     return msg;
                 }
                 String status = obj.optString("status", "");
-                if ("error".equalsIgnoreCase(status)) {
+                if ("error".equalsIgnoreCase(status) || "false".equalsIgnoreCase(status)) {
                     return "Invalid credentials";
                 }
             } catch (Exception ignored) {}
@@ -313,4 +350,5 @@ public class UserLocalStore {
     }
 
 }
+
 

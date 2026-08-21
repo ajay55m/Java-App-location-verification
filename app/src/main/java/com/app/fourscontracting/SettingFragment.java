@@ -320,6 +320,8 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("empid", item.getId());
+        intent.putExtra("emp_name", item.getName());
+        intent.putExtra("photo_url", item.getPhotoUrl());
         intent.putExtra("type", actionType);
         intent.putExtra("uid", uid);
         intent.putExtra("selected_project_id", projId);

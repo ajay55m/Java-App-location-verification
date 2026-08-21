@@ -60,9 +60,10 @@ public class ManageAttendanceApi {
                 url,
                 null,
                 response -> {
+                    if (callback == null) return;
                     try {
-                        if (!"success".equalsIgnoreCase(response.optString("status", ""))) {
-                            callback.onError(response.optString("message", "Failed to fetch attendance data"));
+                        if (response == null || !"success".equalsIgnoreCase(response.optString("status", ""))) {
+                            callback.onError(response != null ? response.optString("message", "Failed to fetch attendance data") : "Empty response from server");
                             return;
                         }
 
@@ -135,12 +136,14 @@ public class ManageAttendanceApi {
 
                     } catch (Exception e) {
                         Log.e(TAG, "Parsing error: " + e.getMessage(), e);
-                        callback.onError("Data parsing error");
+                        callback.onError("Data parsing error: " + e.getMessage());
                     }
                 },
                 error -> {
-                    Log.e(TAG, "Volley error: " + error.toString());
-                    callback.onError("Network connection error");
+                    if (callback != null) {
+                        Log.e(TAG, "Volley error: " + error.toString());
+                        callback.onError("Network connection error: Check your internet.");
+                    }
                 }
         );
 

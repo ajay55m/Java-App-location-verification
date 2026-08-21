@@ -143,37 +143,43 @@ public class MainActivity extends AppActivity {
                 if (authenticate() == false) {
                     if (!mUsername.getText().toString().isEmpty() && !mPassword.getText().toString().isEmpty()) {
                         if (haveNetwork()) {
-                            final String rollNo = mUsername.getText().toString();
-                            final String pwd = mPassword.getText().toString();
+                            final String rollNo = mUsername.getText().toString().trim();
+                            final String pwd = mPassword.getText().toString().trim();
 
                             // Disable button while fetching token to prevent double-submit
                             mBtn.setEnabled(false);
 
-                            // Always fetch a fresh FCM token directly from Firebase.
-                            // This avoids the race condition where onNewToken hasn't fired yet
-                            // and SharedPreferences still holds an empty string.
-                            FirebaseMessaging.getInstance().getToken()
-                                .addOnCompleteListener(task -> {
-                                    // Re-enable the button regardless of outcome
-                                    mBtn.setEnabled(true);
+                            try {
+                                FirebaseMessaging.getInstance().getToken()
+                                    .addOnCompleteListener(task -> {
+                                        mBtn.setEnabled(true);
+                                        String freshToken = "";
+                                        try {
+                                            if (task.isSuccessful() && task.getResult() != null) {
+                                                freshToken = task.getResult();
+                                                SharedPreferences prefs = getApplicationContext()
+                                                        .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
+                                                prefs.edit().putString(getString(R.string.FCM_TOKEN), freshToken).apply();
+                                            } else {
+                                                SharedPreferences prefs = getApplicationContext()
+                                                        .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
+                                                freshToken = prefs.getString(getString(R.string.FCM_TOKEN), "");
+                                            }
+                                        } catch (Exception ignored) {
+                                            SharedPreferences prefs = getApplicationContext()
+                                                    .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
+                                            freshToken = prefs.getString(getString(R.string.FCM_TOKEN), "");
+                                        }
 
-                                    String freshToken = "";
-                                    if (task.isSuccessful() && task.getResult() != null) {
-                                        freshToken = task.getResult();
-                                        // Persist so future calls are instant
-                                        SharedPreferences prefs = getApplicationContext()
-                                                .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
-                                        prefs.edit().putString(getString(R.string.FCM_TOKEN), freshToken).apply();
-                                    } else {
-                                        // Fallback: use whatever was cached
-                                        SharedPreferences prefs = getApplicationContext()
-                                                .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
-                                        freshToken = prefs.getString(getString(R.string.FCM_TOKEN), "");
-                                    }
-
-                                    final String token = freshToken;
-                                    performLogin(rollNo, pwd, token);
-                                });
+                                        performLogin(rollNo, pwd, freshToken);
+                                    });
+                            } catch (Exception e) {
+                                mBtn.setEnabled(true);
+                                SharedPreferences prefs = getApplicationContext()
+                                        .getSharedPreferences(getString(R.string.FCM_PREF), Context.MODE_PRIVATE);
+                                String cachedToken = prefs.getString(getString(R.string.FCM_TOKEN), "");
+                                performLogin(rollNo, pwd, cachedToken);
+                            }
                         } else {
                             Toast.makeText(MainActivity.this, "Network connection is not available!", Toast.LENGTH_SHORT).show();
                         }
@@ -219,6 +225,8 @@ public class MainActivity extends AppActivity {
             new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
+                    Button btn = findViewById(R.id.loginbtn);
+                    if (btn != null) btn.setEnabled(true);
                     if (!UserLocalStore.isLoginResponseSuccess(response)) {
                         String errMsg = UserLocalStore.getLoginErrorMessage(response);
                         Toast.makeText(MainActivity.this, errMsg, Toast.LENGTH_SHORT).show();
@@ -235,26 +243,34 @@ public class MainActivity extends AppActivity {
                         Intent homepage = new Intent(MainActivity.this, WebviewActivity.class);
                         homepage.putExtra("key", user.username);
                         startActivity(homepage);
+                        finish();
                     }
                 }
             },
             new Response.ErrorListener() {
                 @Override
                 public void onErrorResponse(VolleyError error) {
+                    Button btn = findViewById(R.id.loginbtn);
+                    if (btn != null) btn.setEnabled(true);
                     NetworkResponse response = error.networkResponse;
                     if (response != null && response.data != null) {
-                        String errorString = new String(response.data);
-                        Toast.makeText(MainActivity.this, errorString, Toast.LENGTH_LONG).show();
+                        try {
+                            String errorString = new String(response.data);
+                            Toast.makeText(MainActivity.this, errorString, Toast.LENGTH_LONG).show();
+                        } catch (Exception e) {
+                            Toast.makeText(MainActivity.this, "Login error: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Toast.makeText(MainActivity.this, "Network error during login", Toast.LENGTH_LONG).show();
                     }
-                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_LONG).show();
                 }
             }) {
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
                 Map<String, String> params = new HashMap<>();
-                params.put("fcm_token", token);
-                params.put("id", rollNo);
-                params.put("pwd", pwd);
+                params.put("fcm_token", token != null ? token : "");
+                params.put("id", rollNo != null ? rollNo : "");
+                params.put("pwd", pwd != null ? pwd : "");
                 return params;
             }
         };
@@ -271,7 +287,6 @@ public class MainActivity extends AppActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        Toast.makeText(MainActivity.this, "Start", Toast.LENGTH_SHORT).show();
         if(haveNetwork()) {
             if(userLocalStore.getUserLoggedIn()) {
                 User user = userLocalStore.getLoggedInUser();
@@ -284,6 +299,8 @@ public class MainActivity extends AppActivity {
                         Intent homepage = new Intent(MainActivity.this, WebviewActivity.class);
                         homepage.putExtra("key", user.username);
                         startActivity(homepage);
+                        finish();
+                        return;
                     } else if (val_list.length > 1 && val_list[1].equals("3")) {
                         lv = (LinearLayout) findViewById(R.id.loginView);
                         if (lv != null) lv.setVisibility(View.VISIBLE);
@@ -297,14 +314,10 @@ public class MainActivity extends AppActivity {
             }
             else {
                 lv = (LinearLayout)findViewById(R.id.loginView);
-                lv.setVisibility(View.VISIBLE);
+                if (lv != null) lv.setVisibility(View.VISIBLE);
             }
         } else if(!haveNetwork()) {
             User user = userLocalStore.getLoggedInUser();
-            // Toast.makeText(MainActivity.this, user.username, Toast.LENGTH_SHORT).show();
-//      Intent intent = new Intent(MainActivity.this, NoInternet.class);
-//      intent.putExtra("key", user.username);
-//      startActivity(intent);
             Toast.makeText(MainActivity.this, "Network connection is not available!", Toast.LENGTH_SHORT).show();
         }
     }

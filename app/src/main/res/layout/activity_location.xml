@@ -18,38 +18,39 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:padding="20dp">
 
-            <!-- Title Header -->
+            <!-- Title Header with Dynamic Right-Side Status Badge (IN / OUT) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="24dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="20dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <ImageButton
                     android:id="@+id/backBtn"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="6dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="12dp"
+                    android:padding="10dp"
                     android:scaleType="centerInside"
                     app:srcCompat="@drawable/ic_baseline_arrow_back_24"
                     app:tint="#03045E" />
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="sans-serif-black"
-                        android:letterSpacing="-0.01"
+                        android:letterSpacing="-0.02"
                         android:text="Verification"
                         android:textColor="#03045E"
                         android:textSize="26sp"
@@ -64,40 +65,136 @@
                         android:textColor="#0077B6"
                         android:textSize="13sp" />
                 </LinearLayout>
+
+                <!-- Dynamic IN / OUT Status Pill Badge (Top Right) -->
+                <TextView
+                    android:id="@+id/tv_header_status_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:background="@drawable/bg_luxury_status_in_badge"
+                    android:elevation="4dp"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.08"
+                    android:paddingStart="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="8dp"
+                    android:text="IN"
+                    android:textAllCaps="true"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Executive Verification Story Card -->
+            <LinearLayout
+                android:id="@+id/card_verification_story"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="18dp"
+                android:background="@drawable/bg_move_supervisor_card"
+                android:elevation="4dp"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/ic_baseline_assignment_24"
+                        app:tint="#0077B6" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-black"
+                        android:letterSpacing="0.04"
+                        android:text="IDENTITY SECURITY CHECK"
+                        android:textColor="#03045E"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tv_story_emp_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="ID: #--"
+                        android:textColor="#0077B6"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:background="#7DD3FC" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="SECURITY MODE: "
+                        android:textColor="#0077B6"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tv_story_mode"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-black"
+                        android:maxLines="1"
+                        android:text="Geo-Fenced Camera Punch"
+                        android:textColor="#03045E"
+                        android:textSize="12sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Time Slot Card (Single Current Live Time Slot) -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="18dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="6dp"
-                app:strokeColor="#90E0EF"
-                app:strokeWidth="1.5dp">
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="18dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
-                        android:fontFamily="sans-serif-bold"
+                        android:layout_marginBottom="12dp"
+                        android:fontFamily="sans-serif-black"
                         android:text="Time Slot"
                         android:textColor="#03045E"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textSize="16sp" />
 
                     <!-- Single Live Current Time Slot Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/timeButton"
                         android:layout_width="match_parent"
-                        android:layout_height="56dp"
+                        android:layout_height="54dp"
                         android:background="@drawable/btn_premium_gradient"
                         android:fontFamily="sans-serif-bold"
                         android:letterSpacing="0.025"
@@ -121,26 +218,24 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="6dp"
-                app:strokeColor="#90E0EF"
-                app:strokeWidth="1.5dp">
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="18dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:fontFamily="sans-serif-bold"
+                        android:layout_marginBottom="14dp"
+                        android:fontFamily="sans-serif-black"
                         android:text="Live Photo Capture"
                         android:textColor="#03045E"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textSize="16sp" />
 
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -153,6 +248,7 @@
                             android:layout_height="64dp"
                             android:layout_gravity="center"
                             android:background="@drawable/bg_move_avatar"
+                            android:elevation="2dp"
                             android:scaleType="centerInside"
                             app:srcCompat="@drawable/ic_baseline_camera_alt_24"
                             app:tint="#0077B6" />
@@ -183,8 +279,8 @@
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@null"
-                app:cornerRadius="14dp"
-                app:elevation="8dp" />
+                app:cornerRadius="16dp"
+                app:elevation="6dp" />
 
         </LinearLayout>
     </ScrollView>
@@ -197,8 +293,7 @@
         app:cardBackgroundColor="#FFFFFF"
         app:cardCornerRadius="0dp"
         app:cardElevation="12dp"
-        app:strokeColor="#90E0EF"
-        app:strokeWidth="1dp"
+        app:strokeWidth="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
@@ -211,7 +306,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="0.5dp"
-                android:background="#90E0EF" />
+                android:background="#BAE6FD" />
 
             <com.google.android.material.bottomnavigation.BottomNavigationView
                 android:id="@+id/bottom_nav_view_loc"

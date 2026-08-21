@@ -4,23 +4,25 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
-    android:background="@drawable/bg_move_emp_card"
+    android:background="@drawable/bg_luxury_glass_employee_card"
+    android:elevation="4dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="14dp">
 
-    <!-- Avatar circle/rectangle -->
+    <!-- Glassmorphism Avatar Ring & Profile Photo -->
     <FrameLayout
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="@drawable/bg_move_avatar">
+        android:layout_width="74dp"
+        android:layout_height="74dp"
+        android:background="@drawable/bg_luxury_avatar_ring"
+        android:elevation="2dp">
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/tv_emp_avatar"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            app:cornerRadius="8dp"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
             app:srcCompat="@drawable/ic_baseline_person_24" />
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -29,9 +31,7 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:visibility="gone"
-            app:cornerRadius="8dp"
-            app:strokeColor="#90E0EF"
-            app:strokeWidth="1dp" />
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle" />
     </FrameLayout>
 
     <!-- Info Column -->
@@ -52,31 +52,32 @@
             android:maxLines="1"
             android:text="Employee Name"
             android:textColor="#03045E"
-            android:textSize="14sp" />
+            android:textSize="15sp" />
 
         <TextView
             android:id="@+id/tv_emp_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="5dp"
             android:background="@drawable/bg_move_badge_off"
-            android:fontFamily="sans-serif-medium"
-            android:paddingStart="8dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="3dp"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.04"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
             android:text="NOT CLOCKED IN"
             android:textAllCaps="true"
-            android:textColor="#0077B6"
+            android:textColor="#0284C7"
             android:textSize="9sp" />
 
         <TextView
             android:id="@+id/tv_emp_meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
-            android:fontFamily="sans-serif"
+            android:fontFamily="sans-serif-medium"
             android:maxLines="1"
             android:text="Status: Not Clocked In"
             android:textColor="#64748B"
@@ -97,7 +98,7 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginEnd="4dp"
-            android:minWidth="68dp"
+            android:minWidth="66dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:text="IN"
@@ -113,7 +114,7 @@
             style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:minWidth="68dp"
+            android:minWidth="66dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:text="OUT"

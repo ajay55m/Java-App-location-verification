@@ -4,22 +4,24 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
-    android:background="@drawable/bg_move_emp_card"
+    android:background="@drawable/bg_luxury_glass_employee_card"
+    android:elevation="4dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="14dp">
 
     <FrameLayout
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="@drawable/bg_move_avatar">
+        android:layout_width="74dp"
+        android:layout_height="74dp"
+        android:background="@drawable/bg_luxury_avatar_ring"
+        android:elevation="2dp">
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/tv_emp_avatar"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.Corner.Full"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
             app:srcCompat="@drawable/ic_baseline_person_24" />
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -28,9 +30,7 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:visibility="gone"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.Corner.Full"
-            app:strokeColor="#E2E8F0"
-            app:strokeWidth="1dp" />
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle" />
     </FrameLayout>
 
     <LinearLayout
@@ -49,7 +49,7 @@
             android:maxLines="1"
             android:text="Employee"
             android:textColor="#03045E"
-            android:textSize="14sp" />
+            android:textSize="15sp" />
 
         <TextView
             android:id="@+id/tv_emp_badge"
@@ -57,14 +57,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
             android:background="@drawable/bg_move_badge_off"
-            android:fontFamily="sans-serif-medium"
-            android:paddingStart="8dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="3dp"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.04"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
             android:text="READY"
             android:textAllCaps="true"
-            android:textColor="#0077B6"
+            android:textColor="#0284C7"
             android:textSize="9sp" />
 
         <TextView
@@ -73,21 +74,26 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
             android:maxLines="1"
             android:text="Primary —"
-            android:textColor="#0077B6"
+            android:textColor="#64748B"
             android:textSize="11sp" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_emp_action"
+        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
         android:layout_width="wrap_content"
-        android:layout_height="40dp"
+        android:layout_height="38dp"
         android:minWidth="84dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
         android:text="MOVE"
         android:textAllCaps="true"
+        android:textColor="#FFFFFF"
         android:textSize="11sp"
         android:textStyle="bold"
         app:backgroundTint="#03045E"
-        app:cornerRadius="12dp" />
+        app:cornerRadius="18dp" />
 </LinearLayout>

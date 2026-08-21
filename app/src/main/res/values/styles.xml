@@ -85,9 +85,14 @@
         <item name="cornerSize">16dp</item>
     </style>
 
-    <style name="ShapeAppearance.MaterialComponents.Corner.Full" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+    <style name="ShapeAppearance.Circle" parent="">
         <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">100dp</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="ShapeAppearance.MaterialComponents.Corner.Full" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
     </style>
 
     <style name="App.BottomNavigationView.ActiveIndicator" parent="">
