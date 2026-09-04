@@ -23,7 +23,19 @@ android {
         resConfigs "en"
     }
 
+    signingConfigs {
+        debug {
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            ext.enableCrashlytics = false
+            ext.alwaysUpdateBuildId = false
+        }
         release {
             minifyEnabled true
             shrinkResources true

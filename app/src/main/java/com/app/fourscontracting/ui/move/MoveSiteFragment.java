@@ -21,14 +21,15 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.fourscontracting.AppMessages;
+import com.app.fourscontracting.DashboardActivity;
 import com.app.fourscontracting.LocationVerifyActivity;
+import com.app.fourscontracting.Project;
 import com.app.fourscontracting.R;
 import com.app.fourscontracting.SessionPrefs;
 import com.app.fourscontracting.User;
 import com.app.fourscontracting.UserLocalStore;
 import com.app.fourscontracting.UserLocation;
 import com.app.fourscontracting.UserProject;
-import com.app.fourscontracting.DashboardActivity;
 import com.app.fourscontracting.data.DepartmentModel;
 import com.app.fourscontracting.data.MoveEmployeeModel;
 import com.app.fourscontracting.data.MoveSiteApi;
@@ -136,6 +137,50 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
         }
     }
 
+    private boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        try {
+            Double.parseDouble(str.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private String getResolvedSiteName() {
+        if (!isAdded()) return "Verified Site";
+        SessionPrefs session = new SessionPrefs(requireContext());
+        String pName = session.getProjectName();
+        if (pName != null && !pName.trim().isEmpty() && !isNumeric(pName.trim())) {
+            return pName.trim();
+        }
+
+        UserLocation userLoc = userLocalStore.getLoggedInUserLocation();
+        if (userLoc != null && userLoc.locationname != null && !userLoc.locationname.trim().isEmpty() && !isNumeric(userLoc.locationname.trim())) {
+            return userLoc.locationname.trim();
+        }
+
+        UserProject userProj = userLocalStore.getLoggedInUserProject();
+        if (userProj != null && userProj.projectname != null && !userProj.projectname.trim().isEmpty() && !isNumeric(userProj.projectname.trim())) {
+            return userProj.projectname.trim();
+        }
+
+        String targetId = session.getProjectId();
+        List<Project> cachedProjects = session.getCachedProjectList(true);
+        if (cachedProjects != null) {
+            for (Project p : cachedProjects) {
+                if (p != null && p.name != null && !isNumeric(p.name.trim())) {
+                    if ((p.id != null && p.id.trim().equalsIgnoreCase(targetId)) ||
+                        (p.name != null && p.name.trim().equalsIgnoreCase(targetId))) {
+                        return p.name.trim();
+                    }
+                }
+            }
+        }
+
+        return "Verified Site";
+    }
+
     private void bindSessionHeader() {
         User user = userLocalStore.getLoggedInUser();
         String[] parts = UserLocalStore.parseUserInfo(user != null ? user.username : "");
@@ -144,27 +189,13 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
         SessionPrefs session = new SessionPrefs(requireContext());
         locationId = session.getLocationId();
 
-        UserProject project = userLocalStore.getLoggedInUserProject();
-        String projectName = project != null ? project.projectname : "";
-        if (TextUtils.isEmpty(projectName)) {
-            projectName = session.getProjectName();
-        }
+        String resolvedSiteName = getResolvedSiteName();
         if (tvProject != null) {
-            tvProject.setText(TextUtils.isEmpty(projectName) ? "—" : projectName);
+            tvProject.setText(resolvedSiteName);
         }
 
-        UserLocation location = userLocalStore.getLoggedInUserLocation();
-        String locName = location != null ? location.locationname : "";
         if (tvLocation != null) {
-            if (!TextUtils.isEmpty(projectName)) {
-                tvLocation.setText(projectName);
-            } else if (!TextUtils.isEmpty(locName)) {
-                tvLocation.setText(locName);
-            } else if (!TextUtils.isEmpty(locationId)) {
-                tvLocation.setText("Site #" + locationId);
-            } else {
-                tvLocation.setText("No Site Selected");
-            }
+            tvLocation.setText(resolvedSiteName);
         }
     }
 

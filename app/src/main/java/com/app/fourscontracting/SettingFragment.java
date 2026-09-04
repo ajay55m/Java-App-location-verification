@@ -127,14 +127,55 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         checkLocationSessionAndInit();
     }
 
+    private boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        try {
+            Double.parseDouble(str.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private String getResolvedSiteName() {
+        if (!isAdded()) return "Verified Site";
+        SessionPrefs session = new SessionPrefs(requireContext());
+        String pName = session.getProjectName();
+        if (pName != null && !pName.trim().isEmpty() && !isNumeric(pName.trim())) {
+            return pName.trim();
+        }
+
+        UserLocation userLoc = userLocalStore.getLoggedInUserLocation();
+        if (userLoc != null && userLoc.locationname != null && !userLoc.locationname.trim().isEmpty() && !isNumeric(userLoc.locationname.trim())) {
+            return userLoc.locationname.trim();
+        }
+
+        UserProject userProj = userLocalStore.getLoggedInUserProject();
+        if (userProj != null && userProj.projectname != null && !userProj.projectname.trim().isEmpty() && !isNumeric(userProj.projectname.trim())) {
+            return userProj.projectname.trim();
+        }
+
+        String targetId = (projId != null && !projId.trim().isEmpty()) ? projId.trim() : session.getProjectId();
+        List<Project> cachedProjects = session.getCachedProjectList(true);
+        if (cachedProjects != null) {
+            for (Project p : cachedProjects) {
+                if (p != null && p.name != null && !isNumeric(p.name.trim())) {
+                    if ((p.id != null && p.id.trim().equalsIgnoreCase(targetId)) ||
+                        (p.name != null && p.name.trim().equalsIgnoreCase(targetId))) {
+                        return p.name.trim();
+                    }
+                }
+            }
+        }
+
+        return "Verified Site";
+    }
+
     private void checkLocationSessionAndInit() {
         if (!isAdded()) return;
         SessionPrefs session = new SessionPrefs(requireContext());
-        String pName = session.getProjectName();
-        if (pName != null && !pName.isEmpty()) {
-            tvLocation.setText(pName);
-        } else {
-            tvLocation.setText(projId.isEmpty() ? "Verified Site" : projId);
+        if (tvLocation != null) {
+            tvLocation.setText(getResolvedSiteName());
         }
 
         if (!session.isLocationSessionValid()) {
