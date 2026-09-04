@@ -103,11 +103,6 @@ public class ImageLoaderHelper {
             return;
         }
 
-        // Sync cookies on main thread so background thread has cached cookies
-        if (context != null) {
-            CookieHurlStack.syncWebViewCookies(context);
-        }
-
         target.setTag(url);
 
         // Check Memory Cache first

@@ -55,6 +55,9 @@ public class ManageAttendanceFragment extends Fragment
     private RecyclerView recyclerView;
     private LinearLayout llEmptyState;
     private TextView tvEmptyMessage;
+    private TextView tvStatTotal;
+    private TextView tvStatActive;
+    private TextView tvStatCompleted;
     private ProgressBar progressBar;
 
     private AttendanceFeedAdapter attendanceAdapter;
@@ -133,6 +136,9 @@ public class ManageAttendanceFragment extends Fragment
         recyclerView = view.findViewById(R.id.rv_manage_attendance);
         llEmptyState = view.findViewById(R.id.ll_empty_state);
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message);
+        tvStatTotal = view.findViewById(R.id.tv_stat_total);
+        tvStatActive = view.findViewById(R.id.tv_stat_active);
+        tvStatCompleted = view.findViewById(R.id.tv_stat_completed);
         progressBar = view.findViewById(R.id.progress_manage_attendance);
     }
 
@@ -248,6 +254,7 @@ public class ManageAttendanceFragment extends Fragment
                     attendanceAdapter.setItems(currentAttendanceList);
                 }
 
+                updateSummaryMetrics();
                 updateEmptyStateView();
             }
 
@@ -259,6 +266,11 @@ public class ManageAttendanceFragment extends Fragment
                 if (message != null) {
                     Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
                 }
+                currentAttendanceList.clear();
+                if (attendanceAdapter != null) {
+                    attendanceAdapter.setItems(currentAttendanceList);
+                }
+                updateSummaryMetrics();
                 updateEmptyStateView();
             }
         });
@@ -315,6 +327,24 @@ public class ManageAttendanceFragment extends Fragment
         } else {
             llEmptyState.setVisibility(View.GONE);
         }
+    }
+
+    private void updateSummaryMetrics() {
+        int total = currentAttendanceList.size();
+        int active = 0;
+        int completed = 0;
+
+        for (AttendanceRecordModel record : currentAttendanceList) {
+            if (record.isActive()) {
+                active++;
+            } else {
+                completed++;
+            }
+        }
+
+        if (tvStatTotal != null) tvStatTotal.setText(String.valueOf(total));
+        if (tvStatActive != null) tvStatActive.setText(String.valueOf(active));
+        if (tvStatCompleted != null) tvStatCompleted.setText(String.valueOf(completed));
     }
 
     @Override

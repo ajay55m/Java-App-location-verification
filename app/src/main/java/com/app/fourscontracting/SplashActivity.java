@@ -170,7 +170,7 @@ public class SplashActivity extends AppActivity {
 
             if (val != null && !val.isEmpty() && UserLocalStore.isLoginResponseSuccess(val)) {
 
-                intent = new Intent(SplashActivity.this, WebviewActivity.class);
+                intent = new Intent(SplashActivity.this, DashboardActivity.class);
 
                 intent.putExtra("key", val);
 

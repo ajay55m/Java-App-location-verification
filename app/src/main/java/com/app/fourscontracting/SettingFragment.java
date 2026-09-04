@@ -72,7 +72,6 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         super.onViewCreated(view, savedInstanceState);
 
         userLocalStore = new UserLocalStore(requireContext());
-        CookieHurlStack.syncWebViewCookies(requireContext());
         User user = userLocalStore.getLoggedInUser();
         String val = user != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);

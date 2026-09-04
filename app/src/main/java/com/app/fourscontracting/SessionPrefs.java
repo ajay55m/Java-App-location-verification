@@ -149,9 +149,15 @@ public final class SessionPrefs {
     }
 
     public java.util.List<Project> getCachedProjectList() {
+        return getCachedProjectList(true);
+    }
+
+    public java.util.List<Project> getCachedProjectList(boolean allowStale) {
         java.util.List<Project> out = new java.util.ArrayList<>();
-        long age = System.currentTimeMillis() - prefs.getLong(KEY_PROJECT_CACHE_TIME, 0L);
-        if (age < 0 || age > PROJECT_CACHE_MS) return out;
+        if (!allowStale) {
+            long age = System.currentTimeMillis() - prefs.getLong(KEY_PROJECT_CACHE_TIME, 0L);
+            if (age < 0 || age > PROJECT_CACHE_MS) return out;
+        }
         String raw = prefs.getString(KEY_PROJECT_CACHE, "");
         if (TextUtils.isEmpty(raw)) return out;
         try {

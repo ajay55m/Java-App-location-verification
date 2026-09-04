@@ -83,17 +83,6 @@ public class LabourManagementApi {
                             return;
                         }
 
-                        int totalCount = 0;
-                        int inCount = 0;
-                        int outCount = 0;
-
-                        JSONObject stats = response.optJSONObject("stats");
-                        if (stats != null) {
-                            totalCount = stats.optInt("total_staff", stats.optInt("total", 0));
-                            inCount = stats.optInt("present_here", stats.optInt("in_count", 0));
-                            outCount = stats.optInt("absent", stats.optInt("out_count", 0));
-                        }
-
                         List<LabourEmployeeModel> list = new ArrayList<>();
                         JSONArray arr = response.optJSONArray("employees");
 
@@ -105,11 +94,30 @@ public class LabourManagementApi {
                             }
                         }
 
-                        if (stats == null) {
-                            totalCount = list.size();
-                            for (LabourEmployeeModel m : list) {
-                                if (m.isCanOut() || "IN_HERE".equalsIgnoreCase(m.getStatusCode())) inCount++;
-                                else outCount++;
+                        int computedIn = 0;
+                        int computedOut = 0;
+                        for (LabourEmployeeModel m : list) {
+                            String code = m.getStatusCode() != null ? m.getStatusCode().toUpperCase() : "";
+                            String text = m.getDisplayText() != null ? m.getDisplayText().toUpperCase() : "";
+                            if (m.isCanOut() || "IN_HERE".equalsIgnoreCase(code) || code.contains("IN") || text.contains("TIME IN")) {
+                                computedIn++;
+                            } else if ("OUT".equalsIgnoreCase(code) || "TIME_OUT".equalsIgnoreCase(code) || "OUT_HERE".equalsIgnoreCase(code) || code.contains("OUT") || text.contains("TIME OUT") || text.contains("COMPLETED")) {
+                                computedOut++;
+                            }
+                        }
+
+                        int totalCount = list.size();
+                        int inCount = computedIn;
+                        int outCount = computedOut;
+
+                        JSONObject stats = response.optJSONObject("stats");
+                        if (stats != null) {
+                            totalCount = stats.optInt("total_staff", stats.optInt("total", list.size()));
+                            if (stats.has("present_here") || stats.has("in_count")) {
+                                inCount = stats.optInt("present_here", stats.optInt("in_count", computedIn));
+                            }
+                            if (stats.has("out_count") || stats.has("time_out_count")) {
+                                outCount = stats.optInt("out_count", stats.optInt("time_out_count", computedOut));
                             }
                         }
 

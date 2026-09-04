@@ -39,18 +39,32 @@ public class ManageAttendanceApi {
         builder.appendQueryParameter("action", "get_feed");
         if (uid != null && !uid.isEmpty()) {
             builder.appendQueryParameter("uid", uid);
+            builder.appendQueryParameter("subadmin_id", uid);
+            builder.appendQueryParameter("user_id", uid);
+            builder.appendQueryParameter("empid", uid);
         }
-        if (projid != null && !projid.isEmpty()) {
+        if (projid != null && !projid.isEmpty() && !"all".equalsIgnoreCase(projid)) {
             builder.appendQueryParameter("projname", projid);
+            builder.appendQueryParameter("project_id", projid);
+            builder.appendQueryParameter("projectid", projid);
         }
         if (day != null && !day.isEmpty()) {
             builder.appendQueryParameter("f_day", day);
+            builder.appendQueryParameter("day", day);
         }
         if (month != null && !month.isEmpty()) {
             builder.appendQueryParameter("f_month", month);
+            builder.appendQueryParameter("month", month);
         }
         if (year != null && !year.isEmpty()) {
             builder.appendQueryParameter("f_year", year);
+            builder.appendQueryParameter("year", year);
+        }
+        if (day != null && !day.isEmpty() && month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
+            String fullDate = year + "-" + month + "-" + day;
+            builder.appendQueryParameter("date", fullDate);
+            builder.appendQueryParameter("attendance_date", fullDate);
+            builder.appendQueryParameter("f_date", fullDate);
         }
 
         String url = builder.build().toString();
@@ -89,17 +103,80 @@ public class ManageAttendanceApi {
 
                         // Parse attendance records
                         List<AttendanceRecordModel> attendanceRecords = new ArrayList<>();
+
+                        // Parse supervisor's self attendance ("own_attendance" JSON object) if present
+                        JSONObject ownObj = response.optJSONObject("own_attendance");
+                        if (ownObj != null && ownObj.length() > 0) {
+                            String attendIdVal = ownObj.optString("attend_id", ownObj.optString("id", ""));
+                            String timeInVal = ownObj.optString("timein", ownObj.optString("time_in", ownObj.optString("in_time", "")));
+                            String timeOutVal = ownObj.optString("timeout", ownObj.optString("time_out", ownObj.optString("out_time", "")));
+                            String projNameVal = ownObj.optString("projname", ownObj.optString("project_name", ownObj.optString("location_name", "")));
+                            String uIdVal = ownObj.optString("userid", ownObj.optString("user_id", ownObj.optString("uid", uid)));
+                            String eIdVal = ownObj.optString("empid", ownObj.optString("emp_id", ownObj.optString("employee_id", uid)));
+                            String nameVal = ownObj.optString("first_name", ownObj.optString("emp_name", ownObj.optString("name", userName)));
+
+                            if (!attendIdVal.isEmpty() || !timeInVal.isEmpty()) {
+                                attendanceRecords.add(new AttendanceRecordModel(
+                                        attendIdVal,
+                                        uIdVal,
+                                        eIdVal,
+                                        nameVal,
+                                        projNameVal,
+                                        timeInVal,
+                                        timeOutVal,
+                                        ownObj.optDouble("break_hours", 0.0),
+                                        ownObj.optBoolean("has_in", !timeInVal.isEmpty() && !"--".equals(timeInVal)),
+                                        ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
+                                        ownObj.optString("in_photo_url", ""),
+                                        ownObj.optString("out_photo_url", "")
+                                ));
+                            }
+                        }
+
                         JSONArray recArray = response.optJSONArray("records");
                         if (recArray != null) {
                             for (int i = 0; i < recArray.length(); i++) {
                                 JSONObject rObj = recArray.optJSONObject(i);
                                 if (rObj != null) {
+                                    String attendIdVal = rObj.optString("attend_id", "");
+                                    if (attendIdVal.isEmpty()) attendIdVal = rObj.optString("id", "");
+                                    if (attendIdVal.isEmpty()) attendIdVal = rObj.optString("attendance_id", "");
+
+                                    String userIdVal = rObj.optString("userid", "");
+                                    if (userIdVal.isEmpty()) userIdVal = rObj.optString("user_id", "");
+                                    if (userIdVal.isEmpty()) userIdVal = rObj.optString("uid", "");
+
+                                    String empIdVal = rObj.optString("empid", "");
+                                    if (empIdVal.isEmpty()) empIdVal = rObj.optString("emp_id", "");
+                                    if (empIdVal.isEmpty()) empIdVal = rObj.optString("employee_id", "");
+
+                                    String firstNameVal = rObj.optString("first_name", "");
+                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("emp_name", "");
+                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("name", "");
+                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("employee_name", "");
+                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("username", "");
+
+                                    String projNameVal = rObj.optString("projname", "");
+                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("project_name", "");
+                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("project", "");
+                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("location_name", "");
+
+                                    String timeInVal = rObj.optString("timein", "");
+                                    if (timeInVal.isEmpty()) timeInVal = rObj.optString("time_in", "");
+                                    if (timeInVal.isEmpty()) timeInVal = rObj.optString("in_time", "");
+
+                                    String timeOutVal = rObj.optString("timeout", "");
+                                    if (timeOutVal.isEmpty()) timeOutVal = rObj.optString("time_out", "");
+                                    if (timeOutVal.isEmpty()) timeOutVal = rObj.optString("out_time", "");
+
                                     attendanceRecords.add(new AttendanceRecordModel(
-                                            rObj.optString("attend_id", ""),
-                                            rObj.optString("first_name", ""),
-                                            rObj.optString("projname", ""),
-                                            rObj.optString("timein", ""),
-                                            rObj.optString("timeout", ""),
+                                            attendIdVal,
+                                            userIdVal,
+                                            empIdVal,
+                                            firstNameVal,
+                                            projNameVal,
+                                            timeInVal,
+                                            timeOutVal,
                                             rObj.optDouble("break_hours", 0.0),
                                             rObj.optBoolean("has_in", false),
                                             rObj.optBoolean("has_out", false),

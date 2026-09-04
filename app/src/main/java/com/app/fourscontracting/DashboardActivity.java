@@ -8,9 +8,6 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import androidx.core.app.ActivityCompat;
 import android.content.res.Configuration;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,12 +18,12 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.NetworkInfo;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.view.Menu;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -35,9 +32,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
-import com.google.android.material.snackbar.Snackbar;
 
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
@@ -51,7 +46,11 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebviewActivity extends AppActivity {
+/**
+ * 100% Native Java Main Application Dashboard Activity.
+ * Replaces legacy WebviewActivity with native fragment container & Volley REST API integration.
+ */
+public class DashboardActivity extends AppActivity {
     private AppBarConfiguration mAppBarConfiguration;
     private ValueAnimator glowAnimator;
     UserLocalStore userLocalStore;
@@ -59,18 +58,32 @@ public class WebviewActivity extends AppActivity {
     private LinearLayout noInternetBar;
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
+    private android.content.BroadcastReceiver connectivityReceiver;
+    private MaterialCardView networkAlertCard;
+    private ImageView ivNetworkAlertIcon;
+    private TextView tvNetworkAlertMessage;
+    private TextView tvNetworkAlertClose;
+    private android.os.Handler networkAlertHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable hideNetworkAlertRunnable;
+    private boolean wasOffline = false;
+
+    private void updateConnectivityUI() {
+        boolean available = isNetworkAvailable();
+        if (!available) {
+            wasOffline = true;
+            showNetworkAlert(false);
+        } else {
+            if (wasOffline) {
+                wasOffline = false;
+                showNetworkAlert(true);
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_webview);
-
-        // Camera/Location asked once on Splash — do not re-prompt here.
-
-        boolean debuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            android.webkit.WebView.setWebContentsDebuggingEnabled(debuggable);
-        }
+        setContentView(R.layout.activity_dashboard);
 
         userLocalStore = new UserLocalStore(this);
 
@@ -79,10 +92,6 @@ public class WebviewActivity extends AppActivity {
             new com.app.fourscontracting.data.AttendanceRepository(this).flushQueue(null);
         } catch (Exception ignored) {
         }
-
-        final MaterialCardView headerCard = findViewById(R.id.header_card);
-        noInternetBar = findViewById(R.id.noInternetBar);
-        Button btnRetry = findViewById(R.id.btnRetry);
 
         connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
@@ -95,13 +104,10 @@ public class WebviewActivity extends AppActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (isNetworkAvailable()) {
-                            stopPulseGlow(headerCard);
-                            hideNoInternetBar();
-                            try {
-                                new com.app.fourscontracting.data.AttendanceRepository(WebviewActivity.this).flushQueue(null);
-                            } catch (Exception ignored) {
-                            }
+                        updateConnectivityUI();
+                        try {
+                            new com.app.fourscontracting.data.AttendanceRepository(DashboardActivity.this).flushQueue(null);
+                        } catch (Exception ignored) {
                         }
                     }
                 });
@@ -114,40 +120,30 @@ public class WebviewActivity extends AppActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (!isNetworkAvailable()) {
-                            startPulseGlow(headerCard);
-                            showNoInternetBar();
-                            Toast.makeText(WebviewActivity.this, AppMessages.NO_INTERNET, Toast.LENGTH_SHORT).show();
-                        }
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateConnectivityUI();
+                            }
+                        }, 100);
+                    }
+                });
+            }
+
+            @Override
+            public void onUnavailable() {
+                super.onUnavailable();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateConnectivityUI();
                     }
                 });
             }
         };
 
-        // Retry Button Logic
-        if (btnRetry != null) {
-            btnRetry.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isNetworkAvailable()) {
-                        stopPulseGlow(headerCard);
-                        hideNoInternetBar();
-                        reloadActiveWebView();
-                    } else {
-                        Toast.makeText(WebviewActivity.this, AppMessages.NO_INTERNET, Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
-        }
-
-        // Initial Check when app starts
-        if (!isNetworkAvailable()) {
-            startPulseGlow(headerCard);
-            showNoInternetBar();
-        } else {
-            stopPulseGlow(headerCard);
-            hideNoInternetBar();
-        }
+        setupNetworkAlertView();
+        checkInitialNetworkState();
         setupProjectSpinner();
         fetchAssignedProjectsFromServer();
 
@@ -155,7 +151,6 @@ public class WebviewActivity extends AppActivity {
         final String val = user.username != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
 
-        //getActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#000000")));
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -163,10 +158,9 @@ public class WebviewActivity extends AppActivity {
         }
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
+
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_home, R.id.nav_calendar, R.id.nav_profile, R.id.nav_move_site, R.id.nav_manage_attendance)
+                R.id.nav_profile, R.id.nav_supervisor_attendance, R.id.nav_manage_attendance, R.id.nav_move_site)
                 .setOpenableLayout(drawer)
                 .build();
         androidx.navigation.fragment.NavHostFragment navHostFragment = (androidx.navigation.fragment.NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
@@ -176,7 +170,6 @@ public class WebviewActivity extends AppActivity {
 
         final ViewFlipper titleFlipper = findViewById(R.id.title_flipper);
         final TextView toolbarTitle = findViewById(R.id.toolbar_title);
-        final View greetingContainer = findViewById(R.id.greetingContainer);
         final TextView headerGreeting = findViewById(R.id.headerGreeting);
         final TextView headerUserName = findViewById(R.id.headerUserName);
 
@@ -193,14 +186,11 @@ public class WebviewActivity extends AppActivity {
         NavigationUI.setupWithNavController(bottom_nav_view, navController);
 
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
-            // Clear footer highlight when on sidebar-only Move Site or Manage Attendance
-            if ((destination.getId() == R.id.nav_move_site || destination.getId() == R.id.nav_manage_attendance) && bottom_nav_view != null) {
-                bottom_nav_view.getMenu().setGroupCheckable(0, false, true);
-            } else if (bottom_nav_view != null) {
+            if (bottom_nav_view != null) {
                 bottom_nav_view.getMenu().setGroupCheckable(0, true, true);
             }
 
-            if (destination.getId() == R.id.nav_home) {
+            if (destination.getId() == R.id.nav_profile) {
                 if (titleFlipper != null) {
                     titleFlipper.setDisplayedChild(0); // Show greeting
                 }
@@ -215,12 +205,12 @@ public class WebviewActivity extends AppActivity {
                     titleFlipper.setDisplayedChild(1); // Show title
                 }
                 if (toolbarTitle != null) {
-                    if (destination.getId() == R.id.nav_profile) {
-                        toolbarTitle.setText("Labour Management");
-                    } else if (destination.getId() == R.id.nav_move_site) {
+                    if (destination.getId() == R.id.nav_move_site) {
                         toolbarTitle.setText("Move Site");
                     } else if (destination.getId() == R.id.nav_manage_attendance) {
                         toolbarTitle.setText("Manage Attendance");
+                    } else if (destination.getId() == R.id.nav_supervisor_attendance) {
+                        toolbarTitle.setText("Self Attendance");
                     } else {
                         toolbarTitle.setText(destination.getLabel());
                     }
@@ -236,7 +226,7 @@ public class WebviewActivity extends AppActivity {
             contentMainRoot.setBackground(new BlueprintGridDrawable(8));
         }
 
-        // Update Sidebar (keep XML gradient + splash logo card; do not overwrite background)
+        // Update Sidebar
         View headerView = navigationView.getHeaderView(0);
         if (headerView != null) {
             TextView navName = headerView.findViewById(R.id.sidebar_user_name);
@@ -251,8 +241,6 @@ public class WebviewActivity extends AppActivity {
         super.onConfigurationChanged(newConfig);
     }
 
-
-
     @Override
     public boolean onSupportNavigateUp() {
         androidx.navigation.fragment.NavHostFragment navHostFragment = (androidx.navigation.fragment.NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
@@ -263,28 +251,13 @@ public class WebviewActivity extends AppActivity {
 
     @Override
     public void onBackPressed() {
-        androidx.navigation.fragment.NavHostFragment navHostFragment = (androidx.navigation.fragment.NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
-        if (navHostFragment != null) {
-            java.util.List<androidx.fragment.app.Fragment> fragments = navHostFragment.getChildFragmentManager().getFragments();
-            for (androidx.fragment.app.Fragment fragment : fragments) {
-                if (fragment != null && fragment.isVisible()) {
-                    if (fragment instanceof SettingFragment || 
-                        fragment instanceof com.app.fourscontracting.ui.move.MoveSiteFragment ||
-                        fragment instanceof com.app.fourscontracting.ui.attendance.ManageAttendanceFragment ||
-                        fragment instanceof com.app.fourscontracting.ui.home.HomeFragment ||
-                        fragment instanceof com.app.fourscontracting.ui.slideshow.SlideshowFragment) {
-                        // Native Fragments (no webview history)
-                    }
-                }
-            }
-        }
         super.onBackPressed();
     }
 
     private void handleIntent(Intent intent) {
         if (intent != null) {
             if (intent.hasExtra("destination_id")) {
-                int destId = intent.getIntExtra("destination_id", R.id.nav_home);
+                int destId = intent.getIntExtra("destination_id", R.id.nav_profile);
                 BottomNavigationView bottom_nav_view = findViewById(R.id.bottom_nav_view);
                 if (bottom_nav_view != null) {
                     bottom_nav_view.setSelectedItemId(destId);
@@ -292,7 +265,7 @@ public class WebviewActivity extends AppActivity {
             }
             if (intent.getBooleanExtra("attendance_submitted", false)) {
                 intent.putExtra("attendance_submitted", false);
-                reloadActiveWebView();
+                refreshActiveFragment();
             }
         }
     }
@@ -308,29 +281,223 @@ public class WebviewActivity extends AppActivity {
     protected void onResume() {
         super.onResume();
         if (connectivityManager != null && networkCallback != null) {
-            NetworkRequest networkRequest = new NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build();
-            connectivityManager.registerNetworkCallback(networkRequest, networkCallback);
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                } else {
+                    NetworkRequest networkRequest = new NetworkRequest.Builder()
+                            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            .build();
+                    connectivityManager.registerNetworkCallback(networkRequest, networkCallback);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
+
+        if (connectivityReceiver == null) {
+            connectivityReceiver = new android.content.BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            updateConnectivityUI();
+                        }
+                    });
+                }
+            };
+            try {
+                registerReceiver(connectivityReceiver, new android.content.IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+            } catch (Exception ignored) {}
+        }
+
+        updateConnectivityUI();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         if (connectivityManager != null && networkCallback != null) {
-            connectivityManager.unregisterNetworkCallback(networkCallback);
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (Exception ignored) {}
+        }
+        if (connectivityReceiver != null) {
+            try {
+                unregisterReceiver(connectivityReceiver);
+            } catch (Exception ignored) {}
+            connectivityReceiver = null;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (hideNetworkAlertRunnable != null) {
+            networkAlertHandler.removeCallbacks(hideNetworkAlertRunnable);
+        }
+    }
+
+    private void checkInitialNetworkState() {
+        boolean isOnline = isNetworkAvailable();
+        if (!isOnline) {
+            wasOffline = true;
+            showNetworkAlert(false);
+        } else {
+            wasOffline = false;
+        }
+    }
+
+    private void setupNetworkAlertView() {
+        networkAlertCard = findViewById(R.id.networkAlertCard);
+        ivNetworkAlertIcon = findViewById(R.id.ivNetworkAlertIcon);
+        tvNetworkAlertMessage = findViewById(R.id.tvNetworkAlertMessage);
+        tvNetworkAlertClose = findViewById(R.id.tvNetworkAlertClose);
+
+        if (tvNetworkAlertClose != null) {
+            tvNetworkAlertClose.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isNetworkAvailable()) {
+                        wasOffline = false;
+                        showNetworkAlert(true);
+                        try {
+                            new com.app.fourscontracting.data.AttendanceRepository(DashboardActivity.this).flushQueue(null);
+                        } catch (Exception ignored) {}
+                    } else {
+                        retriggerNetworkAlertIn();
+                    }
+                }
+            });
+        }
+    }
+
+    private void retriggerNetworkAlertIn() {
+        if (networkAlertCard == null) return;
+        final float screenWidth = getResources().getDisplayMetrics().widthPixels;
+        networkAlertCard.animate()
+                .translationX(-screenWidth)
+                .setDuration(150)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (networkAlertCard != null) {
+                            networkAlertCard.setTranslationX(-screenWidth);
+                            networkAlertCard.animate()
+                                    .translationX(0f)
+                                    .alpha(1f)
+                                    .setDuration(320)
+                                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f))
+                                    .start();
+                        }
+                    }
+                })
+                .start();
+    }
+
+    private void showNetworkAlert(boolean isOnline) {
+        if (networkAlertCard == null) {
+            setupNetworkAlertView();
+        }
+        if (networkAlertCard == null) return;
+
+        if (hideNetworkAlertRunnable != null) {
+            networkAlertHandler.removeCallbacks(hideNetworkAlertRunnable);
+        }
+
+        if (isOnline) {
+            // --- ONLINE STATE: "We are back..." (Dark Emerald Green #0B381D) ---
+            networkAlertCard.setCardBackgroundColor(Color.parseColor("#0B381D"));
+            if (ivNetworkAlertIcon != null) {
+                ivNetworkAlertIcon.setImageResource(R.drawable.ic_bhim_online_check);
+            }
+            if (tvNetworkAlertMessage != null) {
+                tvNetworkAlertMessage.setText("We are back...");
+            }
+
+            animateNetworkAlertIn();
+
+            hideNetworkAlertRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    animateNetworkAlertOut();
+                }
+            };
+            networkAlertHandler.postDelayed(hideNetworkAlertRunnable, 3000);
+        } else {
+            // --- OFFLINE STATE: "You're offline right now" (Dark Crimson Red #450A0A) ---
+            networkAlertCard.setCardBackgroundColor(Color.parseColor("#450A0A"));
+            if (ivNetworkAlertIcon != null) {
+                ivNetworkAlertIcon.setImageResource(R.drawable.ic_bhim_offline_alert);
+            }
+            if (tvNetworkAlertMessage != null) {
+                tvNetworkAlertMessage.setText("You're offline right now");
+            }
+
+            animateNetworkAlertIn();
+        }
+    }
+
+    private void animateNetworkAlertIn() {
+        if (networkAlertCard == null) return;
+        if (networkAlertCard.getVisibility() != View.VISIBLE) {
+            networkAlertCard.setVisibility(View.VISIBLE);
+            networkAlertCard.setAlpha(0f);
+
+            // Sudden Left-to-Right entrance animation with Overshoot
+            float screenWidth = getResources().getDisplayMetrics().widthPixels;
+            networkAlertCard.setTranslationX(-screenWidth);
+            networkAlertCard.setTranslationY(0f);
+
+            networkAlertCard.animate()
+                    .alpha(1f)
+                    .translationX(0f)
+                    .setDuration(320)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f))
+                    .start();
+        }
+    }
+
+    private void animateNetworkAlertOut() {
+        if (networkAlertCard == null) return;
+        if (networkAlertCard.getVisibility() == View.VISIBLE) {
+            float screenWidth = getResources().getDisplayMetrics().widthPixels;
+
+            networkAlertCard.animate()
+                    .alpha(0f)
+                    .translationX(screenWidth)
+                    .setDuration(280)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                    .withEndAction(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (networkAlertCard != null) {
+                                networkAlertCard.setVisibility(View.GONE);
+                                networkAlertCard.setTranslationX(0f);
+                            }
+                        }
+                    })
+                    .start();
         }
     }
 
     private boolean isNetworkAvailable() {
         if (connectivityManager == null) return false;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork());
-            return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        } else {
-            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                Network activeNet = connectivityManager.getActiveNetwork();
+                if (activeNet == null) return false;
+                NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(activeNet);
+                return capabilities != null &&
+                        (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ||
+                         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+            } else {
+                NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+            }
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -345,89 +512,9 @@ public class WebviewActivity extends AppActivity {
         }
     }
 
-    // Scroll collapse flipper controller
-    public void setHeaderCollapsed(boolean collapsed) {
-        ViewFlipper titleFlipper = findViewById(R.id.title_flipper);
-        if (titleFlipper != null) {
-            int targetChild = collapsed ? 1 : 0;
-            if (titleFlipper.getDisplayedChild() != targetChild) {
-                titleFlipper.setDisplayedChild(targetChild);
-            }
-        }
-    }
 
-    // Floating header card glow animations
-    private void startPulseGlow(final MaterialCardView card) {
-        if (card == null) return;
-        if (glowAnimator != null) {
-            glowAnimator.cancel();
-        }
-        card.setStrokeWidth((int) (2.5f * getResources().getDisplayMetrics().density));
-        glowAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), 
-                Color.parseColor("#E2E8F0"), Color.parseColor("#F59E0B"));
-        glowAnimator.setDuration(1200);
-        glowAnimator.setRepeatMode(ValueAnimator.REVERSE);
-        glowAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        glowAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                card.setStrokeColor((int) animation.getAnimatedValue());
-            }
-        });
-        glowAnimator.start();
-    }
 
-    private void stopPulseGlow(final MaterialCardView card) {
-        if (glowAnimator != null) {
-            glowAnimator.cancel();
-            glowAnimator = null;
-        }
-        if (card != null) {
-            card.setStrokeWidth((int) (1.5f * getResources().getDisplayMetrics().density));
-            card.setStrokeColor(Color.parseColor("#0EA5E9")); // Brand Soft Blue Glow
-        }
-    }
-
-    private void showNoInternetBar() {
-        if (noInternetBar == null) return;
-        if (noInternetBar.getVisibility() == View.VISIBLE) return;
-        
-        noInternetBar.setVisibility(View.VISIBLE);
-        noInternetBar.post(new Runnable() {
-            @Override
-            public void run() {
-                float height = noInternetBar.getHeight();
-                if (height == 0) height = 150f;
-                noInternetBar.setTranslationY(-height);
-                noInternetBar.animate()
-                        .translationY(0f)
-                        .alpha(1f)
-                        .setDuration(300)
-                        .start();
-            }
-        });
-    }
-
-    private void hideNoInternetBar() {
-        if (noInternetBar == null) return;
-        if (noInternetBar.getVisibility() == View.GONE) return;
-        
-        float height = noInternetBar.getHeight();
-        if (height == 0) height = 150f;
-        
-        noInternetBar.animate()
-                .translationY(-height)
-                .alpha(0f)
-                .setDuration(300)
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        noInternetBar.setVisibility(View.GONE);
-                    }
-                }).start();
-    }
-
-    private void reloadActiveWebView() {
+    private void refreshActiveFragment() {
         androidx.navigation.fragment.NavHostFragment navHostFragment = (androidx.navigation.fragment.NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
         if (navHostFragment != null) {
             java.util.List<androidx.fragment.app.Fragment> fragments = navHostFragment.getChildFragmentManager().getFragments();
@@ -443,6 +530,8 @@ public class WebviewActivity extends AppActivity {
                         ((com.app.fourscontracting.ui.home.HomeFragment) fragment).refreshData();
                     } else if (fragment instanceof com.app.fourscontracting.ui.slideshow.SlideshowFragment) {
                         ((com.app.fourscontracting.ui.slideshow.SlideshowFragment) fragment).refreshData();
+                    } else if (fragment instanceof com.app.fourscontracting.ui.supervisor.SupervisorAttendanceFragment) {
+                        ((com.app.fourscontracting.ui.supervisor.SupervisorAttendanceFragment) fragment).refreshData();
                     }
                 }
             }
@@ -467,7 +556,7 @@ public class WebviewActivity extends AppActivity {
             String[] project_list = val_list[3].split(",");
             spinner = findViewById(R.id.spinner);
             if (spinner != null) {
-                ArrayAdapter<String> adapter = new ArrayAdapter<String>(WebviewActivity.this, android.R.layout.simple_spinner_item, project_list);
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(DashboardActivity.this, android.R.layout.simple_spinner_item, project_list);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 spinner.setAdapter(adapter);
 
@@ -479,7 +568,6 @@ public class WebviewActivity extends AppActivity {
                         }
                         if (parent != null && parent.getItemAtPosition(position) != null) {
                             String value = parent.getItemAtPosition(position).toString();
-                            Toast.makeText(WebviewActivity.this, value, Toast.LENGTH_SHORT).show();
                             UserProject user = new UserProject(value);
                             SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
                             SharedPreferences.Editor editor = settings.edit();
@@ -520,10 +608,7 @@ public class WebviewActivity extends AppActivity {
                             newProjectsList.add(projObj.optString("projname", ""));
                         }
                         
-                        // Update both database and shared pref cache
-                        userLocalStore.updateAssignedProjects(newProjectsList, WebviewActivity.this);
-                        
-                        // Refresh spinner with new data
+                        userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
                         setupProjectSpinner();
                     }
                 } catch (Exception e) {
@@ -537,5 +622,4 @@ public class WebviewActivity extends AppActivity {
 
         MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
     }
-
 }

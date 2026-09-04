@@ -134,7 +134,7 @@ public class ProjectSelectActivity extends AppActivity {
                             store.storeUserProjectData(new UserProject(project.projname));
                             store.storeUserProjectID(project.id);
 
-                            Intent intent = new Intent(ProjectSelectActivity.this, WebviewActivity.class);
+                            Intent intent = new Intent(ProjectSelectActivity.this, DashboardActivity.class);
                             intent.putExtra("destination_id", R.id.nav_profile);
                             intent.putExtra("project_id", project.id);
                             intent.putExtra("project_name", project.projname);

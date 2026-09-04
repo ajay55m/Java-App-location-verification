@@ -10,24 +10,19 @@
             android:title="Labour" />
 
         <item
-            android:id="@+id/nav_move_site"
-            android:icon="@drawable/ic_baseline_move_site_24"
-            android:title="Move Site" />
+            android:id="@+id/nav_supervisor_attendance"
+            android:icon="@drawable/ic_baseline_camera_alt_24"
+            android:title="Self" />
 
         <item
             android:id="@+id/nav_manage_attendance"
             android:icon="@drawable/ic_baseline_assignment_24"
-            android:title="Manage Attendance" />
+            android:title="Manage" />
 
         <item
-            android:id="@+id/nav_home"
-            android:icon="@drawable/ic_baseline_assignment_24"
-            android:title="Leave Request" />
-
-        <item
-            android:id="@+id/nav_calendar"
-            android:icon="@drawable/ic_baseline_check_24"
-            android:title="Leave Approval" />
+            android:id="@+id/nav_move_site"
+            android:icon="@drawable/ic_baseline_move_site_24"
+            android:title="Move Site" />
     </group>
 
 </menu>

@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Folded Map Base - Deep ocean blue -->
+    <path
+        android:fillColor="#0077B6"
+        android:pathData="M20.5,3l-0.16,0.03L15,5.1 9,3 3.36,4.9c-0.21,0.07 -0.36,0.25 -0.36,0.48V20.5c0,0.32 0.29,0.57 0.61,0.51l0.25,-0.04L9,18.9l6,2.1 5.64,-1.9c0.21,-0.07 0.36,-0.25 0.36,-0.48V3.5c0,-0.32 -0.29,-0.57 -0.61,-0.51zM15,18.85l-6,-2.11V5.15l6,2.11v11.59z" />
+    <!-- Map Center Fold Tint - Soft cyan fill -->
+    <path
+        android:fillColor="#00B4D8"
+        android:pathData="M9,5.15l6,2.11v11.59l-6,-2.11z"
+        android:fillAlpha="0.35" />
+    <!-- Right Arrow Overlay Badge - Duo-Tone Vibrant Cyan & Navy -->
+    <path
+        android:fillColor="#00B4D8"
+        android:pathData="M16.5,12c-0.55,0 -1,0.45 -1,1v1.5H11v2h4.5V18l3.5,-3 -3.5,-3z" />
+    <path
+        android:fillColor="#03045E"
+        android:pathData="M15.5,14.5h-3v1h3v1.2l1.8,-1.7 -1.8,-1.7v1.2z" />
+</vector>

@@ -86,7 +86,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-black"
                     android:letterSpacing="0.06"
-                    android:text="VERIFY"
+                    android:text="CHANGE LOCATION"
                     android:textAllCaps="true"
                     android:textColor="#FFFFFF"
                     android:textSize="10sp" />

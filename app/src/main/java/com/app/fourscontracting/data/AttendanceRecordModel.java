@@ -2,6 +2,8 @@ package com.app.fourscontracting.data;
 
 public class AttendanceRecordModel {
     private final String attendId;
+    private final String userId;
+    private final String empId;
     private final String firstName;
     private final String projName;
     private final String timeIn;
@@ -15,7 +17,21 @@ public class AttendanceRecordModel {
     public AttendanceRecordModel(String attendId, String firstName, String projName, String timeIn,
                                  String timeOut, double breakHours, boolean hasIn, boolean hasOut,
                                  String inPhotoUrl, String outPhotoUrl) {
+        this(attendId, "", "", firstName, projName, timeIn, timeOut, breakHours, hasIn, hasOut, inPhotoUrl, outPhotoUrl);
+    }
+
+    public AttendanceRecordModel(String attendId, String empId, String firstName, String projName, String timeIn,
+                                 String timeOut, double breakHours, boolean hasIn, boolean hasOut,
+                                 String inPhotoUrl, String outPhotoUrl) {
+        this(attendId, "", empId, firstName, projName, timeIn, timeOut, breakHours, hasIn, hasOut, inPhotoUrl, outPhotoUrl);
+    }
+
+    public AttendanceRecordModel(String attendId, String userId, String empId, String firstName, String projName, String timeIn,
+                                 String timeOut, double breakHours, boolean hasIn, boolean hasOut,
+                                 String inPhotoUrl, String outPhotoUrl) {
         this.attendId = attendId != null ? attendId : "";
+        this.userId = userId != null ? userId : "";
+        this.empId = empId != null ? empId : "";
         this.firstName = firstName != null ? firstName : "";
         this.projName = projName != null ? projName : "";
         this.timeIn = timeIn != null ? timeIn : "";
@@ -29,6 +45,14 @@ public class AttendanceRecordModel {
 
     public String getAttendId() {
         return attendId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public String getEmpId() {
+        return empId;
     }
 
     public String getFirstName() {

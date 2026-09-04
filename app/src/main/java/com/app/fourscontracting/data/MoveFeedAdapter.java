@@ -52,7 +52,11 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         MoveRecordModel item = list.get(position);
         Context context = holder.itemView.getContext();
 
-        holder.tvEmpName.setText(item.getFirstName());
+        String empName = item.getFirstName();
+        if (empName == null || empName.trim().isEmpty()) {
+            empName = "Worker";
+        }
+        holder.tvEmpName.setText(empName);
 
         // Status Pill: AT NEXT SITE vs MOVE COMPLETED
         if (item.isActive()) {
@@ -106,7 +110,11 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         }
 
         // Location Tag
-        holder.tvProjName.setText(item.getProjName());
+        String projName = item.getProjName();
+        if (projName == null || projName.trim().isEmpty()) {
+            projName = "Assigned Site";
+        }
+        holder.tvProjName.setText(projName);
     }
 
     @Override

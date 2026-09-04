@@ -58,7 +58,7 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".WebviewActivity"
+            android:name=".DashboardActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:hardwareAccelerated="true"

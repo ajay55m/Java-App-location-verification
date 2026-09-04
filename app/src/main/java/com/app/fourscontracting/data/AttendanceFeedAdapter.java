@@ -53,7 +53,11 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         AttendanceRecordModel item = list.get(position);
         Context context = holder.itemView.getContext();
 
-        holder.tvEmpName.setText(item.getFirstName());
+        String empName = item.getFirstName();
+        if (empName == null || empName.trim().isEmpty() || "User".equalsIgnoreCase(empName.trim())) {
+            empName = (item.getEmpId() != null && !item.getEmpId().trim().isEmpty()) ? "Supervisor #" + item.getEmpId() : "Supervisor";
+        }
+        holder.tvEmpName.setText(empName);
 
         // Status Pill
         if (item.isActive()) {
@@ -127,7 +131,11 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         }
 
         // Location Tag
-        holder.tvProjName.setText(item.getProjName());
+        String projName = item.getProjName();
+        if (projName == null || projName.trim().isEmpty()) {
+            projName = "Assigned Site";
+        }
+        holder.tvProjName.setText(projName);
     }
 
     @Override
@@ -144,8 +152,11 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
     }
 
     private String formatTime(String rawTime) {
-        if (rawTime == null || rawTime.isEmpty() || "--".equals(rawTime)) {
+        if (rawTime == null || rawTime.isEmpty() || "--".equals(rawTime) || "--:--".equals(rawTime)) {
             return "--:--";
+        }
+        if (rawTime.toLowerCase().contains("am") || rawTime.toLowerCase().contains("pm")) {
+            return rawTime;
         }
         try {
             SimpleDateFormat inFormat = new SimpleDateFormat("HH:mm:ss", Locale.US);

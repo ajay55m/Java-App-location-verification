@@ -95,6 +95,7 @@ public class ManageAttendanceActivity extends AppActivity
         initViews();
         setupDateSpinners();
         setupTabButtons();
+        prepopulateProjectsFromCache();
 
         attendanceAdapter = new AttendanceFeedAdapter(this);
         moveAdapter = new MoveFeedAdapter(this);
@@ -290,6 +291,21 @@ public class ManageAttendanceActivity extends AppActivity
                 updateEmptyStateView();
             }
         });
+    }
+
+    private void prepopulateProjectsFromCache() {
+        if (spinnerProjects == null) return;
+        SessionPrefs session = new SessionPrefs(this);
+        List<Project> cached = session.getCachedProjectList(true);
+        if (cached != null && !cached.isEmpty()) {
+            List<AllocatedProjectModel> allocList = new ArrayList<>();
+            for (Project p : cached) {
+                if (p != null && p.name != null && !p.name.isEmpty()) {
+                    allocList.add(new AllocatedProjectModel(p.id != null ? p.id : p.name, p.name));
+                }
+            }
+            updateProjectSpinner(allocList);
+        }
     }
 
     private void updateProjectSpinner(List<AllocatedProjectModel> projects) {

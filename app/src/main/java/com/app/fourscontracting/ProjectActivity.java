@@ -50,7 +50,7 @@ public class ProjectActivity extends AppActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String value = parent.getItemAtPosition(position).toString();
                 Toast.makeText(ProjectActivity.this, value, Toast.LENGTH_SHORT).show();
-                Intent homepage = new Intent(ProjectActivity.this, WebviewActivity.class);
+                Intent homepage = new Intent(ProjectActivity.this, DashboardActivity.class);
                 homepage.putExtra("key", val);
                 homepage.putExtra("projectname", value);
                 startActivity(homepage);

@@ -18,7 +18,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.Menu;
-import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -240,7 +239,7 @@ public class MainActivity extends AppActivity {
                         editor.apply();
                         userLocalStore.storeUserData(user);
                         userLocalStore.setUserLoggedIn(true);
-                        Intent homepage = new Intent(MainActivity.this, WebviewActivity.class);
+                        Intent homepage = new Intent(MainActivity.this, DashboardActivity.class);
                         homepage.putExtra("key", user.username);
                         startActivity(homepage);
                         finish();
@@ -296,7 +295,7 @@ public class MainActivity extends AppActivity {
                     if (authenticate() == true) {
                         lv = (LinearLayout) findViewById(R.id.loginView);
                         if (lv != null) lv.setVisibility(View.GONE);
-                        Intent homepage = new Intent(MainActivity.this, WebviewActivity.class);
+                        Intent homepage = new Intent(MainActivity.this, DashboardActivity.class);
                         homepage.putExtra("key", user.username);
                         startActivity(homepage);
                         finish();

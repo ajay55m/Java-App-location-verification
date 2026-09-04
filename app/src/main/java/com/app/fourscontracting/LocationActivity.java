@@ -283,6 +283,19 @@ public class LocationActivity extends AppActivity implements LocationListener {
                 LocationActivity.this.startActivityForResult(new Intent("android.media.action.IMAGE_CAPTURE"), LocationActivity.CAMERA_REQUEST);
             }
         });
+
+        if (savedInstanceState == null && (imagepath == null || imagepath.isEmpty())) {
+            new Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing() && !isDestroyed()) {
+                        if (AppPermissions.ensureOrGuide(LocationActivity.this, true, false)) {
+                            LocationActivity.this.startActivityForResult(new Intent("android.media.action.IMAGE_CAPTURE"), LocationActivity.CAMERA_REQUEST);
+                        }
+                    }
+                }
+            }, 300);
+        }
         UserLocalStore userLocalStore2 = new UserLocalStore(this);
         this.userLocalStore = userLocalStore2;
         SessionPrefs sessionPrefsForProject = new SessionPrefs(this);
@@ -387,7 +400,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
             bottomNavLoc.setOnNavigationItemSelectedListener(new com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemSelectedListener() {
                 @Override
                 public boolean onNavigationItemSelected(@androidx.annotation.NonNull android.view.MenuItem item) {
-                    Intent intent = new Intent(LocationActivity.this, WebviewActivity.class);
+                    Intent intent = new Intent(LocationActivity.this, DashboardActivity.class);
                     intent.putExtra("destination_id", item.getItemId());
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     startActivity(intent);
@@ -446,7 +459,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
             } else {
                 Toast.makeText(this, result.userMessage(), Toast.LENGTH_SHORT).show();
             }
-            Intent intentHome = new Intent(LocationActivity.this, WebviewActivity.class);
+            Intent intentHome = new Intent(LocationActivity.this, DashboardActivity.class);
             if (userLocalStore != null && userLocalStore.getLoggedInUser() != null) {
                 intentHome.putExtra("key", userLocalStore.getLoggedInUser().username);
             }
@@ -486,7 +499,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
                     return;
                 }
                 Toast.makeText(LocationActivity.this, response, Toast.LENGTH_SHORT).show();
-                //LocationActivity.this.startActivity(new Intent(LocationActivity.this, WebviewActivity.class));
+                //LocationActivity.this.startActivity(new Intent(LocationActivity.this, DashboardActivity.class));
             }
         }, new Response.ErrorListener() {
             public void onErrorResponse(VolleyError error) {

@@ -495,15 +495,21 @@ public class LocationVerifyActivity extends AppActivity {
         String[] val_list = UserLocalStore.parseUserInfo(val);
         String uid = val_list.length > 0 ? val_list[0] : "";
 
-        // Instant UI from 30‑min cache (avoids empty dropdown while network is slow)
+        // Instant UI load from local cache or assigned projects (0ms delay)
         SessionPrefs session = new SessionPrefs(this);
-        java.util.List<Project> cached = session.getCachedProjectList();
+        java.util.List<Project> cached = session.getCachedProjectList(true);
         if (!cached.isEmpty()) {
             bindProjectDropdown(cached);
             autoSelectIfNeeded(cached);
-        } else if (myProjectSpinner != null) {
-            myProjectSpinner.setText("Loading projects…", false);
-            myProjectSpinner.setEnabled(false);
+        } else {
+            List<Project> instantLocal = getInstantLocalProjects(val_list);
+            if (!instantLocal.isEmpty()) {
+                bindProjectDropdown(instantLocal);
+                autoSelectIfNeeded(instantLocal);
+            } else if (myProjectSpinner != null) {
+                myProjectSpinner.setText("Loading projects…", false);
+                myProjectSpinner.setEnabled(false);
+            }
         }
 
         if (progressProjectsLoading != null) {
@@ -518,7 +524,7 @@ public class LocationVerifyActivity extends AppActivity {
             return;
         }
 
-        // ONE API: getprojects already returns id + projname (no second get_project_name wait)
+        // Silent background update from server
         String getProjectsUrl = "https://4scontracting.com/SMCS_APP/fcm_app/getprojects.php?uid=" + uid;
 
         JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.GET, getProjectsUrl, null,
@@ -581,11 +587,25 @@ public class LocationVerifyActivity extends AppActivity {
         );
 
         getProjectsRequest.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
-                12000,
+                8000,
                 1,
                 com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
         ));
         MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
+    }
+
+    private List<Project> getInstantLocalProjects(String[] val_list) {
+        List<Project> list = new ArrayList<>();
+        String assignedProjectsStr = val_list.length > 3 ? val_list[3] : "";
+        if (!assignedProjectsStr.isEmpty()) {
+            for (String p : assignedProjectsStr.split(",")) {
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) {
+                    list.add(new Project(trimmed, trimmed, ""));
+                }
+            }
+        }
+        return list;
     }
 
     private void autoSelectIfNeeded(List<Project> projectList) {
@@ -778,31 +798,16 @@ public class LocationVerifyActivity extends AppActivity {
                     @Override
                     protected FilterResults performFiltering(CharSequence constraint) {
                         FilterResults results = new FilterResults();
-                        List<Project> filtered = new ArrayList<>();
-                        if (constraint == null || constraint.length() == 0) {
-                            filtered.addAll(masterList);
-                        } else {
-                            String filterPattern = constraint.toString().toLowerCase().trim();
-                            for (Project p : masterList) {
-                                if (p.name != null && p.name.toLowerCase().contains(filterPattern)) {
-                                    filtered.add(p);
-                                }
-                            }
-                        }
-                        results.values = filtered;
-                        results.count = filtered.size();
+                        results.values = masterList;
+                        results.count = masterList.size();
                         return results;
                     }
 
                     @Override
                     protected void publishResults(CharSequence constraint, FilterResults results) {
-                        clear();
-                        if (results != null && results.values instanceof List) {
-                            //noinspection unchecked
-                            List<Project> list = (List<Project>) results.values;
-                            addAll(list);
-                        }
-                        notifyDataSetChanged();
+                        // Do not clear/addAll/notifyDataSetChanged asynchronously here.
+                        // The adapter already contains masterList, so updating it asynchronously
+                        // triggers a dataset change that closes the dropdown popup on tap ("blink and go").
                     }
                 };
             }
@@ -821,13 +826,19 @@ public class LocationVerifyActivity extends AppActivity {
         }
 
         View.OnClickListener openAll = v -> {
-            adapter.getFilter().filter(null);
-            myProjectSpinner.showDropDown();
+            if (!myProjectSpinner.isPopupShowing()) {
+                myProjectSpinner.showDropDown();
+            }
         };
         myProjectSpinner.setOnClickListener(openAll);
+
+        com.google.android.material.textfield.TextInputLayout projectInputLayout = findViewById(R.id.project_input_layout);
+        if (projectInputLayout != null) {
+            projectInputLayout.setOnClickListener(openAll);
+        }
+
         myProjectSpinner.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                adapter.getFilter().filter(null);
+            if (hasFocus && !myProjectSpinner.isPopupShowing()) {
                 myProjectSpinner.post(myProjectSpinner::showDropDown);
             }
         });
@@ -846,6 +857,12 @@ public class LocationVerifyActivity extends AppActivity {
     }
 
     private void fetchGeofenceBoundaries(String selectedProjectId) {
+        final String projId = (selectedProjectId != null && !selectedProjectId.isEmpty())
+                ? selectedProjectId
+                : (this.selectedProjectId != null && !this.selectedProjectId.isEmpty())
+                ? this.selectedProjectId
+                : new SessionPrefs(this).getProjectId();
+
         locationData.clear();
         btnVerify.setEnabled(false);
         btnVerify.setText("Verify GPS Check");
@@ -881,20 +898,28 @@ public class LocationVerifyActivity extends AppActivity {
                 }
             }
         }, error -> {
+            android.util.Log.e("LOCATION_VERIFY", "Failed to load locations: " + error.toString());
             if (isAutoStartVerify) {
                 showBlueprintFailure("Failed to load locations from server.", 0.0f);
             } else {
                 Toast.makeText(this, "Failed to load locations", Toast.LENGTH_SHORT).show();
-                showRetryLocationsDialog(selectedProjectId);
+                showRetryLocationsDialog(projId);
             }
         }) {
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
-                params.put("project_id", selectedProjectId);
+                params.put("project_id", projId != null ? projId : "");
                 return params;
             }
         };
+
+        request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                15000,
+                2,
+                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
         MySingleton.getmInstance(this).addToRequestque(request);
     }
 
@@ -968,6 +993,11 @@ public class LocationVerifyActivity extends AppActivity {
             }
             if (verifyStatusBadge != null) {
                 verifyStatusBadge.setVisibility(View.VISIBLE);
+                if (verifyStatusIcon != null) {
+                    verifyStatusIcon.setVisibility(View.VISIBLE);
+                    verifyStatusIcon.setImageResource(R.drawable.ic_baseline_check_24);
+                    verifyStatusIcon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#16A34A")));
+                }
                 verifyStatusBadge.setScaleX(0f);
                 verifyStatusBadge.setScaleY(0f);
                 verifyStatusBadge.animate()
@@ -1134,6 +1164,9 @@ public class LocationVerifyActivity extends AppActivity {
                 stopProgressAnimation();
                 verifyProgress.setVisibility(View.GONE);
             }
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.VISIBLE);
+            }
             if (verifyStatusIcon != null) {
                 verifyStatusIcon.setVisibility(View.VISIBLE);
                 verifyStatusIcon.setImageResource(R.drawable.ic_warning_red);
@@ -1190,7 +1223,7 @@ public class LocationVerifyActivity extends AppActivity {
             }
             
             btnBlueprintLeave.setOnClickListener(v -> {
-                Intent intent = new Intent(LocationVerifyActivity.this, WebviewActivity.class);
+                Intent intent = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
                 intent.putExtra("destination_id", R.id.nav_home);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 startActivity(intent);
@@ -1898,7 +1931,7 @@ public class LocationVerifyActivity extends AppActivity {
                     }
                     if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
                         Toast.makeText(LocationVerifyActivity.this, "Attendance submitted", Toast.LENGTH_SHORT).show();
-                        Intent intentHome = new Intent(LocationVerifyActivity.this, WebviewActivity.class);
+                        Intent intentHome = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
                         intentHome.putExtra("attendance_submitted", true);
                         intentHome.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                         startActivity(intentHome);

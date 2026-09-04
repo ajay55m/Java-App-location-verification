@@ -154,4 +154,79 @@ public class ManageAttendanceTest {
         assertNotNull(nullMove.getFirstName());
         assertEquals("", nullMove.getMoveId());
     }
+
+    @Test
+    public void testSupervisorCheckinJsonParsing_alternateKeys() throws Exception {
+        String supervisorCheckinJson = "{\n" +
+                "  \"status\": \"success\",\n" +
+                "  \"user_name\": \"4S-Contracting\",\n" +
+                "  \"records\": [\n" +
+                "    {\n" +
+                "      \"id\": \"85001\",\n" +
+                "      \"uid\": \"85\",\n" +
+                "      \"emp_name\": \"4S-Contracting\",\n" +
+                "      \"project_name\": \"RST/001\",\n" +
+                "      \"time_in\": \"09:15:00\",\n" +
+                "      \"time_out\": \"\",\n" +
+                "      \"has_in\": true\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}";
+
+        JSONObject root = new JSONObject(supervisorCheckinJson);
+        assertEquals("success", root.optString("status"));
+
+        JSONArray recArray = root.optJSONArray("records");
+        assertNotNull(recArray);
+        assertEquals(1, recArray.length());
+
+        JSONObject rObj = recArray.getJSONObject(0);
+        String attendIdVal = rObj.optString("attend_id", "");
+        if (attendIdVal.isEmpty()) attendIdVal = rObj.optString("id", "");
+
+        String empIdVal = rObj.optString("empid", "");
+        if (empIdVal.isEmpty()) empIdVal = rObj.optString("emp_id", "");
+        if (empIdVal.isEmpty()) empIdVal = rObj.optString("employee_id", "");
+        if (empIdVal.isEmpty()) empIdVal = rObj.optString("uid", "");
+
+        String firstNameVal = rObj.optString("first_name", "");
+        if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("emp_name", "");
+
+        String projNameVal = rObj.optString("projname", "");
+        if (projNameVal.isEmpty()) projNameVal = rObj.optString("project_name", "");
+
+        String timeInVal = rObj.optString("timein", "");
+        if (timeInVal.isEmpty()) timeInVal = rObj.optString("time_in", "");
+
+        String timeOutVal = rObj.optString("timeout", "");
+        if (timeOutVal.isEmpty()) timeOutVal = rObj.optString("time_out", "");
+
+        AttendanceRecordModel model = new AttendanceRecordModel(
+                attendIdVal, empIdVal, firstNameVal, projNameVal, timeInVal, timeOutVal, 0.0, true, false, "", ""
+        );
+
+        assertEquals("85001", model.getAttendId());
+        assertEquals("85", model.getEmpId());
+        assertEquals("4S-Contracting", model.getFirstName());
+        assertEquals("RST/001", model.getProjName());
+        assertEquals("09:15:00", model.getTimeIn());
+        assertTrue(model.isActive());
+    }
+
+    @Test
+    public void testSupervisorIdNumericalMatching() {
+        String supervisorUid = "85";
+        String recordEmpId = "085";
+
+        boolean match = false;
+        if (supervisorUid.equalsIgnoreCase(recordEmpId)) {
+            match = true;
+        } else {
+            try {
+                match = Integer.parseInt(supervisorUid.trim()) == Integer.parseInt(recordEmpId.trim());
+            } catch (Exception ignored) {}
+        }
+
+        assertTrue(match);
+    }
 }

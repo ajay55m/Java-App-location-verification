@@ -28,7 +28,7 @@ import com.app.fourscontracting.User;
 import com.app.fourscontracting.UserLocalStore;
 import com.app.fourscontracting.UserLocation;
 import com.app.fourscontracting.UserProject;
-import com.app.fourscontracting.WebviewActivity;
+import com.app.fourscontracting.DashboardActivity;
 import com.app.fourscontracting.data.DepartmentModel;
 import com.app.fourscontracting.data.MoveEmployeeModel;
 import com.app.fourscontracting.data.MoveSiteApi;
@@ -121,8 +121,8 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     public void onResume() {
         super.onResume();
         bindSessionHeader();
-        if (getActivity() instanceof WebviewActivity) {
-            ((WebviewActivity) getActivity()).updateToolbarTitle("Move Site");
+        if (getActivity() instanceof DashboardActivity) {
+            ((DashboardActivity) getActivity()).updateToolbarTitle("Move Site");
         }
         refreshList();
     }

@@ -44,18 +44,19 @@
     <style name="Widget.App.BottomNavigationView" parent="Widget.MaterialComponents.BottomNavigationView">
         <item name="itemTextAppearanceActive">@style/App.BottomNavigationView.Label.Active</item>
         <item name="itemTextAppearanceInactive">@style/App.BottomNavigationView.Label.Inactive</item>
+        <item name="itemActiveIndicatorStyle">@style/App.BottomNavigationView.ActiveIndicator</item>
     </style>
 
     <style name="App.BottomNavigationView.Label.Active" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/nav_active</item>
+        <item name="android:textColor">#03045E</item>
         <item name="android:textSize">11sp</item>
         <item name="fontFamily">sans-serif-medium</item>
     </style>
 
     <style name="App.BottomNavigationView.Label.Inactive" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textStyle">normal</item>
-        <item name="android:textColor">@color/nav_inactive</item>
+        <item name="android:textColor">#334155</item>
         <item name="android:textSize">11sp</item>
         <item name="fontFamily">sans-serif-medium</item>
     </style>
@@ -96,8 +97,12 @@
     </style>
 
     <style name="App.BottomNavigationView.ActiveIndicator" parent="">
-        <item name="android:color">#1A0EA5E9</item>
+        <item name="android:color">#2803045E</item>
+        <item name="android:width">48dp</item>
+        <item name="android:height">32dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.MaterialComponents.Corner.Full</item>
     </style>
+
 
     <style name="TextAppearance.App.NavDrawer" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textSize">15sp</item>
