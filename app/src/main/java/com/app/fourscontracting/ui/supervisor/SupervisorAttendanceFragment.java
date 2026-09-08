@@ -596,25 +596,65 @@ public class SupervisorAttendanceFragment extends Fragment
         return rawTime;
     }
 
+    private String getSupervisorUid() {
+        if (!TextUtils.isEmpty(supervisorUid) && !"--".equals(supervisorUid.trim())) {
+            return supervisorUid;
+        }
+        if (userLocalStore != null) {
+            User user = userLocalStore.getLoggedInUser();
+            String val = user != null ? user.username : "";
+            String[] val_list = UserLocalStore.parseUserInfo(val);
+            if (val_list.length > 0 && !TextUtils.isEmpty(val_list[0])) {
+                supervisorUid = val_list[0];
+                return supervisorUid;
+            }
+        }
+        return supervisorUid != null ? supervisorUid : "";
+    }
+
     private void performSelfPunch(String punchType) {
         Context context = getContext();
         if (context == null) return;
 
+        String sUid = getSupervisorUid();
+
         if (!sessionPrefs.isLocationSessionValid()) {
             Toast.makeText(context, AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
-            launchLocationVerifyForSession();
+            launchLocationVerifyForSessionWithAction(punchType, sUid);
             return;
         }
 
-        Intent intent = new Intent(context, LocationVerifyActivity.class);
-        intent.putExtra("empid", supervisorUid);
-        intent.putExtra("emp_name", supervisorName);
+        // Location session is verified — issue a fresh token & open LocationActivity (camera & photo capture submit screen)
+        String freshToken = sessionPrefs.issueFreshVerificationToken();
+
+        Intent intent = new Intent(context, com.app.fourscontracting.LocationActivity.class);
+        intent.putExtra("empid", sUid);
+        intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", punchType);
-        intent.putExtra("uid", supervisorUid);
-        intent.putExtra("selected_project_id", projId);
+        intent.putExtra("uid", sUid);
+        String pId = !TextUtils.isEmpty(projId) ? projId : sessionPrefs.getProjectId();
+        String pName = !TextUtils.isEmpty(projName) ? projName : sessionPrefs.getProjectName();
+        intent.putExtra("project_id", pId);
+        intent.putExtra("departmentid", pId);
+        intent.putExtra("projname", pName);
+        intent.putExtra("project_name", pName);
+        intent.putExtra("locationid", locationId);
+        intent.putExtra("loc_id", locationId);
+        intent.putExtra("MATCHED_LOC_ID", locationId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
+        startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
+    }
+
+    private void launchLocationVerifyForSessionWithAction(String punchType, String sUid) {
+        Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
+        intent.putExtra("IS_INITIAL_VERIFY", false);
+        intent.putExtra("IS_CHANGE_SITE", false);
         intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("target_location_id", locationId);
-        intent.putExtra("pending_eid", supervisorUid);
+        intent.putExtra("uid", sUid);
+        intent.putExtra("empid", sUid);
+        intent.putExtra("pending_eid", sUid);
+        intent.putExtra("type", punchType);
         intent.putExtra("pending_action", punchType);
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
@@ -623,11 +663,13 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null) return;
 
+        String sUid = getSupervisorUid();
+
         Intent intent = new Intent(context, LocationVerifyActivity.class);
-        intent.putExtra("empid", supervisorUid);
-        intent.putExtra("emp_name", supervisorName);
+        intent.putExtra("empid", sUid);
+        intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", "MOVE");
-        intent.putExtra("uid", supervisorUid);
+        intent.putExtra("uid", sUid);
         intent.putExtra("is_movement", true);
         intent.putExtra("selected_project_id", projId);
         intent.putExtra("projname", projName);
@@ -640,7 +682,9 @@ public class SupervisorAttendanceFragment extends Fragment
     private void launchLocationVerifyForSession() {
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", true);
-        intent.putExtra("uid", supervisorUid);
+        intent.putExtra("IS_CHANGE_SITE", true);
+        intent.putExtra("AUTO_START_VERIFY", false);
+        intent.putExtra("uid", getSupervisorUid());
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
 

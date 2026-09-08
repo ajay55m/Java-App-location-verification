@@ -63,7 +63,7 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         if (item.isActive()) {
             holder.tvStatusPill.setText("ACTIVE");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
-            holder.tvStatusPill.setTextColor(0xFF34D399);
+            holder.tvStatusPill.setTextColor(0xFFFFFFFF);
         } else {
             holder.tvStatusPill.setText("COMPLETED");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);

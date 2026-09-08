@@ -106,7 +106,7 @@
             android:textColor="#FFFFFF"
             android:textSize="11sp"
             android:textStyle="bold"
-            app:backgroundTint="#03045E"
+            app:backgroundTint="#059669"
             app:cornerRadius="18dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -122,7 +122,7 @@
             android:textColor="#FFFFFF"
             android:textSize="11sp"
             android:textStyle="bold"
-            app:backgroundTint="#0077B6"
+            app:backgroundTint="#DC2626"
             app:cornerRadius="18dp" />
     </LinearLayout>
 

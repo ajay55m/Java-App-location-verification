@@ -202,11 +202,25 @@ public class LocationActivity extends AppActivity implements LocationListener {
             getIncomingData();
         }
 
+        if (employeeId == null || employeeId.trim().isEmpty() || "--".equals(employeeId.trim())) {
+            if (managerUid != null && !managerUid.trim().isEmpty()) {
+                employeeId = managerUid.trim();
+            } else {
+                UserLocalStore uStore = new UserLocalStore(this);
+                User user = uStore.getLoggedInUser();
+                String val = user != null ? user.username : "";
+                String[] val_list = UserLocalStore.parseUserInfo(val);
+                if (val_list.length > 0 && !val_list[0].isEmpty()) {
+                    employeeId = val_list[0];
+                }
+            }
+        }
+
         attendanceViewModel = new androidx.lifecycle.ViewModelProvider(this)
                 .get(com.app.fourscontracting.ui.attendance.AttendanceViewModel.class);
         attendanceViewModel.getLastResult().observe(this, this::onAttendanceResult);
 
-            if (!"true".equals(isVerified)) {
+        if (!"true".equals(isVerified)) {
             Toast.makeText(this, AppMessages.LOCATION_NOT_VERIFIED, Toast.LENGTH_SHORT).show();
             finish();
             return;
@@ -214,6 +228,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
 
         // Secure Verification Token & Session check
         String intentToken = getIntent().getStringExtra("VERIFICATION_TOKEN");
+        if ((intentToken == null || intentToken.isEmpty()) && getIntent().getExtras() != null) {
+            intentToken = getIntent().getExtras().getString("VERIFICATION_TOKEN", "");
+        }
         SessionPrefs sessionPrefs = new SessionPrefs(this);
         if (!sessionPrefs.isVerificationTokenValid(intentToken)) {
             Toast.makeText(this, AppMessages.SESSION_EXPIRED, Toast.LENGTH_LONG).show();

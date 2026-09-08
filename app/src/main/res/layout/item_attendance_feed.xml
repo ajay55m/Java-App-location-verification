@@ -3,9 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
+    android:layout_marginStart="0dp"
     android:layout_marginTop="6dp"
-    android:layout_marginEnd="12dp"
+    android:layout_marginEnd="0dp"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@android:color/transparent"
     app:cardCornerRadius="24dp"
@@ -129,7 +129,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_photo_container"
                 android:elevation="2dp"
@@ -138,14 +138,15 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="126dp">
+                    android:layout_height="136dp">
 
-                    <ImageView
+                    <com.google.android.material.imageview.ShapeableImageView
                         android:id="@+id/img_in_photo"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:scaleType="centerCrop"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.App.MediumComponent" />
 
                     <LinearLayout
                         android:id="@+id/ll_in_no_photo"
@@ -202,7 +203,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_marginStart="4dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_photo_container"
                 android:elevation="2dp"
@@ -211,14 +212,15 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="126dp">
+                    android:layout_height="136dp">
 
-                    <ImageView
+                    <com.google.android.material.imageview.ShapeableImageView
                         android:id="@+id/img_out_photo"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:scaleType="centerCrop"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.App.MediumComponent" />
 
                     <LinearLayout
                         android:id="@+id/ll_out_no_photo"
@@ -273,14 +275,7 @@
 
         </LinearLayout>
 
-        <!-- Divider & Footer Row -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="8dp"
-            android:background="#E2E8F0" />
-
+        <!-- Footer Row -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">

@@ -47,18 +47,26 @@
         <item name="itemActiveIndicatorStyle">@style/App.BottomNavigationView.ActiveIndicator</item>
     </style>
 
-    <style name="App.BottomNavigationView.Label.Active" parent="TextAppearance.MaterialComponents.Body2">
+        <style name="App.BottomNavigationView.Label.Active" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">#03045E</item>
+        <item name="android:textColor">#FFFFFF</item>
         <item name="android:textSize">11sp</item>
         <item name="fontFamily">sans-serif-medium</item>
     </style>
 
     <style name="App.BottomNavigationView.Label.Inactive" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textStyle">normal</item>
-        <item name="android:textColor">#334155</item>
+        <item name="android:textColor">#B0C4DE</item>
         <item name="android:textSize">11sp</item>
         <item name="fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Selection Highlight Pill Behind Active Icon -->
+    <style name="App.BottomNavigationView.ActiveIndicator" parent="">
+        <item name="android:color">#30FFFFFF</item>
+        <item name="android:width">48dp</item>
+        <item name="android:height">32dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.MaterialComponents.Corner.Full</item>
     </style>
 
     <!-- Style for the top-rounded bottom sheet login card -->
@@ -94,13 +102,6 @@
     <style name="ShapeAppearance.MaterialComponents.Corner.Full" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
-    </style>
-
-    <style name="App.BottomNavigationView.ActiveIndicator" parent="">
-        <item name="android:color">#2803045E</item>
-        <item name="android:width">48dp</item>
-        <item name="android:height">32dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.MaterialComponents.Corner.Full</item>
     </style>
 
 

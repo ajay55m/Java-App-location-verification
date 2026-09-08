@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
+    <!-- Solid fill color for IN status -->
     <solid android:color="#064E3B" />
-    <corners android:radius="20dp" />
+    <corners android:radius="10dp" />
+    <!-- Border stroke color for IN status -->
     <stroke
         android:width="1dp"
         android:color="#10B981" />

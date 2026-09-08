@@ -94,6 +94,15 @@ public final class SessionPrefs {
         return age >= 0 && age <= VERIFY_TOKEN_MS;
     }
 
+    public String issueFreshVerificationToken() {
+        String token = java.util.UUID.randomUUID().toString();
+        prefs.edit()
+                .putString(KEY_TOKEN, token)
+                .putLong(KEY_TOKEN_TIME, System.currentTimeMillis())
+                .apply();
+        return token;
+    }
+
     /** After successful GPS match — locks site for 24h and issues 5‑min punch token. */
     public void saveVerifiedLocation(String locationId, String locationName, String secureToken) {
         long now = System.currentTimeMillis();

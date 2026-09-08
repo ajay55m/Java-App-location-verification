@@ -95,7 +95,7 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
         View btnChangeSite = view.findViewById(R.id.btn_change_site);
         if (btnChangeSite != null) {
-            btnChangeSite.setOnClickListener(v -> launchLocationVerify());
+            btnChangeSite.setOnClickListener(v -> launchLocationVerifyManualChangeSite());
         }
 
         // Live Search Filter
@@ -182,16 +182,27 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             if (emptyContainer != null) emptyContainer.setVisibility(View.VISIBLE);
             if (tvEmpty != null) tvEmpty.setText("Location verification is required to access Labour Management.");
             if (recyclerView != null) recyclerView.setVisibility(View.GONE);
-            launchLocationVerify();
+            launchLocationVerifyInitialAuto();
         } else {
             if (recyclerView != null) recyclerView.setVisibility(View.VISIBLE);
             loadDepartments();
         }
     }
 
-    private void launchLocationVerify() {
+    private void launchLocationVerifyInitialAuto() {
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", true);
+        intent.putExtra("IS_CHANGE_SITE", false);
+        intent.putExtra("AUTO_START_VERIFY", true);
+        intent.putExtra("uid", uid);
+        startActivityForResult(intent, REQUEST_CODE_SUPERVISOR_VERIFY);
+    }
+
+    private void launchLocationVerifyManualChangeSite() {
+        Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
+        intent.putExtra("IS_INITIAL_VERIFY", false);
+        intent.putExtra("IS_CHANGE_SITE", true);
+        intent.putExtra("AUTO_START_VERIFY", false);
         intent.putExtra("uid", uid);
         startActivityForResult(intent, REQUEST_CODE_SUPERVISOR_VERIFY);
     }
@@ -255,6 +266,27 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         });
     }
 
+    private boolean isLockedOtherSite(LabourEmployeeModel item) {
+        if (item == null) return false;
+        String code = item.getStatusCode() != null ? item.getStatusCode().trim().toUpperCase() : "";
+        String text = item.getDisplayText() != null ? item.getDisplayText().trim().toUpperCase() : "";
+        String site = item.getSiteName() != null ? item.getSiteName().trim().toUpperCase() : "";
+
+        // 1. Explicit LOCKED_OTHER or BUSY_OTHER status from backend
+        if ("LOCKED_OTHER".equalsIgnoreCase(code) || "BUSY_OTHER".equalsIgnoreCase(code)) {
+            return true;
+        }
+
+        // 2. Worker cannot clock IN or OUT at current location AND is marked busy/checked-in at another site
+        if (!item.isCanIn() && !item.isCanOut()) {
+            if (text.contains("BUSY AT") || text.contains("LOCKED") || (site.length() > 0 && !site.equals("NOT MARKED"))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void loadEmployees() {
         if (progress != null) progress.setVisibility(View.VISIBLE);
         if (emptyContainer != null) emptyContainer.setVisibility(View.GONE);
@@ -280,12 +312,30 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                 if (!isAdded()) return;
                 if (progress != null) progress.setVisibility(View.GONE);
 
-                tvTotalCount.setText(String.valueOf(totalCount));
-                tvInCount.setText(String.valueOf(inCount));
-                tvOutCount.setText(String.valueOf(outCount));
-
                 fullEmployeeList.clear();
-                if (employees != null) fullEmployeeList.addAll(employees);
+                int visibleTotal = 0;
+                int visibleIn = 0;
+                int visibleOut = 0;
+
+                if (employees != null) {
+                    for (LabourEmployeeModel m : employees) {
+                        // Completely hide employees checked-in at another location
+                        if (isLockedOtherSite(m)) {
+                            continue;
+                        }
+                        fullEmployeeList.add(m);
+                        visibleTotal++;
+                        if (m.isCanOut()) {
+                            visibleIn++; // Checked IN at this location
+                        } else if (m.isCanIn()) {
+                            visibleOut++; // Not clocked in
+                        }
+                    }
+                }
+
+                tvTotalCount.setText(String.valueOf(visibleTotal));
+                tvInCount.setText(String.valueOf(visibleIn));
+                tvOutCount.setText(String.valueOf(visibleOut));
 
                 String currentQuery = etSearch != null ? etSearch.getText().toString() : "";
                 filterEmployees(currentQuery);
@@ -313,7 +363,7 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         if (fullEmployeeList.isEmpty()) {
             adapter.setItems(new ArrayList<>());
             if (emptyContainer != null) emptyContainer.setVisibility(View.VISIBLE);
-            if (tvEmpty != null) tvEmpty.setText("No workers found");
+            if (tvEmpty != null) tvEmpty.setText("No workers found for this location");
             return;
         }
 
@@ -354,9 +404,12 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         SessionPrefs session = new SessionPrefs(requireContext());
         if (!session.isLocationSessionValid()) {
             Toast.makeText(requireContext(), AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
-            launchLocationVerify();
+            launchLocationVerifyInitialAuto();
             return;
         }
+
+        String targetLocId = session.getLocationId();
+        String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
 
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("empid", item.getId());
@@ -364,9 +417,10 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         intent.putExtra("photo_url", item.getPhotoUrl());
         intent.putExtra("type", actionType);
         intent.putExtra("uid", uid);
-        intent.putExtra("selected_project_id", projId);
+        intent.putExtra("selected_project_id", pId);
         intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("target_location_id", session.getLocationId());
+        intent.putExtra("target_location_id", targetLocId);
+        intent.putExtra("LOCKED_LOCATION_ID", targetLocId);
         intent.putExtra("pending_eid", item.getId());
         intent.putExtra("pending_action", actionType);
         startActivityForResult(intent, REQUEST_CODE_ATTENDANCE_PUNCH);
