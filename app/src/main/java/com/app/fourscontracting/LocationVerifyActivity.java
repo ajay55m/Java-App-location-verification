@@ -100,11 +100,11 @@ public class LocationVerifyActivity extends AppActivity {
     private static final float GEOFENCE_RADIUS_M = 50.0f;
     /** Extra buffer added to the geofence radius equal to GPS accuracy (capped). Raised so jitter on 1st/2nd attempt does not cause false failures. */
     private static final float GEOFENCE_ACCURACY_BUFFER_CAP_M = 35.0f;
-    /** Total sampling window in ms. Extended to 15 s so GPS has time to stabilise on the first two attempts. */
-    private static final long SAMPLING_DURATION = 15000;
-    /** Early-exit accuracy threshold (lower = better fix). Relaxed to 25m — realistic outdoor GPS. */
-    private static final float EARLY_EXIT_ACCURACY_M = 25.0f;
-    /** Require only 1 good sample to early-exit — waiting for 2 was causing the 10 s timeout on attempts 1 & 2. */
+    /** Total sampling window in ms. Reduced to 3s failsafe timeout max for single verification. */
+    private static final long SAMPLING_DURATION = 3000;
+    /** Early-exit accuracy threshold (lower = better fix). Relaxed to 120m for realistic single mobile GPS verification. */
+    private static final float EARLY_EXIT_ACCURACY_M = 120.0f;
+    /** Require only 1 good sample to early-exit — waiting for 2 was causing timeouts. */
     private static final int EARLY_EXIT_MIN_GOOD_SAMPLES = 1;
     private int goodAccuracySampleCount = 0;
     private LocationCallback locationCallback;
@@ -1181,7 +1181,14 @@ public class LocationVerifyActivity extends AppActivity {
             // Setup buttons
             // Generate Secure verification token & Save Session (24h site + 5min punch token)
             String secureToken = java.util.UUID.randomUUID().toString();
-            new SessionPrefs(this).saveVerifiedLocation(matchedPointId, matchedPointName, secureToken);
+            String locIdToSave = (matchedPointId != null && !matchedPointId.trim().isEmpty())
+                    ? matchedPointId.trim()
+                    : ((selectedProjectId != null && !selectedProjectId.trim().isEmpty())
+                    ? selectedProjectId.trim()
+                    : ((projectId != null && !projectId.trim().isEmpty())
+                    ? projectId.trim()
+                    : "1"));
+            new SessionPrefs(this).saveVerifiedLocation(locIdToSave, matchedPointName, secureToken);
 
             boolean isPunchAction = (pendingAction != null && !pendingAction.trim().isEmpty())
                     || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
@@ -1820,18 +1827,18 @@ public class LocationVerifyActivity extends AppActivity {
         stopGpsPreWarm();
 
         // ── Fast-path: use pre-warm samples if they are good enough ───────────────
-        // Count how many pre-warm samples already pass the early-exit accuracy bar.
+        // Count how many pre-warm samples already pass the early-exit accuracy or site-match bar.
         int preWarmGoodCount = 0;
         for (Location s : locationSamples) {
-            if (s.getAccuracy() <= EARLY_EXIT_ACCURACY_M) preWarmGoodCount++;
+            if (isSampleAcceptableForVerification(s)) preWarmGoodCount++;
         }
         boolean hasEnoughPreWarmSamples = !locationSamples.isEmpty()
                 && preWarmGoodCount >= EARLY_EXIT_MIN_GOOD_SAMPLES;
 
         if (hasEnoughPreWarmSamples) {
             Log.d("GPS_PREWARM", "Pre-warm gave " + locationSamples.size()
-                    + " samples (" + preWarmGoodCount + " good). Skipping wait.");
-            // Jump straight to result — no 15 s wait
+                    + " samples (" + preWarmGoodCount + " good). Single verification complete.");
+            // Jump straight to result — no wait
             isSampling = true;  // processBestLocation() guards on this
             if (blueprintStatus != null) blueprintStatus.setText("PROCESSING BEST LOCATION...");
             processBestLocation();
@@ -1842,7 +1849,7 @@ public class LocationVerifyActivity extends AppActivity {
         // Normal path — start fresh sampling window
         startBlueprintScanning();
         if (blueprintStatus != null) {
-            blueprintStatus.setText("REFINING SITE COORDINATES... (10s)");
+            blueprintStatus.setText("VERIFYING SITE COORDINATES...");
         }
 
         locationSamples.clear();
@@ -1861,7 +1868,7 @@ public class LocationVerifyActivity extends AppActivity {
             public void onTick(long millisUntilFinished) {
                 long secondsRemaining = Math.max(1, Math.round(millisUntilFinished / 1000.0));
                 if (blueprintStatus != null && isSampling) {
-                    blueprintStatus.setText("REFINING SITE COORDINATES... (" + secondsRemaining + "s)");
+                    blueprintStatus.setText("VERIFYING SITE COORDINATES... (" + secondsRemaining + "s)");
                 }
             }
 
@@ -1900,11 +1907,11 @@ public class LocationVerifyActivity extends AppActivity {
                             locationSamples.add(location);
                             updateGpsDisplay(location);
 
-                            // Require 2 good samples so worker #2 / MOVE is not judged on one jumpy fix
-                            if (location.getAccuracy() <= EARLY_EXIT_ACCURACY_M) {
+                            // Single verification exit as soon as sample has acceptable accuracy or matches site
+                            if (isSampleAcceptableForVerification(location)) {
                                 goodAccuracySampleCount++;
                                 if (goodAccuracySampleCount >= EARLY_EXIT_MIN_GOOD_SAMPLES) {
-                                    Log.d("GPS_SAMPLING", "Stable good signal acquired, completing sampling");
+                                    Log.d("GPS_SAMPLING", "Single verification signal acquired, completing sampling");
                                     samplingHandler.removeCallbacks(samplingTimeoutRunnable);
                                     cancelCountDown();
                                     processBestLocation();
@@ -2441,6 +2448,74 @@ public class LocationVerifyActivity extends AppActivity {
             }
             warmUpCallback = null;
         }
+    }
+
+    private boolean isLocationInsideSite(Location loc, JSONObject siteObj) {
+        if (loc == null || siteObj == null) return false;
+        try {
+            double dbLat = siteObj.getDouble("latitude");
+            double dbLon = siteObj.getDouble("longitude");
+            double maxLat = siteObj.optDouble("max_latitude", 0.0);
+            double maxLon = siteObj.optDouble("max_longtitude", 0.0);
+            if (maxLon == 0.0) {
+                maxLon = siteObj.optDouble("max_longitude", 0.0);
+            }
+            boolean hasBoundaryBox = (maxLat != 0.0) && (maxLon != 0.0);
+            double minLat = hasBoundaryBox ? Math.min(dbLat, maxLat) : dbLat;
+            double maxLatBound = hasBoundaryBox ? Math.max(dbLat, maxLat) : dbLat;
+            double minLon = hasBoundaryBox ? Math.min(dbLon, maxLon) : dbLon;
+            double maxLonBound = hasBoundaryBox ? Math.max(dbLon, maxLon) : dbLon;
+
+            double centerLat = hasBoundaryBox ? (minLat + maxLatBound) / 2.0 : dbLat;
+            double centerLon = hasBoundaryBox ? (minLon + maxLonBound) / 2.0 : dbLon;
+
+            float[] centerDistResults = new float[1];
+            Location.distanceBetween(loc.getLatitude(), loc.getLongitude(), centerLat, centerLon, centerDistResults);
+            float distanceToCenter = centerDistResults[0];
+
+            float boxHalfDiagonal = 0f;
+            if (hasBoundaryBox) {
+                float[] diagResults = new float[1];
+                Location.distanceBetween(centerLat, centerLon, maxLatBound, maxLonBound, diagResults);
+                boxHalfDiagonal = diagResults[0];
+            }
+
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            float effectiveRadius = (hasBoundaryBox ? boxHalfDiagonal : 0f) + 30.0f + accuracyBuffer;
+            boolean isCenterMatch = distanceToCenter <= effectiveRadius;
+
+            double bufferMeters = 30.0 + accuracyBuffer;
+            double latBuffer = bufferMeters / 111111.0;
+            double lngBuffer = bufferMeters / (111111.0 * Math.cos(Math.toRadians(loc.getLatitude())));
+
+            boolean isBoxMatch = hasBoundaryBox &&
+                    (loc.getLatitude() >= (minLat - latBuffer) && loc.getLatitude() <= (maxLatBound + latBuffer) &&
+                     loc.getLongitude() >= (minLon - lngBuffer) && loc.getLongitude() <= (maxLonBound + lngBuffer));
+
+            return isCenterMatch || isBoxMatch;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isSampleAcceptableForVerification(Location loc) {
+        if (loc == null) return false;
+        long ageInSeconds = Math.abs(System.currentTimeMillis() - loc.getTime()) / 1000;
+        if (ageInSeconds > 90) return false;
+
+        float accuracy = loc.getAccuracy();
+        if (accuracy <= 0.0f || accuracy > ACCURACY_GUARD) return false;
+
+        if (accuracy <= EARLY_EXIT_ACCURACY_M) return true;
+
+        if (locationData != null && !locationData.isEmpty()) {
+            for (JSONObject site : locationData) {
+                if (isLocationInsideSite(loc, site)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override

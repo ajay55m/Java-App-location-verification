@@ -106,15 +106,21 @@ public final class SessionPrefs {
     /** After successful GPS match — locks site for 24h and issues 5‑min punch token. */
     public void saveVerifiedLocation(String locationId, String locationName, String secureToken) {
         long now = System.currentTimeMillis();
+        String validId = (locationId != null && !locationId.trim().isEmpty())
+                ? locationId.trim()
+                : getProjectId();
+        if (TextUtils.isEmpty(validId)) {
+            validId = "1";
+        }
         prefs.edit()
                 .putString(KEY_TOKEN, secureToken != null ? secureToken : "")
                 .putLong(KEY_TOKEN_TIME, now)
-                .putString(KEY_LOCATION_ID, locationId != null ? locationId : "")
+                .putString(KEY_LOCATION_ID, validId)
                 .putLong(KEY_LOCATION_TIME, now)
                 .apply();
 
-        if (locationName != null && !locationName.isEmpty()) {
-            new UserLocalStore(appContext).storeUserLocationData(new UserLocation(locationName));
+        if (locationName != null && !locationName.trim().isEmpty()) {
+            new UserLocalStore(appContext).storeUserLocationData(new UserLocation(locationName.trim()));
         }
     }
 

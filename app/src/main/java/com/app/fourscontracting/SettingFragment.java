@@ -431,6 +431,15 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_SUPERVISOR_VERIFY || requestCode == REQUEST_CODE_ATTENDANCE_PUNCH) {
             SessionPrefs session = new SessionPrefs(requireContext());
+            if (data != null && resultCode == android.app.Activity.RESULT_OK) {
+                String locId = data.getStringExtra("location_id");
+                if (TextUtils.isEmpty(locId)) locId = data.getStringExtra("project_id");
+                String projName = data.getStringExtra("project_name");
+                String token = data.getStringExtra("VERIFICATION_TOKEN");
+                if (!TextUtils.isEmpty(locId)) {
+                    session.saveVerifiedLocation(locId, projName, token);
+                }
+            }
             if (session.isLocationSessionValid()) {
                 String pName = session.getProjectName();
                 if (pName != null && !pName.isEmpty()) tvLocation.setText(pName);

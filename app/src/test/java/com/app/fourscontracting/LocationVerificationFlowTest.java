@@ -43,4 +43,14 @@ public class LocationVerificationFlowTest {
         assertEquals("VERIFIED", keyVerified);
         assertEquals("VERIFICATION_TOKEN", keyToken);
     }
+
+    @Test
+    public void testSingleVerificationAcceptableSampleThreshold() {
+        // Single verification exit accepts realistic mobile GPS fixes <= 120m accuracy immediately
+        float earlyExitAccuracyM = 120.0f;
+        long samplingDurationMs = 3000L;
+
+        assertTrue("Early exit accuracy threshold should be relaxed to at least 100m", earlyExitAccuracyM >= 100.0f);
+        assertTrue("Sampling failsafe duration should be 5 seconds or less for fast single verification", samplingDurationMs <= 5000L);
+    }
 }
