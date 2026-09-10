@@ -17,6 +17,10 @@ public class LabourEmployeeModel {
     private final boolean canIn;
     private final boolean canOut;
     private final String department;
+    private final boolean hasIn;
+    private final boolean hasOut;
+    private final String timeIn;
+    private final String timeOut;
 
     public LabourEmployeeModel(JSONObject json) throws JSONException {
         this.id = json.optString("id", "");
@@ -41,6 +45,10 @@ public class LabourEmployeeModel {
         this.canIn = json.optBoolean("can_in", false);
         this.canOut = json.optBoolean("can_out", false);
         this.department = json.optString("department_name", json.optString("dept", ""));
+        this.hasIn = json.optBoolean("has_in", json.optBoolean("is_in", false));
+        this.hasOut = json.optBoolean("has_out", json.optBoolean("is_out", false));
+        this.timeIn = json.optString("time_in", json.optString("timeIn", "")).trim();
+        this.timeOut = json.optString("time_out", json.optString("timeOut", "")).trim();
     }
 
     public LabourEmployeeModel(String id, String name, String statusCode, String displayText,
@@ -68,6 +76,10 @@ public class LabourEmployeeModel {
         this.canIn = canIn;
         this.canOut = canOut;
         this.department = department != null ? department : "";
+        this.hasIn = false;
+        this.hasOut = false;
+        this.timeIn = "";
+        this.timeOut = "";
     }
 
     public String getId() { return id; }
@@ -79,5 +91,41 @@ public class LabourEmployeeModel {
     public boolean isCanIn() { return canIn; }
     public boolean isCanOut() { return canOut; }
     public String getDepartment() { return department; }
-}
+    public boolean isHasIn() { return hasIn; }
+    public boolean isHasOut() { return hasOut; }
+    public String getTimeIn() { return timeIn; }
+    public String getTimeOut() { return timeOut; }
 
+    public boolean isClockedIn() {
+        if (canOut) return true;
+        String code = statusCode != null ? statusCode.trim().toUpperCase() : "";
+        String text = displayText != null ? displayText.trim().toUpperCase() : "";
+
+        if ("IN".equals(code) || "IN_HERE".equals(code) || "TIME_IN".equals(code) || "PRESENT".equals(code)) {
+            return true;
+        }
+        if (text.contains("TIME IN") || text.contains("PUNCHED IN") || text.contains("CHECKED IN") || text.contains("PRESENT")) {
+            return true;
+        }
+        if (hasIn || (!timeIn.isEmpty() && !"--".equals(timeIn) && !"--:--".equals(timeIn))) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isClockedOut() {
+        String code = statusCode != null ? statusCode.trim().toUpperCase() : "";
+        String text = displayText != null ? displayText.trim().toUpperCase() : "";
+
+        if ("OUT".equals(code) || "OUT_HERE".equals(code) || "TIME_OUT".equals(code) || "PUNCH_OUT".equals(code) || "COMPLETED".equals(code) || "SHIFT_FINISHED".equals(code) || "FINISHED".equals(code)) {
+            return true;
+        }
+        if (text.contains("TIME OUT") || text.contains("PUNCHED OUT") || text.contains("CHECKED OUT") || text.contains("COMPLETED") || text.contains("SHIFT FINISHED") || text.contains("FINISHED")) {
+            return true;
+        }
+        if (hasOut || (!timeOut.isEmpty() && !"--".equals(timeOut) && !"--:--".equals(timeOut))) {
+            return true;
+        }
+        return false;
+    }
+}

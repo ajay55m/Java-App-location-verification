@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.fourscontracting.R;
 
+import com.google.android.material.button.MaterialButton;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,6 +26,7 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
     public interface Listener {
         void onBreakClicked(AttendanceRecordModel record);
         void onPhotoClicked(String photoUrl);
+        void onTimeOutClicked(AttendanceRecordModel record);
     }
 
     private final List<AttendanceRecordModel> list = new ArrayList<>();
@@ -59,15 +62,27 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         }
         holder.tvEmpName.setText(empName);
 
-        // Status Pill
+        // Status Pill & Check Out Action Button
         if (item.isActive()) {
             holder.tvStatusPill.setText("ACTIVE");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
             holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+            if (holder.btnCheckOut != null) {
+                holder.btnCheckOut.setVisibility(View.VISIBLE);
+                holder.btnCheckOut.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onTimeOutClicked(item);
+                    }
+                });
+            }
         } else {
             holder.tvStatusPill.setText("COMPLETED");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);
-            holder.tvStatusPill.setTextColor(0xFF94A3B8);
+            holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+            if (holder.btnCheckOut != null) {
+                holder.btnCheckOut.setVisibility(View.GONE);
+                holder.btnCheckOut.setOnClickListener(null);
+            }
         }
 
         // Break Button State
@@ -182,11 +197,13 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         TextView tvEmpName, tvStatusPill, tvBreakLabel, tvInTime, tvOutTime, tvProjName;
         LinearLayout btnBreakStatus, llInNoPhoto, llOutNoPhoto;
         ImageView imgBreakIcon, imgInPhoto, imgOutPhoto;
+        MaterialButton btnCheckOut;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvEmpName = itemView.findViewById(R.id.tv_emp_name);
             tvStatusPill = itemView.findViewById(R.id.tv_status_pill);
+            btnCheckOut = itemView.findViewById(R.id.btn_check_out);
             tvBreakLabel = itemView.findViewById(R.id.tv_break_label);
             btnBreakStatus = itemView.findViewById(R.id.btn_break_status);
             imgBreakIcon = itemView.findViewById(R.id.img_break_icon);

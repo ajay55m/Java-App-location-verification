@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.fourscontracting.AppMessages;
+import com.app.fourscontracting.LocationActivity;
 import com.app.fourscontracting.LocationVerifyActivity;
 import com.app.fourscontracting.Project;
 import com.app.fourscontracting.R;
@@ -331,19 +332,28 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
             return;
         }
 
+        String freshToken = session.issueFreshVerificationToken();
         String actionType = employee.onMove ? "OUT" : "MOVE";
-        Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
+        String targetLocId = session.getLocationId();
+        String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
+        String pName = getResolvedSiteName();
+
+        Intent intent = new Intent(requireContext(), LocationActivity.class);
         intent.putExtra("empid", employee.id);
         intent.putExtra("emp_name", employee.firstName);
         intent.putExtra("photo_url", employee.photoUrl);
         intent.putExtra("type", actionType);
         intent.putExtra("is_movement", true);
         intent.putExtra("uid", uid);
-        intent.putExtra("selected_project_id", projId);
-        intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("target_location_id", session.getLocationId());
-        intent.putExtra("pending_eid", employee.id);
-        intent.putExtra("pending_action", actionType);
+        intent.putExtra("project_id", pId);
+        intent.putExtra("departmentid", pId);
+        intent.putExtra("projname", pName);
+        intent.putExtra("project_name", pName);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);
     }
 

@@ -97,7 +97,6 @@
             style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:layout_marginEnd="4dp"
             android:minWidth="66dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
@@ -122,6 +121,7 @@
             android:textColor="#FFFFFF"
             android:textSize="11sp"
             android:textStyle="bold"
+            android:visibility="gone"
             app:backgroundTint="#DC2626"
             app:cornerRadius="18dp" />
     </LinearLayout>

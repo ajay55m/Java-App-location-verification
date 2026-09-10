@@ -39,3 +39,12 @@
 -keep public class * extends java.lang.Exception
 -keep class com.google.firebase.crashlytics.** { *; }
 -dontwarn com.google.firebase.crashlytics.**
+
+# Keep data models used for JSON reflection and API parsing
+-keep class com.app.fourscontracting.data.** { *; }
+-keepclassmembers class com.app.fourscontracting.data.** { *; }
+
+# Keep Glide
+-keep public class * extends com.bumptech.glide.module.AppGlideModule
+-keep class com.bumptech.glide.GeneratedAppGlideModuleImpl { *; }
+-dontwarn com.bumptech.glide.**

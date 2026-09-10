@@ -107,7 +107,7 @@
 
     <style name="TextAppearance.App.NavDrawer" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-bold</item>
         <item name="android:letterSpacing">-0.01</item>
     </style>
 </resources>

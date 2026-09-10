@@ -11,13 +11,13 @@
         android:id="@+id/glass_header_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="6dp"
         app:cardBackgroundColor="@android:color/transparent"
-        app:cardCornerRadius="24dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp"
         app:strokeWidth="0dp">
 
         <LinearLayout
@@ -25,24 +25,24 @@
             android:layout_height="wrap_content"
             android:background="@drawable/bg_luxury_executive_header"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="10dp">
 
-            <!-- Title & Action Row -->
+            <!-- Header Title & Action Row (Collapses smoothly when in Fragment) -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp">
+                android:layout_marginBottom="8dp">
 
                 <ImageView
                     android:id="@+id/img_back_button"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="5dp"
+                    android:padding="4dp"
                     android:src="@drawable/ic_baseline_arrow_back_24"
                     app:tint="#03045E" />
 
@@ -54,9 +54,9 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="6dp"
                         android:src="@drawable/ic_baseline_assignment_24"
                         app:tint="#0077B6" />
 
@@ -65,22 +65,22 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="sans-serif-black"
-                        android:letterSpacing="0.06"
+                        android:letterSpacing="0.04"
                         android:text="MANAGE LABOUR"
                         android:textColor="#03045E"
-                        android:textSize="16sp" />
+                        android:textSize="14sp" />
                 </LinearLayout>
 
                 <ImageView
                     android:id="@+id/btn_refresh_feed"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="5dp"
+                    android:padding="4dp"
                     android:src="@drawable/ic_baseline_swap_horiz_24"
                     app:tint="#0077B6" />
             </RelativeLayout>
@@ -89,7 +89,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
+                android:layout_marginBottom="8dp"
                 android:baselineAligned="false"
                 android:orientation="horizontal">
 
@@ -97,13 +97,13 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
+                    android:layout_marginEnd="3dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_luxury_metric_card"
-                    android:elevation="2dp"
+                    android:elevation="1dp"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="8dp">
+                    android:paddingVertical="5dp">
 
                     <TextView
                         android:id="@+id/tv_stat_total"
@@ -112,7 +112,7 @@
                         android:fontFamily="sans-serif-black"
                         android:text="0"
                         android:textColor="#0077B6"
-                        android:textSize="18sp" />
+                        android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -128,13 +128,13 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="4dp"
+                    android:layout_marginHorizontal="3dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_luxury_metric_card"
-                    android:elevation="2dp"
+                    android:elevation="1dp"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="8dp">
+                    android:paddingVertical="5dp">
 
                     <TextView
                         android:id="@+id/tv_stat_active"
@@ -143,7 +143,7 @@
                         android:fontFamily="sans-serif-black"
                         android:text="0"
                         android:textColor="#059669"
-                        android:textSize="18sp" />
+                        android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -159,13 +159,13 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginStart="3dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_luxury_metric_card"
-                    android:elevation="2dp"
+                    android:elevation="1dp"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:paddingVertical="8dp">
+                    android:paddingVertical="5dp">
 
                     <TextView
                         android:id="@+id/tv_stat_completed"
@@ -174,7 +174,7 @@
                         android:fontFamily="sans-serif-black"
                         android:text="0"
                         android:textColor="#D97706"
-                        android:textSize="18sp" />
+                        android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -187,106 +187,94 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Project Selector Dropdown (Luxury White Glass Input Container) -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.06"
-                android:text="SELECT SITE / PROJECT"
-                android:textColor="#0077B6"
-                android:textSize="10sp" />
-
+            <!-- Project Selector Dropdown (Sleek Compact Glass Input Container) -->
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginBottom="10dp"
+                android:layout_height="38dp"
+                android:layout_marginBottom="6dp"
                 android:background="@drawable/bg_luxury_glass_input"
-                android:elevation="2dp">
+                android:elevation="1dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:layout_marginStart="10dp"
+                    android:src="@drawable/ic_baseline_assignment_24"
+                    app:tint="#0077B6" />
 
                 <Spinner
                     android:id="@+id/spinner_projects"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@android:color/transparent"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="40dp" />
+                    android:paddingStart="32dp"
+                    android:paddingEnd="36dp" />
 
                 <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
                     android:layout_gravity="end|center_vertical"
-                    android:layout_marginEnd="12dp"
+                    android:layout_marginEnd="10dp"
                     android:rotation="270"
                     android:src="@drawable/ic_baseline_arrow_back_24"
                     app:tint="#0077B6" />
             </FrameLayout>
 
-            <!-- Date Selection Row (Luxury White Glass Pickers) -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.06"
-                android:text="ATTENDANCE DATE"
-                android:textColor="#0077B6"
-                android:textSize="10sp" />
-
+            <!-- Date Selection Row (Sleek Compact Glass Pickers) -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="36dp"
                 android:orientation="horizontal">
 
                 <FrameLayout
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:background="@drawable/bg_luxury_glass_input"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <Spinner
                         android:id="@+id/spinner_day"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@android:color/transparent"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp" />
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp" />
                 </FrameLayout>
 
                 <FrameLayout
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="4dp"
                     android:layout_weight="1.4"
                     android:background="@drawable/bg_luxury_glass_input"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <Spinner
                         android:id="@+id/spinner_month"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@android:color/transparent"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp" />
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp" />
                 </FrameLayout>
 
                 <FrameLayout
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="4dp"
                     android:layout_weight="1.1"
                     android:background="@drawable/bg_luxury_glass_input"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <Spinner
                         android:id="@+id/spinner_year"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@android:color/transparent"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp" />
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp" />
                 </FrameLayout>
             </LinearLayout>
 
@@ -294,7 +282,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal"
                 android:visibility="gone">
 
@@ -302,7 +290,7 @@
                     android:id="@+id/btn_tab_attendance"
                     style="?android:attr/borderlessButtonStyle"
                     android:layout_width="0dp"
-                    android:layout_height="38dp"
+                    android:layout_height="36dp"
                     android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_btn_selected"
@@ -315,7 +303,7 @@
                     android:id="@+id/btn_tab_move"
                     style="?android:attr/borderlessButtonStyle"
                     android:layout_width="0dp"
-                    android:layout_height="38dp"
+                    android:layout_height="36dp"
                     android:layout_marginStart="4dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_btn_unselected"

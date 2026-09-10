@@ -2,6 +2,7 @@ package com.app.fourscontracting.ui.attendance;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -26,6 +27,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.app.fourscontracting.LocationActivity;
 import com.app.fourscontracting.R;
 import com.app.fourscontracting.SessionPrefs;
 import com.app.fourscontracting.User;
@@ -218,6 +220,34 @@ public class ManageAttendanceFragment extends Fragment
         }
     }
 
+    private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
+        if (inputRecords == null) return new ArrayList<>();
+        if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
+            return inputRecords;
+        }
+
+        String targetName = "";
+        for (AllocatedProjectModel p : allocatedProjects) {
+            if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                targetName = p.getProjname() != null ? p.getProjname().trim().toLowerCase() : "";
+                break;
+            }
+        }
+        if (targetName.isEmpty()) {
+            targetName = selectedProjectId.trim().toLowerCase();
+        }
+
+        List<AttendanceRecordModel> filtered = new ArrayList<>();
+        for (AttendanceRecordModel record : inputRecords) {
+            if (record == null) continue;
+            String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
+            if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+                filtered.add(record);
+            }
+        }
+        return filtered;
+    }
+
     private void loadData() {
         Context context = getContext();
         if (context == null || !isAdded()) return;
@@ -248,7 +278,8 @@ public class ManageAttendanceFragment extends Fragment
 
                 currentAttendanceList.clear();
                 if (attendanceRecords != null) {
-                    currentAttendanceList.addAll(attendanceRecords);
+                    List<AttendanceRecordModel> filtered = filterRecordsBySelectedProject(attendanceRecords);
+                    currentAttendanceList.addAll(filtered);
                 }
                 if (attendanceAdapter != null) {
                     attendanceAdapter.setItems(currentAttendanceList);
@@ -287,9 +318,22 @@ public class ManageAttendanceFragment extends Fragment
             allocatedProjects.addAll(projects);
         }
 
+        int selectedIndex = 0;
+        if (!TextUtils.isEmpty(selectedProjectId)) {
+            for (int i = 0; i < allocatedProjects.size(); i++) {
+                if (selectedProjectId.equalsIgnoreCase(allocatedProjects.get(i).getId())) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        spinnerProjects.setOnItemSelectedListener(null);
+
         ArrayAdapter<AllocatedProjectModel> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, allocatedProjects);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProjects.setAdapter(adapter);
+        spinnerProjects.setSelection(selectedIndex, false);
 
         spinnerProjects.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -297,7 +341,7 @@ public class ManageAttendanceFragment extends Fragment
                 if (isUpdatingProjects) return;
                 if (position >= 0 && position < allocatedProjects.size()) {
                     AllocatedProjectModel selected = allocatedProjects.get(position);
-                    if (selected != null && !selectedProjectId.equals(selected.getId())) {
+                    if (selected != null && !selectedProjectId.equalsIgnoreCase(selected.getId())) {
                         selectedProjectId = selected.getId();
                         loadData();
                     }
@@ -308,8 +352,10 @@ public class ManageAttendanceFragment extends Fragment
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        isUpdatingProjects = false;
-        projectSpinnerInitialized = true;
+        spinnerProjects.post(() -> {
+            isUpdatingProjects = false;
+            projectSpinnerInitialized = true;
+        });
     }
 
     private void updateEmptyStateView() {
@@ -355,6 +401,50 @@ public class ManageAttendanceFragment extends Fragment
     @Override
     public void onPhotoClicked(String photoUrl) {
         showLightboxDialog(photoUrl);
+    }
+
+    @Override
+    public void onTimeOutClicked(AttendanceRecordModel record) {
+        Context context = getContext();
+        if (context == null || record == null || !isAdded()) return;
+
+        SessionPrefs session = new SessionPrefs(context);
+        if (!session.isLocationSessionValid()) {
+            Toast.makeText(context, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String freshToken = session.issueFreshVerificationToken();
+        String targetLocId = session.getLocationId();
+        String pName = session.getProjectName();
+        if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+
+        Intent intent = new Intent(context, LocationActivity.class);
+        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("emp_name", record.getFirstName());
+        intent.putExtra("photo_url", record.getInPhotoUrl());
+        intent.putExtra("type", "OUT");
+        intent.putExtra("uid", uid);
+        intent.putExtra("project_id", targetLocId);
+        intent.putExtra("departmentid", targetLocId);
+        intent.putExtra("projname", pName);
+        intent.putExtra("project_name", pName);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
+        startActivityForResult(intent, 1005);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1005) {
+            if (isAdded()) {
+                loadData();
+            }
+        }
     }
 
     private void showBreakModal(AttendanceRecordModel record) {

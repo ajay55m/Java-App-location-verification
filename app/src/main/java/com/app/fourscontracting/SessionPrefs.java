@@ -24,6 +24,7 @@ public final class SessionPrefs {
 
     private static final String KEY_PROJECT_CACHE = "cached_assigned_projects_json";
     private static final String KEY_PROJECT_CACHE_TIME = "cached_assigned_projects_time";
+    private static final String KEY_LAST_DEPT_ID = "last_selected_department_id";
     public static final long PROJECT_CACHE_MS = 30L * 60 * 1000; // 30 minutes
 
     private final SharedPreferences prefs;
@@ -36,6 +37,14 @@ public final class SessionPrefs {
 
     public SharedPreferences raw() {
         return prefs;
+    }
+
+    public String getLastSelectedDepartmentId() {
+        return prefs.getString(KEY_LAST_DEPT_ID, "");
+    }
+
+    public void saveLastSelectedDepartmentId(String deptId) {
+        prefs.edit().putString(KEY_LAST_DEPT_ID, deptId != null ? deptId : "").apply();
     }
 
     public String getLocationId() {

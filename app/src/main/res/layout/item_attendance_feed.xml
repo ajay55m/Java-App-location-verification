@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="0dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginEnd="0dp"
+    android:layout_marginStart="10dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="10dp"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@android:color/transparent"
-    app:cardCornerRadius="24dp"
-    app:cardElevation="8dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="4dp"
     app:strokeWidth="0dp">
 
     <LinearLayout
@@ -17,16 +17,15 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_luxury_card_surface"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="14dp">
 
-        <!-- Header: Avatar, Worker Name, Break Status Button, Status Pill -->
+        <!-- Top Header Row: Worker Name, Site Chip, Status Badge -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp">
+            android:layout_marginBottom="10dp">
 
             <LinearLayout
-                android:id="@+id/ll_header_left"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
@@ -36,23 +35,23 @@
 
                 <!-- Worker Avatar Ring Emblem -->
                 <FrameLayout
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:background="@drawable/bg_luxury_avatar_ring"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_baseline_person_24"
-                        app:tint="#38BDF8" />
+                        app:tint="#0284C7" />
                 </FrameLayout>
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_marginStart="8dp"
                     android:orientation="vertical">
 
                     <TextView
@@ -62,83 +61,211 @@
                         android:fontFamily="sans-serif-black"
                         android:text="Worker Name"
                         android:textColor="#0F172A"
-                        android:textSize="16sp" />
+                        android:textSize="14sp" />
 
-                    <!-- Break Status Toggle Pill -->
-                    <LinearLayout
-                        android:id="@+id/btn_break_status"
+                    <TextView
+                        android:id="@+id/tv_proj_name"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:background="@drawable/bg_break_btn"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingStart="8dp"
-                        android:paddingTop="3dp"
-                        android:paddingEnd="8dp"
-                        android:paddingBottom="3dp">
-
-                        <ImageView
-                            android:id="@+id/img_break_icon"
-                            android:layout_width="12dp"
-                            android:layout_height="12dp"
-                            android:src="@drawable/ic_baseline_check_24"
-                            app:tint="#EA580C" />
-
-                        <TextView
-                            android:id="@+id/tv_break_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
-                            android:fontFamily="sans-serif-bold"
-                            android:text="Break Taken?"
-                            android:textColor="#EA580C"
-                            android:textSize="10sp" />
-                    </LinearLayout>
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Project Location"
+                        android:textColor="#64748B"
+                        android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_status_pill"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:background="@drawable/bg_luxury_status_active"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.06"
-                android:paddingStart="12dp"
-                android:paddingTop="5dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="5dp"
-                android:text="ACTIVE"
-                android:textColor="#34D399"
-                android:textSize="10sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_check_out"
+                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="6dp"
+                    android:minWidth="60dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="CHECK OUT"
+                    android:textAllCaps="true"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    app:backgroundTint="#DC2626"
+                    app:cornerRadius="16dp" />
+
+                <TextView
+                    android:id="@+id/tv_status_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_luxury_status_active"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.04"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="ACTIVE"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp" />
+            </LinearLayout>
         </RelativeLayout>
 
-        <!-- Photo Row: IN & OUT Photos wrapped in Glassmorphism Frames -->
+        <!-- Shift Timeline Row: Side-by-side IN & OUT Time Metric Boxes -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
             android:baselineAligned="false"
             android:orientation="horizontal">
 
-            <!-- IN Photo Container -->
+            <!-- TIME IN Box -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_photo_container"
-                android:elevation="2dp"
+                android:background="@drawable/bg_luxury_metric_card"
                 android:orientation="vertical"
-                android:padding="4dp">
+                android:padding="10dp">
 
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_top_header_pill"
+                        android:backgroundTint="#16A34A" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="sans-serif-bold"
+                        android:letterSpacing="0.04"
+                        android:text="TIME IN"
+                        android:textColor="#16A34A"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_in_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="--:--"
+                    android:textColor="#0F172A"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <!-- TIME OUT Box -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_luxury_metric_card"
+                android:orientation="vertical"
+                android:padding="10dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_top_header_pill"
+                        android:backgroundTint="#D97706" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="sans-serif-bold"
+                        android:letterSpacing="0.04"
+                        android:text="TIME OUT"
+                        android:textColor="#D97706"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_out_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="--:--"
+                    android:textColor="#0F172A"
+                    android:textSize="15sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Footer Actions Bar: Break Toggle + Proof Photo Thumbnails -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
+
+            <!-- Break Status Toggle Pill -->
+            <LinearLayout
+                android:id="@+id/btn_break_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_break_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp">
+
+                <ImageView
+                    android:id="@+id/img_break_icon"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_baseline_check_24"
+                    app:tint="#EA580C" />
+
+                <TextView
+                    android:id="@+id/tv_break_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="Break Taken?"
+                    android:textColor="#EA580C"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <!-- Compact Proof Photo Thumbnails -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- IN Photo Thumbnail -->
                 <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="136dp">
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_photo_container">
 
                     <com.google.android.material.imageview.ShapeableImageView
                         android:id="@+id/img_in_photo"
@@ -156,63 +283,18 @@
                         android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
                             android:src="@drawable/ic_baseline_camera_alt_24"
-                            app:tint="#94A3B8" />
+                            app:tint="#CBD5E1" />
                     </LinearLayout>
                 </FrameLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="6dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_chip"
-                        android:fontFamily="sans-serif-black"
-                        android:letterSpacing="0.04"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="2dp"
-                        android:text="TIME IN"
-                        android:textColor="#16A34A"
-                        android:textSize="9sp" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/tv_in_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-bold"
-                        android:text="--:--"
-                        android:textColor="#0F172A"
-                        android:textSize="12sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- OUT Photo Container -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_photo_container"
-                android:elevation="2dp"
-                android:orientation="vertical"
-                android:padding="4dp">
-
+                <!-- OUT Photo Thumbnail -->
                 <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="136dp">
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_photo_container">
 
                     <com.google.android.material.imageview.ShapeableImageView
                         android:id="@+id/img_out_photo"
@@ -230,91 +312,13 @@
                         android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
                             android:src="@drawable/ic_baseline_camera_alt_24"
-                            app:tint="#94A3B8" />
+                            app:tint="#CBD5E1" />
                     </LinearLayout>
                 </FrameLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="6dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_chip"
-                        android:fontFamily="sans-serif-black"
-                        android:letterSpacing="0.04"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="2dp"
-                        android:text="TIME OUT"
-                        android:textColor="#EF4444"
-                        android:textSize="9sp" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/tv_out_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-bold"
-                        android:text="--:--"
-                        android:textColor="#0F172A"
-                        android:textSize="12sp" />
-                </LinearLayout>
             </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- Footer Row -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:src="@drawable/ic_baseline_check_24"
-                    app:tint="#0284C7" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:fontFamily="sans-serif-bold"
-                    android:text="Verified Punch"
-                    android:textColor="#0284C7"
-                    android:textSize="11sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_proj_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:background="@drawable/bg_premium_highlight_card"
-                android:fontFamily="sans-serif-black"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text="Project Location"
-                android:textColor="#0F172A"
-                android:textSize="11sp" />
         </RelativeLayout>
 
     </LinearLayout>

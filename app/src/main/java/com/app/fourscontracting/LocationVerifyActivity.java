@@ -208,19 +208,28 @@ public class LocationVerifyActivity extends AppActivity {
             isChangeSite = intent.getBooleanExtra("IS_CHANGE_SITE", false)
                     || intent.getBooleanExtra("FROM_CHANGE_SITE", false);
             lockedLocationId = intent.getStringExtra("LOCKED_LOCATION_ID");
+            targetLocationId = intent.getStringExtra("target_location_id");
+            pendingEid = intent.getStringExtra("pending_eid");
+            pendingAction = intent.getStringExtra("pending_action");
+            lockedLocationId = targetLocationId != null ? targetLocationId : lockedLocationId;
+            selectedProjectId = intent.getStringExtra("selected_project_id");
+
+            boolean sessionValid = new SessionPrefs(this).isLocationSessionValid();
+            boolean isPunchAction = (pendingAction != null && !pendingAction.trim().isEmpty())
+                    || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
+
             if (isChangeSite) {
                 isAutoStartVerify = false;
+            } else if (sessionValid && !isPunchAction) {
+                isAutoStartVerify = false;
             } else if (intent.hasExtra("AUTO_START_VERIFY")) {
-                isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", true);
-            } else {
+                isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false);
+            } else if (isPunchAction) {
                 isAutoStartVerify = true;
-            }
-            if (isAutoStartVerify) {
-                targetLocationId = intent.getStringExtra("target_location_id");
-                pendingEid = intent.getStringExtra("pending_eid");
-                pendingAction = intent.getStringExtra("pending_action");
-                lockedLocationId = targetLocationId != null ? targetLocationId : lockedLocationId;
-                selectedProjectId = intent.getStringExtra("selected_project_id");
+            } else if (!sessionValid) {
+                isAutoStartVerify = true;
+            } else {
+                isAutoStartVerify = false;
             }
 
             empId = intent.getStringExtra("empid") != null ? intent.getStringExtra("empid") : "";
@@ -293,6 +302,65 @@ public class LocationVerifyActivity extends AppActivity {
                 pendingAction = savedInstanceState.getString("saved_pending_action", null);
             } else {
                 getIncomingData();
+            }
+
+            SessionPrefs session = new SessionPrefs(this);
+            boolean isPunchActionInOnCreate = (pendingAction != null && !pendingAction.trim().isEmpty())
+                    || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
+
+            if (session.isLocationSessionValid() && !isChangeSite) {
+                if (isPunchActionInOnCreate) {
+                    Log.d("LOCATION_VERIFY", "Location session already valid. Bypassing location re-scan for punch action.");
+                    String freshToken = session.issueFreshVerificationToken();
+                    Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
+                    Bundle extras = new Bundle();
+                    String targetEmpId = pendingEid != null ? pendingEid.trim() : empId;
+                    String targetAction = (pendingAction != null && !pendingAction.trim().isEmpty()) ? pendingAction : type;
+                    String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : session.getProjectId();
+                    String targetName = session.getProjectName();
+                    String savedLocId = session.getLocationId();
+
+                    extras.putString("empid", targetEmpId);
+                    extras.putString("type", targetAction);
+                    boolean movementPunch = "MOVE".equalsIgnoreCase(type)
+                            || "MOVE".equalsIgnoreCase(targetAction)
+                            || getIntent().getBooleanExtra("is_movement", false);
+                    extras.putBoolean("is_movement", movementPunch);
+                    extras.putString("uid", managerUid != null ? managerUid : empId);
+                    extras.putString("project_id", targetDept);
+                    extras.putString("departmentid", targetDept);
+                    extras.putString("projname", targetName);
+                    extras.putString("project_name", targetName);
+                    extras.putString("VERIFIED", "true");
+                    extras.putString("VERIFICATION_TOKEN", freshToken);
+                    extras.putString("MATCHED_LOC_ID", savedLocId);
+                    extras.putString("locationid", savedLocId);
+                    extras.putString("loc_id", savedLocId);
+
+                    intent.putExtras(extras);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
+                    return;
+                } else {
+                    Log.d("LOCATION_VERIFY", "Location session already valid for today. Finishing immediately.");
+                    Intent resultIntent = new Intent();
+                    String savedId = session.getLocationId();
+                    String savedName = session.getProjectName();
+                    resultIntent.putExtra("location_id", savedId);
+                    resultIntent.putExtra("locationid", savedId);
+                    resultIntent.putExtra("loc_id", savedId);
+                    resultIntent.putExtra("MATCHED_LOC_ID", savedId);
+                    resultIntent.putExtra("project_id", session.getProjectId());
+                    resultIntent.putExtra("departmentid", session.getProjectId());
+                    resultIntent.putExtra("project_name", savedName);
+                    resultIntent.putExtra("projname", savedName);
+                    resultIntent.putExtra("VERIFIED", "true");
+                    resultIntent.putExtra("VERIFICATION_TOKEN", session.getVerificationToken());
+                    setResult(RESULT_OK, resultIntent);
+                    finish();
+                    return;
+                }
             }
 
             getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {

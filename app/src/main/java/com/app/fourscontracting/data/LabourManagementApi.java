@@ -97,11 +97,9 @@ public class LabourManagementApi {
                         int computedIn = 0;
                         int computedOut = 0;
                         for (LabourEmployeeModel m : list) {
-                            String code = m.getStatusCode() != null ? m.getStatusCode().toUpperCase() : "";
-                            String text = m.getDisplayText() != null ? m.getDisplayText().toUpperCase() : "";
-                            if (m.isCanOut() || "IN_HERE".equalsIgnoreCase(code) || code.contains("IN") || text.contains("TIME IN")) {
+                            if (m.isClockedIn()) {
                                 computedIn++;
-                            } else if ("OUT".equalsIgnoreCase(code) || "TIME_OUT".equalsIgnoreCase(code) || "OUT_HERE".equalsIgnoreCase(code) || code.contains("OUT") || text.contains("TIME OUT") || text.contains("COMPLETED")) {
+                            } else if (m.isClockedOut()) {
                                 computedOut++;
                             }
                         }

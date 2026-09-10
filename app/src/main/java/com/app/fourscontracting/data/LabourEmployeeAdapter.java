@@ -73,17 +73,17 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
 
         h.tvBadge.setText(displayStatus);
 
-        // 1. IN Button Logic
-        h.btnTimeIn.setVisibility(worker.isCanIn() ? View.VISIBLE : View.GONE);
+        // 1. IN Button Logic (Labour screen is strictly for Check-In)
+        h.btnTimeIn.setVisibility(worker.isClockedIn() ? View.GONE : View.VISIBLE);
         h.btnTimeIn.setOnClickListener(v -> {
             if (listener != null) listener.onTimeInClicked(worker);
         });
 
-        // 2. OUT Button Logic
-        h.btnTimeOut.setVisibility(worker.isCanOut() ? View.VISIBLE : View.GONE);
-        h.btnTimeOut.setOnClickListener(v -> {
-            if (listener != null) listener.onTimeOutClicked(worker);
-        });
+        // 2. OUT Button Logic (Moved to Manage Attendance screen)
+        if (h.btnTimeOut != null) {
+            h.btnTimeOut.setVisibility(View.GONE);
+            h.btnTimeOut.setOnClickListener(null);
+        }
 
         // Meta Text (e.g. Status: Not Clocked In / Site Name)
         String metaText = !TextUtils.isEmpty(worker.getSiteName())

@@ -161,6 +161,9 @@ public class SupervisorAttendanceFragment extends Fragment
         spinnerHistoryDay = view.findViewById(R.id.spinner_supervisor_history_day);
         spinnerHistoryMonth = view.findViewById(R.id.spinner_supervisor_history_month);
         spinnerHistoryYear = view.findViewById(R.id.spinner_supervisor_history_year);
+        tvHistoryStatTotal = view.findViewById(R.id.tv_supervisor_history_stat_total);
+        tvHistoryStatActive = view.findViewById(R.id.tv_supervisor_history_stat_active);
+        tvHistoryStatCompleted = view.findViewById(R.id.tv_supervisor_history_stat_completed);
         progressHistory = view.findViewById(R.id.progress_supervisor_history);
         llHistoryEmpty = view.findViewById(R.id.ll_supervisor_history_empty);
         tvHistoryEmptyMsg = view.findViewById(R.id.tv_supervisor_history_empty_msg);
@@ -500,6 +503,22 @@ public class SupervisorAttendanceFragment extends Fragment
 
     private void updateHistoryUiStats(List<AttendanceRecordModel> records) {
         int total = records != null ? records.size() : 0;
+        int activeCount = 0;
+        int completedCount = 0;
+
+        if (records != null) {
+            for (AttendanceRecordModel r : records) {
+                if (r.isActive()) {
+                    activeCount++;
+                } else {
+                    completedCount++;
+                }
+            }
+        }
+
+        if (tvHistoryStatTotal != null) tvHistoryStatTotal.setText(String.valueOf(total));
+        if (tvHistoryStatActive != null) tvHistoryStatActive.setText(String.valueOf(activeCount));
+        if (tvHistoryStatCompleted != null) tvHistoryStatCompleted.setText(String.valueOf(completedCount));
 
         if (llHistoryEmpty != null) {
             if (total == 0) {
@@ -696,6 +715,40 @@ public class SupervisorAttendanceFragment extends Fragment
     @Override
     public void onPhotoClicked(String photoUrl) {
         showLightboxDialog(photoUrl);
+    }
+
+    @Override
+    public void onTimeOutClicked(AttendanceRecordModel record) {
+        Context context = getContext();
+        if (context == null || record == null || !isAdded()) return;
+
+        if (sessionPrefs == null) sessionPrefs = new SessionPrefs(context);
+        if (!sessionPrefs.isLocationSessionValid()) {
+            Toast.makeText(context, AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String freshToken = sessionPrefs.issueFreshVerificationToken();
+        String targetLocId = sessionPrefs.getLocationId();
+        String targetProjName = sessionPrefs.getProjectName();
+        if (TextUtils.isEmpty(targetProjName)) targetProjName = record.getProjName();
+
+        Intent intent = new Intent(context, com.app.fourscontracting.LocationActivity.class);
+        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("emp_name", record.getFirstName());
+        intent.putExtra("photo_url", record.getInPhotoUrl());
+        intent.putExtra("type", "OUT");
+        intent.putExtra("uid", supervisorUid);
+        intent.putExtra("project_id", targetLocId);
+        intent.putExtra("departmentid", targetLocId);
+        intent.putExtra("projname", targetProjName);
+        intent.putExtra("project_name", targetProjName);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
+        startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
 
     private void showBreakStatusDialog(AttendanceRecordModel record) {

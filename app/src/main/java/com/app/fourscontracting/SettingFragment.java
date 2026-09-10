@@ -230,6 +230,9 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                     public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
                         DepartmentModel sel = fullList.get(position);
                         selectedDeptId = sel.id;
+                        if (isAdded()) {
+                            new SessionPrefs(requireContext()).saveLastSelectedDepartmentId(selectedDeptId);
+                        }
                         loadEmployees();
                     }
 
@@ -237,21 +240,38 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                     public void onNothingSelected(AdapterView<?> parent) {}
                 });
 
-                // Auto-select department 5 (4s Contracting Employees) on initial load matching web model
-                if (fullList.size() > 1) {
-                    int defaultPos = 0;
+                // Resolve target department selection:
+                // 1. If memory/session has a previously selected department, restore it.
+                // 2. Otherwise default to department 5 (4s Contracting Employees) on initial app launch.
+                SessionPrefs session = new SessionPrefs(requireContext());
+                String targetDeptId = !TextUtils.isEmpty(selectedDeptId)
+                        ? selectedDeptId
+                        : session.getLastSelectedDepartmentId();
+
+                int targetPos = -1;
+                if (!TextUtils.isEmpty(targetDeptId)) {
                     for (int i = 0; i < fullList.size(); i++) {
-                        if ("5".equals(fullList.get(i).id)) {
-                            defaultPos = i;
+                        if (targetDeptId.equalsIgnoreCase(fullList.get(i).id)) {
+                            targetPos = i;
                             break;
                         }
                     }
-                    if (defaultPos == 0 && fullList.size() > 1) {
-                        defaultPos = 1;
+                }
+
+                if (targetPos < 0 && fullList.size() > 1) {
+                    for (int i = 0; i < fullList.size(); i++) {
+                        if ("5".equals(fullList.get(i).id)) {
+                            targetPos = i;
+                            break;
+                        }
                     }
-                    if (defaultPos > 0) {
-                        spinnerDept.setSelection(defaultPos);
+                    if (targetPos < 0 && fullList.size() > 1) {
+                        targetPos = 1;
                     }
+                }
+
+                if (targetPos > 0 && targetPos < fullList.size()) {
+                    spinnerDept.setSelection(targetPos);
                 }
             }
 
@@ -323,13 +343,22 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                         if (isLockedOtherSite(m)) {
                             continue;
                         }
-                        fullEmployeeList.add(m);
+
                         visibleTotal++;
-                        if (m.isCanOut()) {
-                            visibleIn++; // Checked IN at this location
-                        } else if (m.isCanIn()) {
-                            visibleOut++; // Not clocked in
+
+                        // Don't display completed/shift-finished employees on Labour page (managed in Manage Attendance)
+                        if (m.isClockedOut()) {
+                            visibleOut++; // Track OUT count for top metric strip
+                            continue; // Do NOT add completed employees to the active worker list
                         }
+
+                        // Don't display already checked-in employees on Labour page (check-out is managed in Manage Attendance)
+                        if (m.isClockedIn()) {
+                            visibleIn++; // Track IN count for top metric strip
+                            continue; // Do NOT add checked-in employees to the Labour check-in queue
+                        }
+
+                        fullEmployeeList.add(m);
                     }
                 }
 
@@ -408,21 +437,26 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             return;
         }
 
+        String freshToken = session.issueFreshVerificationToken();
         String targetLocId = session.getLocationId();
         String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
+        String pName = getResolvedSiteName();
 
-        Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
+        Intent intent = new Intent(requireContext(), LocationActivity.class);
         intent.putExtra("empid", item.getId());
         intent.putExtra("emp_name", item.getName());
         intent.putExtra("photo_url", item.getPhotoUrl());
         intent.putExtra("type", actionType);
         intent.putExtra("uid", uid);
-        intent.putExtra("selected_project_id", pId);
-        intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("target_location_id", targetLocId);
-        intent.putExtra("LOCKED_LOCATION_ID", targetLocId);
-        intent.putExtra("pending_eid", item.getId());
-        intent.putExtra("pending_action", actionType);
+        intent.putExtra("project_id", pId);
+        intent.putExtra("departmentid", pId);
+        intent.putExtra("projname", pName);
+        intent.putExtra("project_name", pName);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, REQUEST_CODE_ATTENDANCE_PUNCH);
     }
 
