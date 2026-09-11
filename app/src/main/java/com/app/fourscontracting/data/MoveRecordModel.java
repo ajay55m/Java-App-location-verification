@@ -2,6 +2,7 @@ package com.app.fourscontracting.data;
 
 public class MoveRecordModel {
     private final String moveId;
+    private final String empId;
     private final String firstName;
     private final String projName;
     private final String inTime;
@@ -14,7 +15,14 @@ public class MoveRecordModel {
     public MoveRecordModel(String moveId, String firstName, String projName, String inTime,
                            String outTime, boolean hasIn, boolean hasOut,
                            String inPhotoUrl, String outPhotoUrl) {
+        this(moveId, "", firstName, projName, inTime, outTime, hasIn, hasOut, inPhotoUrl, outPhotoUrl);
+    }
+
+    public MoveRecordModel(String moveId, String empId, String firstName, String projName, String inTime,
+                           String outTime, boolean hasIn, boolean hasOut,
+                           String inPhotoUrl, String outPhotoUrl) {
         this.moveId = moveId != null ? moveId : "";
+        this.empId = empId != null ? empId : "";
         this.firstName = firstName != null ? firstName : "";
         this.projName = projName != null ? projName : "";
         this.inTime = inTime != null ? inTime : "";
@@ -27,6 +35,10 @@ public class MoveRecordModel {
 
     public String getMoveId() {
         return moveId;
+    }
+
+    public String getEmpId() {
+        return empId != null ? empId.trim() : "";
     }
 
     public String getFirstName() {

@@ -1,17 +1,13 @@
-package com.app.fourscontracting.ui.attendance;
+package com.app.fourscontracting;
 
 import android.app.Dialog;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -20,31 +16,26 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.app.fourscontracting.LocationActivity;
-import com.app.fourscontracting.R;
-import com.app.fourscontracting.SessionPrefs;
-import com.app.fourscontracting.User;
-import com.app.fourscontracting.UserLocalStore;
 import com.app.fourscontracting.data.AllocatedProjectModel;
-import com.app.fourscontracting.data.AttendanceFeedAdapter;
-import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
+import com.app.fourscontracting.data.MoveFeedAdapter;
+import com.app.fourscontracting.data.MoveRecordModel;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
-public class ManageAttendanceFragment extends Fragment
-        implements AttendanceFeedAdapter.Listener {
+public class ManageMoveSiteActivity extends AppActivity
+        implements MoveFeedAdapter.Listener {
+
+    private static final int REQUEST_CODE_MOVE_PUNCH = 1006;
 
     private UserLocalStore userLocalStore;
     private final ManageAttendanceApi api = new ManageAttendanceApi();
@@ -57,12 +48,13 @@ public class ManageAttendanceFragment extends Fragment
     private RecyclerView recyclerView;
     private LinearLayout llEmptyState;
     private TextView tvEmptyMessage;
+    private ProgressBar progressBar;
+
     private TextView tvStatTotal;
     private TextView tvStatActive;
     private TextView tvStatCompleted;
-    private ProgressBar progressBar;
 
-    private AttendanceFeedAdapter attendanceAdapter;
+    private MoveFeedAdapter moveAdapter;
 
     private String uid = "";
     private String selectedProjectId = "all";
@@ -74,80 +66,67 @@ public class ManageAttendanceFragment extends Fragment
     private boolean isUpdatingProjects = false;
 
     private final List<AllocatedProjectModel> allocatedProjects = new ArrayList<>();
-    private final List<AttendanceRecordModel> currentAttendanceList = new ArrayList<>();
-
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_manage_attendance, container, false);
-    }
+    private final List<MoveRecordModel> currentMoveList = new ArrayList<>();
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_manage_move_site);
 
-        Context context = getContext();
-        if (context == null) return;
-
-        userLocalStore = new UserLocalStore(context);
+        userLocalStore = new UserLocalStore(this);
         User user = userLocalStore.getLoggedInUser();
         String val = user != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
         uid = (val_list != null && val_list.length > 0) ? val_list[0] : "";
 
-        initViews(view);
+        if (getIntent() != null && getIntent().hasExtra("uid")) {
+            String passedUid = getIntent().getStringExtra("uid");
+            if (!TextUtils.isEmpty(passedUid)) {
+                uid = passedUid;
+            }
+        }
+
+        initViews();
         setupDateSpinners();
+        prepopulateProjectsFromCache();
 
-        attendanceAdapter = new AttendanceFeedAdapter(this);
+        moveAdapter = new MoveFeedAdapter(this);
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(context));
-        recyclerView.setAdapter(attendanceAdapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(moveAdapter);
 
         swipeRefreshLayout.setOnRefreshListener(this::loadData);
 
         loadData();
     }
 
-    public void refreshList() {
-        loadData();
-    }
-
-    private void initViews(View view) {
-        if (view == null) return;
-        ImageView imgBack = view.findViewById(R.id.img_back_button);
-        TextView tvTitle = view.findViewById(R.id.tv_header_title);
-        ImageView btnRefresh = view.findViewById(R.id.btn_refresh_feed);
-
-        if (imgBack != null) {
-            imgBack.setVisibility(View.GONE);
+    private void initViews() {
+        ImageView btnBack = findViewById(R.id.img_back_button);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
         }
-        if (tvTitle != null) {
-            tvTitle.setVisibility(View.GONE);
-        }
+
+        ImageView btnRefresh = findViewById(R.id.btn_refresh_feed);
         if (btnRefresh != null) {
-            btnRefresh.setOnClickListener(v -> {
-                if (isAdded()) loadData();
-            });
+            btnRefresh.setOnClickListener(v -> loadData());
         }
 
-        spinnerProjects = view.findViewById(R.id.spinner_projects);
-        spinnerDay = view.findViewById(R.id.spinner_day);
-        spinnerMonth = view.findViewById(R.id.spinner_month);
-        spinnerYear = view.findViewById(R.id.spinner_year);
-        swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
-        recyclerView = view.findViewById(R.id.rv_manage_attendance);
-        llEmptyState = view.findViewById(R.id.ll_empty_state);
-        tvEmptyMessage = view.findViewById(R.id.tv_empty_message);
-        tvStatTotal = view.findViewById(R.id.tv_stat_total);
-        tvStatActive = view.findViewById(R.id.tv_stat_active);
-        tvStatCompleted = view.findViewById(R.id.tv_stat_completed);
-        progressBar = view.findViewById(R.id.progress_manage_attendance);
+        spinnerProjects = findViewById(R.id.spinner_projects);
+        spinnerDay = findViewById(R.id.spinner_day);
+        spinnerMonth = findViewById(R.id.spinner_month);
+        spinnerYear = findViewById(R.id.spinner_year);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
+        recyclerView = findViewById(R.id.rv_manage_move_site);
+        llEmptyState = findViewById(R.id.ll_empty_state);
+        tvEmptyMessage = findViewById(R.id.tv_empty_message);
+        progressBar = findViewById(R.id.progress_manage_move_site);
+
+        tvStatTotal = findViewById(R.id.tv_stat_total);
+        tvStatActive = findViewById(R.id.tv_stat_active);
+        tvStatCompleted = findViewById(R.id.tv_stat_completed);
     }
 
     private void setupDateSpinners() {
-        Context context = getContext();
-        if (context == null || spinnerDay == null || spinnerMonth == null || spinnerYear == null) return;
-
         isInitializingDateSpinners = true;
 
         Calendar cal = Calendar.getInstance();
@@ -168,7 +147,7 @@ public class ManageAttendanceFragment extends Fragment
                 dayIndexToSelect = i - 1;
             }
         }
-        ArrayAdapter<String> dayAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, days);
+        ArrayAdapter<String> dayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, days);
         dayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerDay.setAdapter(dayAdapter);
         spinnerDay.setSelection(dayIndexToSelect, false);
@@ -178,7 +157,7 @@ public class ManageAttendanceFragment extends Fragment
         for (String m : monthNames) {
             monthsList.add(m);
         }
-        ArrayAdapter<String> monthAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, monthsList);
+        ArrayAdapter<String> monthAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, monthsList);
         monthAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerMonth.setAdapter(monthAdapter);
         spinnerMonth.setSelection(currentMonth - 1, false);
@@ -187,7 +166,7 @@ public class ManageAttendanceFragment extends Fragment
         years.add(String.valueOf(currentYear - 1));
         years.add(String.valueOf(currentYear));
         years.add(String.valueOf(currentYear + 1));
-        ArrayAdapter<String> yearAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, years);
+        ArrayAdapter<String> yearAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, years);
         yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerYear.setAdapter(yearAdapter);
         spinnerYear.setSelection(1, false);
@@ -213,14 +192,14 @@ public class ManageAttendanceFragment extends Fragment
         spinnerMonth.setOnItemSelectedListener(dateChangeListener);
         spinnerYear.setOnItemSelectedListener(dateChangeListener);
 
-        if (getView() != null) {
-            getView().post(() -> isInitializingDateSpinners = false);
+        if (getWindow() != null && getWindow().getDecorView() != null) {
+            getWindow().getDecorView().post(() -> isInitializingDateSpinners = false);
         } else {
             isInitializingDateSpinners = false;
         }
     }
 
-    private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
+    private List<MoveRecordModel> filterRecordsBySelectedProject(List<MoveRecordModel> inputRecords) {
         if (inputRecords == null) return new ArrayList<>();
         if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
             return inputRecords;
@@ -237,8 +216,8 @@ public class ManageAttendanceFragment extends Fragment
             targetName = selectedProjectId.trim().toLowerCase();
         }
 
-        List<AttendanceRecordModel> filtered = new ArrayList<>();
-        for (AttendanceRecordModel record : inputRecords) {
+        List<MoveRecordModel> filtered = new ArrayList<>();
+        for (MoveRecordModel record : inputRecords) {
             if (record == null) continue;
             String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
             if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
@@ -249,25 +228,19 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     private void loadData() {
-        Context context = getContext();
-        if (context == null || !isAdded()) return;
-
-        if (TextUtils.isEmpty(uid)) {
-            if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
-            return;
-        }
+        if (isFinishing() || isDestroyed()) return;
 
         if (progressBar != null && swipeRefreshLayout != null && !swipeRefreshLayout.isRefreshing()) {
             progressBar.setVisibility(View.VISIBLE);
         }
 
-        api.fetchFeed(context, uid, selectedProjectId, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
+        api.fetchFeed(this, uid, selectedProjectId, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
             @Override
             public void onSuccess(String userName,
                                   List<AllocatedProjectModel> projects,
-                                  List<AttendanceRecordModel> attendanceRecords,
-                                  List<com.app.fourscontracting.data.MoveRecordModel> moveRecords) {
-                if (!isAdded() || getContext() == null) return;
+                                  List<com.app.fourscontracting.data.AttendanceRecordModel> attendanceRecords,
+                                  List<MoveRecordModel> moveRecords) {
+                if (isFinishing() || isDestroyed()) return;
 
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
                 if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
@@ -276,40 +249,46 @@ public class ManageAttendanceFragment extends Fragment
                     updateProjectSpinner(projects);
                 }
 
-                currentAttendanceList.clear();
-                if (attendanceRecords != null) {
-                    List<AttendanceRecordModel> filtered = filterRecordsBySelectedProject(attendanceRecords);
-                    currentAttendanceList.addAll(filtered);
+                currentMoveList.clear();
+                if (moveRecords != null) {
+                    List<MoveRecordModel> filtered = filterRecordsBySelectedProject(moveRecords);
+                    currentMoveList.addAll(filtered);
                 }
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
+                if (moveAdapter != null) {
+                    moveAdapter.setItems(currentMoveList);
                 }
 
-                updateSummaryMetrics();
                 updateEmptyStateView();
             }
 
             @Override
             public void onError(String message) {
-                if (!isAdded() || getContext() == null) return;
+                if (isFinishing() || isDestroyed()) return;
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
                 if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
-                if (message != null) {
-                    Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                }
-                currentAttendanceList.clear();
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
-                }
-                updateSummaryMetrics();
+                Toast.makeText(ManageMoveSiteActivity.this, message, Toast.LENGTH_SHORT).show();
                 updateEmptyStateView();
             }
         });
     }
 
+    private void prepopulateProjectsFromCache() {
+        if (spinnerProjects == null) return;
+        SessionPrefs session = new SessionPrefs(this);
+        List<Project> cached = session.getCachedProjectList(true);
+        if (cached != null && !cached.isEmpty()) {
+            List<AllocatedProjectModel> allocList = new ArrayList<>();
+            for (Project p : cached) {
+                if (p != null && p.name != null && !p.name.isEmpty()) {
+                    allocList.add(new AllocatedProjectModel(p.id != null ? p.id : p.name, p.name));
+                }
+            }
+            updateProjectSpinner(allocList);
+        }
+    }
+
     private void updateProjectSpinner(List<AllocatedProjectModel> projects) {
-        Context context = getContext();
-        if (context == null || spinnerProjects == null) return;
+        if (spinnerProjects == null) return;
 
         isUpdatingProjects = true;
         allocatedProjects.clear();
@@ -330,7 +309,7 @@ public class ManageAttendanceFragment extends Fragment
 
         spinnerProjects.setOnItemSelectedListener(null);
 
-        ArrayAdapter<AllocatedProjectModel> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, allocatedProjects);
+        ArrayAdapter<AllocatedProjectModel> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, allocatedProjects);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProjects.setAdapter(adapter);
         spinnerProjects.setSelection(selectedIndex, false);
@@ -359,6 +338,7 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     private void updateEmptyStateView() {
+        updateMetricsStats();
         if (llEmptyState == null || tvEmptyMessage == null) return;
 
         if (allocatedProjects.size() <= 1 && projectSpinnerInitialized) {
@@ -367,20 +347,20 @@ public class ManageAttendanceFragment extends Fragment
             return;
         }
 
-        if (currentAttendanceList.isEmpty()) {
+        if (currentMoveList.isEmpty()) {
             llEmptyState.setVisibility(View.VISIBLE);
-            tvEmptyMessage.setText("No attendance found for " + selDay + "/" + selMonth + "/" + selYear);
+            tvEmptyMessage.setText("No move site records found for " + selDay + "/" + selMonth + "/" + selYear);
         } else {
             llEmptyState.setVisibility(View.GONE);
         }
     }
 
-    private void updateSummaryMetrics() {
-        int total = currentAttendanceList.size();
+    private void updateMetricsStats() {
+        int total = currentMoveList.size();
         int active = 0;
         int completed = 0;
 
-        for (AttendanceRecordModel record : currentAttendanceList) {
+        for (MoveRecordModel record : currentMoveList) {
             if (record.isActive()) {
                 active++;
             } else {
@@ -394,44 +374,17 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     @Override
-    public void onBreakClicked(AttendanceRecordModel record) {
-        showBreakModal(record);
-    }
-
-    @Override
     public void onPhotoClicked(String photoUrl) {
         showLightboxDialog(photoUrl);
     }
 
     @Override
-    public void onTimeOutClicked(AttendanceRecordModel record) {
-        Context context = getContext();
-        if (context == null || record == null || !isAdded()) return;
+    public void onMoveOutClicked(MoveRecordModel record) {
+        if (isFinishing() || isDestroyed() || record == null) return;
 
-        String targetEmpId = record.getEmpId();
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
-            targetEmpId = record.getUserId();
-        }
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
-            Toast.makeText(context, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        SessionPrefs session = new SessionPrefs(context);
+        SessionPrefs session = new SessionPrefs(this);
         if (!session.isLocationSessionValid()) {
-            Toast.makeText(context, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
-            Intent intent = new Intent(context, com.app.fourscontracting.LocationVerifyActivity.class);
-            intent.putExtra("IS_INITIAL_VERIFY", false);
-            intent.putExtra("IS_CHANGE_SITE", false);
-            intent.putExtra("AUTO_START_VERIFY", true);
-            intent.putExtra("uid", uid);
-            intent.putExtra("empid", targetEmpId);
-            intent.putExtra("pending_eid", targetEmpId);
-            intent.putExtra("attend_id", record.getAttendId());
-            intent.putExtra("attendance_id", record.getAttendId());
-            intent.putExtra("type", "OUT");
-            intent.putExtra("pending_action", "OUT");
-            startActivityForResult(intent, 1005);
+            Toast.makeText(this, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -440,13 +393,13 @@ public class ManageAttendanceFragment extends Fragment
         String pName = session.getProjectName();
         if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
 
-        Intent intent = new Intent(context, LocationActivity.class);
-        intent.putExtra("empid", targetEmpId);
-        intent.putExtra("attend_id", record.getAttendId());
-        intent.putExtra("attendance_id", record.getAttendId());
+        Intent intent = new Intent(this, LocationActivity.class);
+        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("move_id", record.getMoveId());
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
+        intent.putExtra("is_movement", true);
         intent.putExtra("uid", uid);
         intent.putExtra("project_id", targetLocId);
         intent.putExtra("departmentid", targetLocId);
@@ -457,83 +410,21 @@ public class ManageAttendanceFragment extends Fragment
         intent.putExtra("MATCHED_LOC_ID", targetLocId);
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
-        startActivityForResult(intent, 1005);
+        startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1005) {
-            if (isAdded()) {
-                loadData();
-            }
+        if (requestCode == REQUEST_CODE_MOVE_PUNCH) {
+            loadData();
         }
-    }
-
-    private void showBreakModal(AttendanceRecordModel record) {
-        Context context = getContext();
-        if (context == null || record == null || !isAdded()) return;
-
-        Dialog dialog = new Dialog(context);
-        dialog.setContentView(R.layout.dialog_break_status);
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
-
-        CheckBox cbBreak = dialog.findViewById(R.id.cb_took_break);
-        Button btnSave = dialog.findViewById(R.id.btn_save_break);
-        Button btnCancel = dialog.findViewById(R.id.btn_cancel_break);
-
-        if (cbBreak != null) {
-            cbBreak.setChecked(record.getBreakHours() > 0);
-        }
-
-        if (btnCancel != null) {
-            btnCancel.setOnClickListener(v -> dialog.dismiss());
-        }
-
-        if (btnSave != null && cbBreak != null) {
-            btnSave.setOnClickListener(v -> {
-                if (!isAdded() || getContext() == null) {
-                    dialog.dismiss();
-                    return;
-                }
-                boolean isChecked = cbBreak.isChecked();
-                btnSave.setEnabled(false);
-                api.updateBreakStatus(getContext(), record.getAttendId(), isChecked, new ManageAttendanceApi.BreakUpdateCallback() {
-                    @Override
-                    public void onSuccess(String attendId, double updatedBreakHours) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        dialog.dismiss();
-                        record.setBreakHours(updatedBreakHours);
-                        if (attendanceAdapter != null) {
-                            attendanceAdapter.notifyDataSetChanged();
-                        }
-                        Toast.makeText(getContext(), "Break status updated successfully", Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        if (message != null) {
-                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-            });
-        }
-
-        dialog.show();
     }
 
     private void showLightboxDialog(String photoUrl) {
-        Context context = getContext();
-        if (context == null) return;
+        if (isFinishing() || isDestroyed() || TextUtils.isEmpty(photoUrl)) return;
 
-        Dialog dialog = new Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         dialog.setContentView(R.layout.dialog_image_lightbox);
 
         ImageView imgTarget = dialog.findViewById(R.id.img_lightbox_target);
@@ -546,7 +437,7 @@ public class ManageAttendanceFragment extends Fragment
 
         if (imgTarget != null) {
             imgTarget.setOnClickListener(v -> dialog.dismiss());
-            ImageLoaderHelper.loadImage(context, photoUrl, imgTarget, progress);
+            ImageLoaderHelper.loadImage(this, photoUrl, imgTarget, progress);
         }
 
         dialog.show();

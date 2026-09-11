@@ -59,22 +59,47 @@
                     android:textSize="16sp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_move_status_pill"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:background="@drawable/bg_status_movement"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.06"
-                android:paddingStart="12dp"
-                android:paddingTop="5dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="5dp"
-                android:text="AT NEXT SITE"
-                android:textColor="#6366F1"
-                android:textSize="10sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_move_out"
+                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="6dp"
+                    android:minWidth="60dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="MOVE OUT"
+                    android:textAllCaps="true"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    app:backgroundTint="#DC2626"
+                    app:cornerRadius="16dp" />
+
+                <TextView
+                    android:id="@+id/tv_move_status_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_status_movement"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.06"
+                    android:paddingStart="12dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="5dp"
+                    android:text="AT NEXT SITE"
+                    android:textColor="#6366F1"
+                    android:textSize="10sp" />
+            </LinearLayout>
         </RelativeLayout>
 
         <!-- Photo Row: IN & OUT -->

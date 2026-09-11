@@ -1,4 +1,4 @@
-package com.app.fourscontracting.ui.attendance;
+package com.app.fourscontracting.ui.move;
 
 import android.app.Dialog;
 import android.content.Context;
@@ -10,8 +10,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -33,18 +31,20 @@ import com.app.fourscontracting.SessionPrefs;
 import com.app.fourscontracting.User;
 import com.app.fourscontracting.UserLocalStore;
 import com.app.fourscontracting.data.AllocatedProjectModel;
-import com.app.fourscontracting.data.AttendanceFeedAdapter;
-import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
+import com.app.fourscontracting.data.MoveFeedAdapter;
+import com.app.fourscontracting.data.MoveRecordModel;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
-public class ManageAttendanceFragment extends Fragment
-        implements AttendanceFeedAdapter.Listener {
+public class ManageMoveSiteFragment extends Fragment
+        implements MoveFeedAdapter.Listener {
+
+    private static final int REQUEST_CODE_MOVE_PUNCH = 1006;
 
     private UserLocalStore userLocalStore;
     private final ManageAttendanceApi api = new ManageAttendanceApi();
@@ -62,7 +62,7 @@ public class ManageAttendanceFragment extends Fragment
     private TextView tvStatCompleted;
     private ProgressBar progressBar;
 
-    private AttendanceFeedAdapter attendanceAdapter;
+    private MoveFeedAdapter moveAdapter;
 
     private String uid = "";
     private String selectedProjectId = "all";
@@ -74,12 +74,12 @@ public class ManageAttendanceFragment extends Fragment
     private boolean isUpdatingProjects = false;
 
     private final List<AllocatedProjectModel> allocatedProjects = new ArrayList<>();
-    private final List<AttendanceRecordModel> currentAttendanceList = new ArrayList<>();
+    private final List<MoveRecordModel> currentMoveList = new ArrayList<>();
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_manage_attendance, container, false);
+        return inflater.inflate(R.layout.fragment_manage_move_site, container, false);
     }
 
     @Override
@@ -98,10 +98,10 @@ public class ManageAttendanceFragment extends Fragment
         initViews(view);
         setupDateSpinners();
 
-        attendanceAdapter = new AttendanceFeedAdapter(this);
+        moveAdapter = new MoveFeedAdapter(this);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
-        recyclerView.setAdapter(attendanceAdapter);
+        recyclerView.setAdapter(moveAdapter);
 
         swipeRefreshLayout.setOnRefreshListener(this::loadData);
 
@@ -135,13 +135,13 @@ public class ManageAttendanceFragment extends Fragment
         spinnerMonth = view.findViewById(R.id.spinner_month);
         spinnerYear = view.findViewById(R.id.spinner_year);
         swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
-        recyclerView = view.findViewById(R.id.rv_manage_attendance);
+        recyclerView = view.findViewById(R.id.rv_manage_move_site);
         llEmptyState = view.findViewById(R.id.ll_empty_state);
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message);
         tvStatTotal = view.findViewById(R.id.tv_stat_total);
         tvStatActive = view.findViewById(R.id.tv_stat_active);
         tvStatCompleted = view.findViewById(R.id.tv_stat_completed);
-        progressBar = view.findViewById(R.id.progress_manage_attendance);
+        progressBar = view.findViewById(R.id.progress_manage_move_site);
     }
 
     private void setupDateSpinners() {
@@ -220,7 +220,7 @@ public class ManageAttendanceFragment extends Fragment
         }
     }
 
-    private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
+    private List<MoveRecordModel> filterRecordsBySelectedProject(List<MoveRecordModel> inputRecords) {
         if (inputRecords == null) return new ArrayList<>();
         if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
             return inputRecords;
@@ -237,8 +237,8 @@ public class ManageAttendanceFragment extends Fragment
             targetName = selectedProjectId.trim().toLowerCase();
         }
 
-        List<AttendanceRecordModel> filtered = new ArrayList<>();
-        for (AttendanceRecordModel record : inputRecords) {
+        List<MoveRecordModel> filtered = new ArrayList<>();
+        for (MoveRecordModel record : inputRecords) {
             if (record == null) continue;
             String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
             if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
@@ -265,8 +265,8 @@ public class ManageAttendanceFragment extends Fragment
             @Override
             public void onSuccess(String userName,
                                   List<AllocatedProjectModel> projects,
-                                  List<AttendanceRecordModel> attendanceRecords,
-                                  List<com.app.fourscontracting.data.MoveRecordModel> moveRecords) {
+                                  List<com.app.fourscontracting.data.AttendanceRecordModel> attendanceRecords,
+                                  List<MoveRecordModel> moveRecords) {
                 if (!isAdded() || getContext() == null) return;
 
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
@@ -276,13 +276,13 @@ public class ManageAttendanceFragment extends Fragment
                     updateProjectSpinner(projects);
                 }
 
-                currentAttendanceList.clear();
-                if (attendanceRecords != null) {
-                    List<AttendanceRecordModel> filtered = filterRecordsBySelectedProject(attendanceRecords);
-                    currentAttendanceList.addAll(filtered);
+                currentMoveList.clear();
+                if (moveRecords != null) {
+                    List<MoveRecordModel> filtered = filterRecordsBySelectedProject(moveRecords);
+                    currentMoveList.addAll(filtered);
                 }
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
+                if (moveAdapter != null) {
+                    moveAdapter.setItems(currentMoveList);
                 }
 
                 updateSummaryMetrics();
@@ -297,9 +297,9 @@ public class ManageAttendanceFragment extends Fragment
                 if (message != null) {
                     Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
                 }
-                currentAttendanceList.clear();
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
+                currentMoveList.clear();
+                if (moveAdapter != null) {
+                    moveAdapter.setItems(currentMoveList);
                 }
                 updateSummaryMetrics();
                 updateEmptyStateView();
@@ -367,20 +367,20 @@ public class ManageAttendanceFragment extends Fragment
             return;
         }
 
-        if (currentAttendanceList.isEmpty()) {
+        if (currentMoveList.isEmpty()) {
             llEmptyState.setVisibility(View.VISIBLE);
-            tvEmptyMessage.setText("No attendance found for " + selDay + "/" + selMonth + "/" + selYear);
+            tvEmptyMessage.setText("No move site records found for " + selDay + "/" + selMonth + "/" + selYear);
         } else {
             llEmptyState.setVisibility(View.GONE);
         }
     }
 
     private void updateSummaryMetrics() {
-        int total = currentAttendanceList.size();
+        int total = currentMoveList.size();
         int active = 0;
         int completed = 0;
 
-        for (AttendanceRecordModel record : currentAttendanceList) {
+        for (MoveRecordModel record : currentMoveList) {
             if (record.isActive()) {
                 active++;
             } else {
@@ -394,44 +394,31 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     @Override
-    public void onBreakClicked(AttendanceRecordModel record) {
-        showBreakModal(record);
-    }
-
-    @Override
     public void onPhotoClicked(String photoUrl) {
         showLightboxDialog(photoUrl);
     }
 
     @Override
-    public void onTimeOutClicked(AttendanceRecordModel record) {
+    public void onMoveOutClicked(MoveRecordModel record) {
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
 
-        String targetEmpId = record.getEmpId();
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
-            targetEmpId = record.getUserId();
-        }
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
-            Toast.makeText(context, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
-            return;
-        }
-
         SessionPrefs session = new SessionPrefs(context);
         if (!session.isLocationSessionValid()) {
-            Toast.makeText(context, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
             Intent intent = new Intent(context, com.app.fourscontracting.LocationVerifyActivity.class);
             intent.putExtra("IS_INITIAL_VERIFY", false);
             intent.putExtra("IS_CHANGE_SITE", false);
             intent.putExtra("AUTO_START_VERIFY", true);
             intent.putExtra("uid", uid);
-            intent.putExtra("empid", targetEmpId);
-            intent.putExtra("pending_eid", targetEmpId);
-            intent.putExtra("attend_id", record.getAttendId());
-            intent.putExtra("attendance_id", record.getAttendId());
+            intent.putExtra("empid", record.getEmpId());
+            intent.putExtra("pending_eid", record.getEmpId());
+            intent.putExtra("move_id", record.getMoveId());
+            intent.putExtra("moveid", record.getMoveId());
             intent.putExtra("type", "OUT");
             intent.putExtra("pending_action", "OUT");
-            startActivityForResult(intent, 1005);
+            intent.putExtra("is_movement", true);
+            startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);
             return;
         }
 
@@ -441,12 +428,12 @@ public class ManageAttendanceFragment extends Fragment
         if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
 
         Intent intent = new Intent(context, LocationActivity.class);
-        intent.putExtra("empid", targetEmpId);
-        intent.putExtra("attend_id", record.getAttendId());
-        intent.putExtra("attendance_id", record.getAttendId());
+        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("move_id", record.getMoveId());
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
+        intent.putExtra("is_movement", true);
         intent.putExtra("uid", uid);
         intent.putExtra("project_id", targetLocId);
         intent.putExtra("departmentid", targetLocId);
@@ -457,76 +444,17 @@ public class ManageAttendanceFragment extends Fragment
         intent.putExtra("MATCHED_LOC_ID", targetLocId);
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
-        startActivityForResult(intent, 1005);
+        startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1005) {
+        if (requestCode == REQUEST_CODE_MOVE_PUNCH) {
             if (isAdded()) {
                 loadData();
             }
         }
-    }
-
-    private void showBreakModal(AttendanceRecordModel record) {
-        Context context = getContext();
-        if (context == null || record == null || !isAdded()) return;
-
-        Dialog dialog = new Dialog(context);
-        dialog.setContentView(R.layout.dialog_break_status);
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
-
-        CheckBox cbBreak = dialog.findViewById(R.id.cb_took_break);
-        Button btnSave = dialog.findViewById(R.id.btn_save_break);
-        Button btnCancel = dialog.findViewById(R.id.btn_cancel_break);
-
-        if (cbBreak != null) {
-            cbBreak.setChecked(record.getBreakHours() > 0);
-        }
-
-        if (btnCancel != null) {
-            btnCancel.setOnClickListener(v -> dialog.dismiss());
-        }
-
-        if (btnSave != null && cbBreak != null) {
-            btnSave.setOnClickListener(v -> {
-                if (!isAdded() || getContext() == null) {
-                    dialog.dismiss();
-                    return;
-                }
-                boolean isChecked = cbBreak.isChecked();
-                btnSave.setEnabled(false);
-                api.updateBreakStatus(getContext(), record.getAttendId(), isChecked, new ManageAttendanceApi.BreakUpdateCallback() {
-                    @Override
-                    public void onSuccess(String attendId, double updatedBreakHours) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        dialog.dismiss();
-                        record.setBreakHours(updatedBreakHours);
-                        if (attendanceAdapter != null) {
-                            attendanceAdapter.notifyDataSetChanged();
-                        }
-                        Toast.makeText(getContext(), "Break status updated successfully", Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        if (message != null) {
-                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-            });
-        }
-
-        dialog.show();
     }
 
     private void showLightboxDialog(String photoUrl) {

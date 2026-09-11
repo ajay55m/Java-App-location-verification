@@ -83,6 +83,9 @@ public class LocationVerifyActivity extends AppActivity {
     List<JSONObject> locationData = new ArrayList<>();
     String empId = "", empName = "", projectId = "", deptId = "", type = "IN", managerUid = "";
     String selectedProjectId = "";
+    private String moveId = "";
+    private String attendId = "";
+    private boolean isMovement = false;
     private boolean isInitialVerify = false;
     private boolean isChangeSite = false;
     private boolean hasStartedAutoVerify = false;
@@ -199,6 +202,9 @@ public class LocationVerifyActivity extends AppActivity {
         outState.putString("saved_target_location_id", targetLocationId);
         outState.putString("saved_pending_eid", pendingEid);
         outState.putString("saved_pending_action", pendingAction);
+        outState.putString("saved_move_id", moveId);
+        outState.putString("saved_attend_id", attendId);
+        outState.putBoolean("saved_is_movement", isMovement);
     }
 
     private void getIncomingData() {
@@ -210,6 +216,12 @@ public class LocationVerifyActivity extends AppActivity {
             lockedLocationId = intent.getStringExtra("LOCKED_LOCATION_ID");
             targetLocationId = intent.getStringExtra("target_location_id");
             pendingEid = intent.getStringExtra("pending_eid");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("empid");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("emp_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("employee_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("user_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("userid");
+
             pendingAction = intent.getStringExtra("pending_action");
             lockedLocationId = targetLocationId != null ? targetLocationId : lockedLocationId;
             selectedProjectId = intent.getStringExtra("selected_project_id");
@@ -232,7 +244,13 @@ public class LocationVerifyActivity extends AppActivity {
                 isAutoStartVerify = false;
             }
 
-            empId = intent.getStringExtra("empid") != null ? intent.getStringExtra("empid") : "";
+            empId = intent.getStringExtra("empid");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("pending_eid");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("emp_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("employee_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("user_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("userid");
+            if (empId == null) empId = "";
             empName = intent.getStringExtra("emp_name");
             if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("empname");
             if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("employee_name");
@@ -248,6 +266,15 @@ public class LocationVerifyActivity extends AppActivity {
             projectId = intent.getStringExtra("projname") != null ? intent.getStringExtra("projname") : "";
             managerUid = intent.getStringExtra("uid") != null ? intent.getStringExtra("uid") : "";
             type = intent.getStringExtra("type") != null ? intent.getStringExtra("type") : "IN";
+            moveId = intent.getStringExtra("move_id") != null ? intent.getStringExtra("move_id")
+                    : (intent.getStringExtra("moveid") != null ? intent.getStringExtra("moveid") : "");
+            attendId = intent.getStringExtra("attend_id") != null ? intent.getStringExtra("attend_id")
+                    : (intent.getStringExtra("attendance_id") != null ? intent.getStringExtra("attendance_id") : "");
+            if (intent.hasExtra("is_movement")) {
+                isMovement = intent.getBooleanExtra("is_movement", false);
+            } else {
+                isMovement = "MOVE".equalsIgnoreCase(type);
+            }
         }
     }
 
@@ -300,6 +327,9 @@ public class LocationVerifyActivity extends AppActivity {
                 targetLocationId = savedInstanceState.getString("saved_target_location_id", null);
                 pendingEid = savedInstanceState.getString("saved_pending_eid", null);
                 pendingAction = savedInstanceState.getString("saved_pending_action", null);
+                moveId = savedInstanceState.getString("saved_move_id", "");
+                attendId = savedInstanceState.getString("saved_attend_id", "");
+                isMovement = savedInstanceState.getBoolean("saved_is_movement", false);
             } else {
                 getIncomingData();
             }
@@ -314,7 +344,20 @@ public class LocationVerifyActivity extends AppActivity {
                     String freshToken = session.issueFreshVerificationToken();
                     Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
                     Bundle extras = new Bundle();
-                    String targetEmpId = pendingEid != null ? pendingEid.trim() : empId;
+                    String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
+                            : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
+                            : (managerUid != null && !managerUid.trim().isEmpty() && !"--".equals(managerUid.trim())) ? managerUid.trim()
+                            : "";
+                    if (targetEmpId.isEmpty()) {
+                        Intent resultIntent = new Intent();
+                        String savedId = session.getLocationId();
+                        String savedName = session.getProjectName();
+                        resultIntent.putExtra("location_id", savedId);
+                        resultIntent.putExtra("project_name", savedName);
+                        setResult(RESULT_OK, resultIntent);
+                        finish();
+                        return;
+                    }
                     String targetAction = (pendingAction != null && !pendingAction.trim().isEmpty()) ? pendingAction : type;
                     String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : session.getProjectId();
                     String targetName = session.getProjectName();
@@ -322,10 +365,24 @@ public class LocationVerifyActivity extends AppActivity {
 
                     extras.putString("empid", targetEmpId);
                     extras.putString("type", targetAction);
-                    boolean movementPunch = "MOVE".equalsIgnoreCase(type)
+                    boolean movementPunch = isMovement
+                            || "MOVE".equalsIgnoreCase(type)
                             || "MOVE".equalsIgnoreCase(targetAction)
                             || getIntent().getBooleanExtra("is_movement", false);
                     extras.putBoolean("is_movement", movementPunch);
+                    intent.putExtra("is_movement", movementPunch);
+                    if (moveId != null && !moveId.isEmpty()) {
+                        extras.putString("move_id", moveId);
+                        extras.putString("moveid", moveId);
+                        intent.putExtra("move_id", moveId);
+                        intent.putExtra("moveid", moveId);
+                    }
+                    if (attendId != null && !attendId.isEmpty()) {
+                        extras.putString("attend_id", attendId);
+                        extras.putString("attendance_id", attendId);
+                        intent.putExtra("attend_id", attendId);
+                        intent.putExtra("attendance_id", attendId);
+                    }
                     extras.putString("uid", managerUid != null ? managerUid : empId);
                     extras.putString("project_id", targetDept);
                     extras.putString("departmentid", targetDept);
@@ -1270,17 +1327,15 @@ public class LocationVerifyActivity extends AppActivity {
                             if (!isFinishing() && !isDestroyed()) {
                                 String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
                                                         : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
-                                                        : (managerUid != null && !managerUid.trim().isEmpty() && !"--".equals(managerUid.trim())) ? managerUid.trim()
                                                         : "";
                                 if (targetEmpId.isEmpty()) {
-                                    UserLocalStore uStore = new UserLocalStore(LocationVerifyActivity.this);
-                                    User user = uStore.getLoggedInUser();
-                                    if (user != null && user.username != null) {
-                                        String[] valList = UserLocalStore.parseUserInfo(user.username);
-                                        if (valList != null && valList.length > 0 && !valList[0].isEmpty()) {
-                                            targetEmpId = valList[0];
-                                        }
-                                    }
+                                    Intent resIntent = new Intent();
+                                    resIntent.putExtra("location_id", locIdToSave);
+                                    resIntent.putExtra("project_name", matchedPointName);
+                                    resIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+                                    setResult(RESULT_OK, resIntent);
+                                    finish();
+                                    return;
                                 }
 
                                 String targetAction = (pendingAction != null && !pendingAction.trim().isEmpty()) ? pendingAction
@@ -1297,11 +1352,24 @@ public class LocationVerifyActivity extends AppActivity {
                                 Bundle extras = new Bundle();
                                 extras.putString("empid", targetEmpId);
                                 extras.putString("type", targetAction);
-                                boolean movementPunch = "MOVE".equalsIgnoreCase(type)
+                                boolean movementPunch = isMovement
+                                        || "MOVE".equalsIgnoreCase(type)
                                         || "MOVE".equalsIgnoreCase(targetAction)
                                         || getIntent().getBooleanExtra("is_movement", false);
                                 extras.putBoolean("is_movement", movementPunch);
                                 intent.putExtra("is_movement", movementPunch);
+                                if (moveId != null && !moveId.isEmpty()) {
+                                    extras.putString("move_id", moveId);
+                                    extras.putString("moveid", moveId);
+                                    intent.putExtra("move_id", moveId);
+                                    intent.putExtra("moveid", moveId);
+                                }
+                                if (attendId != null && !attendId.isEmpty()) {
+                                    extras.putString("attend_id", attendId);
+                                    extras.putString("attendance_id", attendId);
+                                    intent.putExtra("attend_id", attendId);
+                                    intent.putExtra("attendance_id", attendId);
+                                }
                                 intent.putExtra("type", targetAction);
                                 intent.putExtra("empid", targetEmpId);
                                 if (managerUid != null) {
@@ -1442,21 +1510,40 @@ public class LocationVerifyActivity extends AppActivity {
                 @Override
                 public void run() {
                     if (!isFinishing() && !isDestroyed()) {
-                        String targetEmpId = empId;
-                        Intent intent;
-                        if (targetEmpId != null && !targetEmpId.trim().isEmpty()) {
-                            intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
-                        } else {
-                            intent = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
-                            intent.putExtra("destination_id", R.id.nav_profile);
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
+                                                : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
+                                                : (managerUid != null && !managerUid.trim().isEmpty() && !"--".equals(managerUid.trim())) ? managerUid.trim()
+                                                : "";
+                        if (targetEmpId.isEmpty()) {
+                            Intent resIntent = new Intent();
+                            resIntent.putExtra("location_id", locIdToSave);
+                            resIntent.putExtra("project_name", matchedPointName);
+                            resIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+                            setResult(RESULT_OK, resIntent);
+                            finish();
+                            return;
                         }
+
+                        Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
 
                         Bundle extras = new Bundle();
                         if (targetEmpId != null) extras.putString("empid", targetEmpId);
                         extras.putString("type", type != null ? type : "IN");
-                        extras.putBoolean("is_movement", "MOVE".equalsIgnoreCase(type));
-                        intent.putExtra("is_movement", "MOVE".equalsIgnoreCase(type));
+                        boolean movementPunch = isMovement || "MOVE".equalsIgnoreCase(type);
+                        extras.putBoolean("is_movement", movementPunch);
+                        intent.putExtra("is_movement", movementPunch);
+                        if (moveId != null && !moveId.isEmpty()) {
+                            extras.putString("move_id", moveId);
+                            extras.putString("moveid", moveId);
+                            intent.putExtra("move_id", moveId);
+                            intent.putExtra("moveid", moveId);
+                        }
+                        if (attendId != null && !attendId.isEmpty()) {
+                            extras.putString("attend_id", attendId);
+                            extras.putString("attendance_id", attendId);
+                            intent.putExtra("attend_id", attendId);
+                            intent.putExtra("attendance_id", attendId);
+                        }
                         if (managerUid != null) extras.putString("uid", managerUid);
                         
                         String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : projectId;

@@ -99,6 +99,8 @@ public class MoveSiteApi {
                                 if (photo.startsWith("http://")) {
                                     photo = photo.replace("http://", "https://");
                                 }
+                                String moveIdVal = o.optString("move_id", o.optString("moveid", o.optString("id", "")));
+                                String attendIdVal = o.optString("attend_id", o.optString("attendance_id", ""));
                                 list.add(new MoveEmployeeModel(
                                         o.optString("id"),
                                         o.optString("first_name"),
@@ -106,7 +108,9 @@ public class MoveSiteApi {
                                         o.optString("timeout_display"),
                                         o.optBoolean("on_move", false),
                                         o.optString("action", "MOVE"),
-                                        photo
+                                        photo,
+                                        moveIdVal,
+                                        attendIdVal
                                 ));
                             }
                         }

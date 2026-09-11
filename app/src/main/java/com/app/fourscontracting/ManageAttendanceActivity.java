@@ -446,9 +446,30 @@ public class ManageAttendanceActivity extends AppActivity
     public void onTimeOutClicked(AttendanceRecordModel record) {
         if (isFinishing() || isDestroyed() || record == null) return;
 
+        String targetEmpId = record.getEmpId();
+        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
+            targetEmpId = record.getUserId();
+        }
+        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
+            Toast.makeText(this, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         SessionPrefs session = new SessionPrefs(this);
         if (!session.isLocationSessionValid()) {
             Toast.makeText(this, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
+            android.content.Intent intent = new android.content.Intent(this, LocationVerifyActivity.class);
+            intent.putExtra("IS_INITIAL_VERIFY", false);
+            intent.putExtra("IS_CHANGE_SITE", false);
+            intent.putExtra("AUTO_START_VERIFY", true);
+            intent.putExtra("uid", uid);
+            intent.putExtra("empid", targetEmpId);
+            intent.putExtra("pending_eid", targetEmpId);
+            intent.putExtra("attend_id", record.getAttendId());
+            intent.putExtra("attendance_id", record.getAttendId());
+            intent.putExtra("type", "OUT");
+            intent.putExtra("pending_action", "OUT");
+            startActivityForResult(intent, 1005);
             return;
         }
 
@@ -458,10 +479,66 @@ public class ManageAttendanceActivity extends AppActivity
         if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
 
         android.content.Intent intent = new android.content.Intent(this, LocationActivity.class);
-        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("empid", targetEmpId);
+        intent.putExtra("attend_id", record.getAttendId());
+        intent.putExtra("attendance_id", record.getAttendId());
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
+        intent.putExtra("uid", uid);
+        intent.putExtra("project_id", targetLocId);
+        intent.putExtra("departmentid", targetLocId);
+        intent.putExtra("projname", pName);
+        intent.putExtra("project_name", pName);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
+        startActivityForResult(intent, 1005);
+    }
+
+    @Override
+    public void onMoveOutClicked(MoveRecordModel record) {
+        if (isFinishing() || isDestroyed() || record == null) return;
+
+        String targetEmpId = record.getEmpId();
+        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
+            Toast.makeText(this, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        SessionPrefs session = new SessionPrefs(this);
+        if (!session.isLocationSessionValid()) {
+            Toast.makeText(this, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
+            android.content.Intent intent = new android.content.Intent(this, LocationVerifyActivity.class);
+            intent.putExtra("IS_INITIAL_VERIFY", false);
+            intent.putExtra("IS_CHANGE_SITE", false);
+            intent.putExtra("AUTO_START_VERIFY", true);
+            intent.putExtra("uid", uid);
+            intent.putExtra("empid", targetEmpId);
+            intent.putExtra("pending_eid", targetEmpId);
+            intent.putExtra("move_id", record.getMoveId());
+            intent.putExtra("moveid", record.getMoveId());
+            intent.putExtra("type", "OUT");
+            intent.putExtra("pending_action", "OUT");
+            intent.putExtra("is_movement", true);
+            startActivityForResult(intent, 1005);
+            return;
+        }
+
+        String freshToken = session.issueFreshVerificationToken();
+        String targetLocId = session.getLocationId();
+        String pName = session.getProjectName();
+        if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+
+        android.content.Intent intent = new android.content.Intent(this, LocationActivity.class);
+        intent.putExtra("empid", targetEmpId);
+        intent.putExtra("move_id", record.getMoveId());
+        intent.putExtra("emp_name", record.getFirstName());
+        intent.putExtra("photo_url", record.getInPhotoUrl());
+        intent.putExtra("type", "OUT");
+        intent.putExtra("is_movement", true);
         intent.putExtra("uid", uid);
         intent.putExtra("project_id", targetLocId);
         intent.putExtra("departmentid", targetLocId);

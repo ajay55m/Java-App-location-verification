@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.fourscontracting.R;
 
+import com.google.android.material.button.MaterialButton;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,6 +25,7 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
 
     public interface Listener {
         void onPhotoClicked(String photoUrl);
+        void onMoveOutClicked(MoveRecordModel record);
     }
 
     private final List<MoveRecordModel> list = new ArrayList<>();
@@ -63,10 +66,22 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
             holder.tvStatusPill.setText("AT NEXT SITE");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_movement);
             holder.tvStatusPill.setTextColor(0xFF6366F1);
+            if (holder.btnMoveOut != null) {
+                holder.btnMoveOut.setVisibility(View.VISIBLE);
+                holder.btnMoveOut.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onMoveOutClicked(item);
+                    }
+                });
+            }
         } else {
             holder.tvStatusPill.setText("MOVE COMPLETED");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_completed);
             holder.tvStatusPill.setTextColor(0xFFEF4444);
+            if (holder.btnMoveOut != null) {
+                holder.btnMoveOut.setVisibility(View.GONE);
+                holder.btnMoveOut.setOnClickListener(null);
+            }
         }
 
         // Time IN / OUT formatting
@@ -158,11 +173,13 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         TextView tvEmpName, tvStatusPill, tvInTime, tvOutTime, tvProjName;
         LinearLayout llInNoPhoto, llOutNoPhoto;
         ImageView imgInPhoto, imgOutPhoto;
+        MaterialButton btnMoveOut;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvEmpName = itemView.findViewById(R.id.tv_move_emp_name);
             tvStatusPill = itemView.findViewById(R.id.tv_move_status_pill);
+            btnMoveOut = itemView.findViewById(R.id.btn_move_out);
             tvInTime = itemView.findViewById(R.id.tv_move_in_time);
             tvOutTime = itemView.findViewById(R.id.tv_move_out_time);
             tvProjName = itemView.findViewById(R.id.tv_move_proj_name);

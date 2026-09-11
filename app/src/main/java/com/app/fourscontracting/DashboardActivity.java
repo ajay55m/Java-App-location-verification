@@ -160,7 +160,7 @@ public class DashboardActivity extends AppActivity {
         NavigationView navigationView = findViewById(R.id.nav_view);
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_profile, R.id.nav_supervisor_attendance, R.id.nav_manage_attendance, R.id.nav_move_site)
+                R.id.nav_profile, R.id.nav_supervisor_attendance, R.id.nav_manage_attendance, R.id.nav_move_site, R.id.nav_manage_move_site)
                 .setOpenableLayout(drawer)
                 .build();
         androidx.navigation.fragment.NavHostFragment navHostFragment = (androidx.navigation.fragment.NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
@@ -207,6 +207,8 @@ public class DashboardActivity extends AppActivity {
                 if (toolbarTitle != null) {
                     if (destination.getId() == R.id.nav_move_site) {
                         toolbarTitle.setText("Move Site");
+                    } else if (destination.getId() == R.id.nav_manage_move_site) {
+                        toolbarTitle.setText("Manage Move Site");
                     } else if (destination.getId() == R.id.nav_manage_attendance) {
                         toolbarTitle.setText("Manage Attendance");
                     } else if (destination.getId() == R.id.nav_supervisor_attendance) {
@@ -524,6 +526,8 @@ public class DashboardActivity extends AppActivity {
                         ((SettingFragment) fragment).refreshList();
                     } else if (fragment instanceof com.app.fourscontracting.ui.move.MoveSiteFragment) {
                         ((com.app.fourscontracting.ui.move.MoveSiteFragment) fragment).refreshList();
+                    } else if (fragment instanceof com.app.fourscontracting.ui.move.ManageMoveSiteFragment) {
+                        ((com.app.fourscontracting.ui.move.ManageMoveSiteFragment) fragment).refreshList();
                     } else if (fragment instanceof com.app.fourscontracting.ui.attendance.ManageAttendanceFragment) {
                         ((com.app.fourscontracting.ui.attendance.ManageAttendanceFragment) fragment).refreshList();
                     } else if (fragment instanceof com.app.fourscontracting.ui.home.HomeFragment) {

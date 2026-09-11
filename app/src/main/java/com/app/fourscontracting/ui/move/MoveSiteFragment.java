@@ -225,6 +225,9 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
                         public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
                             DepartmentModel sel = fullList.get(position);
                             selectedDeptId = sel.id;
+                            if (isAdded()) {
+                                new SessionPrefs(requireContext()).saveLastSelectedDepartmentId(selectedDeptId);
+                            }
                             loadEmployees();
                         }
 
@@ -232,20 +235,36 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
                         public void onNothingSelected(AdapterView<?> parent) {}
                     });
 
-                    if (fullList.size() > 1) {
-                        int defaultPos = 0;
+                    // Resolve target department selection: restore history or default to Dept 5
+                    SessionPrefs session = new SessionPrefs(requireContext());
+                    String targetDeptId = !TextUtils.isEmpty(selectedDeptId)
+                            ? selectedDeptId
+                            : session.getLastSelectedDepartmentId();
+
+                    int targetPos = -1;
+                    if (!TextUtils.isEmpty(targetDeptId)) {
                         for (int i = 0; i < fullList.size(); i++) {
-                            if ("5".equals(fullList.get(i).id)) {
-                                defaultPos = i;
+                            if (targetDeptId.equalsIgnoreCase(fullList.get(i).id)) {
+                                targetPos = i;
                                 break;
                             }
                         }
-                        if (defaultPos == 0 && fullList.size() > 1) {
-                            defaultPos = 1;
+                    }
+
+                    if (targetPos < 0 && fullList.size() > 1) {
+                        for (int i = 0; i < fullList.size(); i++) {
+                            if ("5".equals(fullList.get(i).id)) {
+                                targetPos = i;
+                                break;
+                            }
                         }
-                        if (defaultPos > 0) {
-                            spinnerDept.setSelection(defaultPos);
+                        if (targetPos < 0 && fullList.size() > 1) {
+                            targetPos = 1;
                         }
+                    }
+
+                    if (targetPos > 0 && targetPos < fullList.size()) {
+                        spinnerDept.setSelection(targetPos);
                     }
                 }
             }
@@ -292,7 +311,15 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
                 }
 
                 moveEmployeeList.clear();
-                if (employees != null) moveEmployeeList.addAll(employees);
+                if (employees != null) {
+                    for (MoveEmployeeModel emp : employees) {
+                        // Filter out employees who are already on move (managed in Manage Move Site)
+                        if (emp != null && emp.onMove) {
+                            continue;
+                        }
+                        moveEmployeeList.add(emp);
+                    }
+                }
 
                 if (adapter != null) adapter.submit(moveEmployeeList);
 
@@ -326,20 +353,47 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     public void onAction(MoveEmployeeModel employee) {
         if (employee == null) return;
         SessionPrefs session = new SessionPrefs(requireContext());
+        String actionType = employee.onMove ? "OUT" : "MOVE";
+
         if (!session.isLocationSessionValid()) {
             Toast.makeText(requireContext(), AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
-            launchLocationVerifyInitialAuto();
+            Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
+            intent.putExtra("IS_INITIAL_VERIFY", false);
+            intent.putExtra("IS_CHANGE_SITE", false);
+            intent.putExtra("AUTO_START_VERIFY", true);
+            intent.putExtra("uid", uid);
+            intent.putExtra("empid", employee.id);
+            intent.putExtra("pending_eid", employee.id);
+            intent.putExtra("type", actionType);
+            intent.putExtra("pending_action", actionType);
+            intent.putExtra("is_movement", true);
+            if (!TextUtils.isEmpty(employee.moveId)) {
+                intent.putExtra("move_id", employee.moveId);
+                intent.putExtra("moveid", employee.moveId);
+            }
+            if (!TextUtils.isEmpty(employee.attendId)) {
+                intent.putExtra("attend_id", employee.attendId);
+                intent.putExtra("attendance_id", employee.attendId);
+            }
+            startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);
             return;
         }
 
         String freshToken = session.issueFreshVerificationToken();
-        String actionType = employee.onMove ? "OUT" : "MOVE";
         String targetLocId = session.getLocationId();
         String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
         String pName = getResolvedSiteName();
 
         Intent intent = new Intent(requireContext(), LocationActivity.class);
         intent.putExtra("empid", employee.id);
+        if (!TextUtils.isEmpty(employee.moveId)) {
+            intent.putExtra("move_id", employee.moveId);
+            intent.putExtra("moveid", employee.moveId);
+        }
+        if (!TextUtils.isEmpty(employee.attendId)) {
+            intent.putExtra("attend_id", employee.attendId);
+            intent.putExtra("attendance_id", employee.attendId);
+        }
         intent.putExtra("emp_name", employee.firstName);
         intent.putExtra("photo_url", employee.photoUrl);
         intent.putExtra("type", actionType);

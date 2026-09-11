@@ -77,6 +77,8 @@ public class LocationActivity extends AppActivity implements LocationListener {
     private boolean isMovement = false;
     private double punchLat = Double.NaN;
     private double punchLng = Double.NaN;
+    private String moveId = "";
+    private String attendId = "";
     private float punchAccuracy = -1f;
     private com.app.fourscontracting.ui.attendance.AttendanceViewModel attendanceViewModel;
 
@@ -85,6 +87,8 @@ public class LocationActivity extends AppActivity implements LocationListener {
         super.onSaveInstanceState(outState);
         outState.putString("saved_is_verified", isVerified);
         outState.putString("saved_employee_id", employeeId);
+        outState.putString("saved_move_id", moveId);
+        outState.putString("saved_attend_id", attendId);
         outState.putString("saved_selected_project_id", selectedProjectId);
         outState.putString("saved_attendance_type", attendanceType);
         outState.putString("saved_selected_location_id", selectedLocationId);
@@ -112,6 +116,49 @@ public class LocationActivity extends AppActivity implements LocationListener {
             if (bundle.containsKey("empid")) {
                 Object obj = bundle.get("empid");
                 if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("pending_eid")) {
+                Object obj = bundle.get("pending_eid");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("emp_id")) {
+                Object obj = bundle.get("emp_id");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("employee_id")) {
+                Object obj = bundle.get("employee_id");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("user_id")) {
+                Object obj = bundle.get("user_id");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("userid")) {
+                Object obj = bundle.get("userid");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("uid")) {
+                Object obj = bundle.get("uid");
+                if (obj != null) employeeId = String.valueOf(obj);
+            }
+
+            if (bundle.containsKey("move_id")) {
+                Object obj = bundle.get("move_id");
+                if (obj != null) moveId = String.valueOf(obj);
+            } else if (bundle.containsKey("moveid")) {
+                Object obj = bundle.get("moveid");
+                if (obj != null) moveId = String.valueOf(obj);
+            }
+
+            if (bundle.containsKey("attend_id")) {
+                Object obj = bundle.get("attend_id");
+                if (obj != null) attendId = String.valueOf(obj);
+            } else if (bundle.containsKey("attendId")) {
+                Object obj = bundle.get("attendId");
+                if (obj != null) attendId = String.valueOf(obj);
+            } else if (bundle.containsKey("attendance_id")) {
+                Object obj = bundle.get("attendance_id");
+                if (obj != null) attendId = String.valueOf(obj);
             }
 
             if (bundle.containsKey("departmentid")) {
@@ -189,6 +236,8 @@ public class LocationActivity extends AppActivity implements LocationListener {
         if (savedInstanceState != null) {
             isVerified = savedInstanceState.getString("saved_is_verified", "false");
             employeeId = savedInstanceState.getString("saved_employee_id", "");
+            moveId = savedInstanceState.getString("saved_move_id", "");
+            attendId = savedInstanceState.getString("saved_attend_id", "");
             selectedProjectId = savedInstanceState.getString("saved_selected_project_id", "");
             attendanceType = savedInstanceState.getString("saved_attendance_type", "IN");
             selectedLocationId = savedInstanceState.getString("saved_selected_location_id", "");
@@ -203,17 +252,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
         }
 
         if (employeeId == null || employeeId.trim().isEmpty() || "--".equals(employeeId.trim())) {
-            if (managerUid != null && !managerUid.trim().isEmpty()) {
-                employeeId = managerUid.trim();
-            } else {
-                UserLocalStore uStore = new UserLocalStore(this);
-                User user = uStore.getLoggedInUser();
-                String val = user != null ? user.username : "";
-                String[] val_list = UserLocalStore.parseUserInfo(val);
-                if (val_list.length > 0 && !val_list[0].isEmpty()) {
-                    employeeId = val_list[0];
-                }
-            }
+            Toast.makeText(this, "Employee ID is missing for attendance action", Toast.LENGTH_LONG).show();
+            finish();
+            return;
         }
 
         attendanceViewModel = new androidx.lifecycle.ViewModelProvider(this)
@@ -441,6 +482,8 @@ public class LocationActivity extends AppActivity implements LocationListener {
         com.app.fourscontracting.data.AttendancePayload payload = new com.app.fourscontracting.data.AttendancePayload();
         payload.uid = managerUid != null && !managerUid.isEmpty() ? managerUid : uid;
         payload.empid = employeeId != null ? employeeId : "";
+        payload.moveId = moveId != null ? moveId : "";
+        payload.attendId = attendId != null ? attendId : "";
         payload.timein = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new java.util.Date());
         payload.imagepath = imagepath != null ? imagepath : "";
         payload.type = attendanceType != null ? attendanceType.toUpperCase() : "IN";

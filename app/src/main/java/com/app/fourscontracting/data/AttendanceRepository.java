@@ -51,7 +51,18 @@ public class AttendanceRepository {
         }
 
         post(payload, result -> {
-            if (!result.success && AttendanceCodes.NETWORK_ERROR.equals(result.code)) {
+            if (!result.success && result.message != null && result.message.toLowerCase().contains("no active movement")) {
+                // If site movement table has no record, retry once as standard attendance check-out
+                payload.isMovement = false;
+                post(payload, fallbackResult -> {
+                    if (!fallbackResult.success && AttendanceCodes.NETWORK_ERROR.equals(fallbackResult.code)) {
+                        queue.enqueue(payload);
+                        callback.onResult(AttendanceResult.queued());
+                    } else {
+                        callback.onResult(fallbackResult);
+                    }
+                });
+            } else if (!result.success && AttendanceCodes.NETWORK_ERROR.equals(result.code)) {
                 queue.enqueue(payload);
                 callback.onResult(AttendanceResult.queued());
             } else {

@@ -23,6 +23,11 @@
             android:id="@+id/nav_move_site"
             android:icon="@drawable/ic_baseline_move_site_24"
             android:title="Move Site" />
+
+        <item
+            android:id="@+id/nav_manage_move_site"
+            android:icon="@drawable/ic_baseline_move_site_24"
+            android:title="Manage Move Site" />
     </group>
 
 </menu>

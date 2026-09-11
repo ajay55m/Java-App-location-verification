@@ -107,13 +107,26 @@ public class ManageAttendanceApi {
                         // Parse supervisor's self attendance ("own_attendance" JSON object) if present
                         JSONObject ownObj = response.optJSONObject("own_attendance");
                         if (ownObj != null && ownObj.length() > 0) {
-                            String attendIdVal = ownObj.optString("attend_id", ownObj.optString("id", ""));
-                            String timeInVal = ownObj.optString("timein", ownObj.optString("time_in", ownObj.optString("in_time", "")));
-                            String timeOutVal = ownObj.optString("timeout", ownObj.optString("time_out", ownObj.optString("out_time", "")));
-                            String projNameVal = ownObj.optString("projname", ownObj.optString("project_name", ownObj.optString("location_name", "")));
-                            String uIdVal = ownObj.optString("userid", ownObj.optString("user_id", ownObj.optString("uid", uid)));
-                            String eIdVal = ownObj.optString("empid", ownObj.optString("emp_id", ownObj.optString("employee_id", uid)));
-                            String nameVal = ownObj.optString("first_name", ownObj.optString("emp_name", ownObj.optString("name", userName)));
+                            String attendIdVal = optCleanString(ownObj, "attend_id", "attendance_id");
+                            String timeInVal = optCleanString(ownObj, "timein", "time_in", "in_time");
+                            String timeOutVal = optCleanString(ownObj, "timeout", "time_out", "out_time");
+                            String projNameVal = optCleanString(ownObj, "projname", "project_name", "location_name");
+                            String uIdVal = optCleanString(ownObj, "userid", "user_id", "uid");
+                            String eIdVal = optCleanString(ownObj, "empid", "emp_id", "employee_id");
+                            
+                            if (!attendIdVal.isEmpty()) {
+                                String idVal = optCleanString(ownObj, "id");
+                                if (uIdVal.isEmpty()) uIdVal = idVal;
+                                if (eIdVal.isEmpty()) eIdVal = idVal;
+                            } else {
+                                attendIdVal = optCleanString(ownObj, "id");
+                            }
+
+                            if (eIdVal.isEmpty()) eIdVal = uIdVal;
+                            if (eIdVal.isEmpty()) eIdVal = uid;
+                            if (uIdVal.isEmpty()) uIdVal = eIdVal;
+                            String nameVal = optCleanString(ownObj, "first_name", "emp_name", "name");
+                            if (nameVal.isEmpty()) nameVal = userName;
 
                             if (!attendIdVal.isEmpty() || !timeInVal.isEmpty()) {
                                 attendanceRecords.add(new AttendanceRecordModel(
@@ -138,36 +151,25 @@ public class ManageAttendanceApi {
                             for (int i = 0; i < recArray.length(); i++) {
                                 JSONObject rObj = recArray.optJSONObject(i);
                                 if (rObj != null) {
-                                    String attendIdVal = rObj.optString("attend_id", "");
-                                    if (attendIdVal.isEmpty()) attendIdVal = rObj.optString("id", "");
-                                    if (attendIdVal.isEmpty()) attendIdVal = rObj.optString("attendance_id", "");
+                                    String attendIdVal = optCleanString(rObj, "attend_id", "attendance_id");
+                                    String userIdVal = optCleanString(rObj, "userid", "user_id", "uid", "employee_code", "emp_code", "subcontractor_id", "sub_id", "labor_id", "labour_id", "member_id");
+                                    String empIdVal = optCleanString(rObj, "empid", "emp_id", "employee_id", "employee_code", "emp_code", "userid", "user_id", "uid", "labor_id", "labour_id", "subcontractor_id", "sub_id", "member_id");
 
-                                    String userIdVal = rObj.optString("userid", "");
-                                    if (userIdVal.isEmpty()) userIdVal = rObj.optString("user_id", "");
-                                    if (userIdVal.isEmpty()) userIdVal = rObj.optString("uid", "");
+                                    if (!attendIdVal.isEmpty()) {
+                                        String idVal = optCleanString(rObj, "id");
+                                        if (userIdVal.isEmpty()) userIdVal = idVal;
+                                        if (empIdVal.isEmpty()) empIdVal = idVal;
+                                    } else {
+                                        attendIdVal = optCleanString(rObj, "id");
+                                    }
 
-                                    String empIdVal = rObj.optString("empid", "");
-                                    if (empIdVal.isEmpty()) empIdVal = rObj.optString("emp_id", "");
-                                    if (empIdVal.isEmpty()) empIdVal = rObj.optString("employee_id", "");
+                                    if (empIdVal.isEmpty()) empIdVal = userIdVal;
+                                    if (userIdVal.isEmpty()) userIdVal = empIdVal;
 
-                                    String firstNameVal = rObj.optString("first_name", "");
-                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("emp_name", "");
-                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("name", "");
-                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("employee_name", "");
-                                    if (firstNameVal.isEmpty()) firstNameVal = rObj.optString("username", "");
-
-                                    String projNameVal = rObj.optString("projname", "");
-                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("project_name", "");
-                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("project", "");
-                                    if (projNameVal.isEmpty()) projNameVal = rObj.optString("location_name", "");
-
-                                    String timeInVal = rObj.optString("timein", "");
-                                    if (timeInVal.isEmpty()) timeInVal = rObj.optString("time_in", "");
-                                    if (timeInVal.isEmpty()) timeInVal = rObj.optString("in_time", "");
-
-                                    String timeOutVal = rObj.optString("timeout", "");
-                                    if (timeOutVal.isEmpty()) timeOutVal = rObj.optString("time_out", "");
-                                    if (timeOutVal.isEmpty()) timeOutVal = rObj.optString("out_time", "");
+                                    String firstNameVal = optCleanString(rObj, "first_name", "emp_name", "name", "employee_name", "username");
+                                    String projNameVal = optCleanString(rObj, "projname", "project_name", "project", "location_name");
+                                    String timeInVal = optCleanString(rObj, "timein", "time_in", "in_time");
+                                    String timeOutVal = optCleanString(rObj, "timeout", "time_out", "out_time");
 
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             attendIdVal,
@@ -194,14 +196,29 @@ public class ManageAttendanceApi {
                             for (int i = 0; i < moveArray.length(); i++) {
                                 JSONObject mObj = moveArray.optJSONObject(i);
                                 if (mObj != null) {
+                                    String mId = optCleanString(mObj, "move_id", "moveid");
+                                    String eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "userid", "user_id", "uid", "labor_id", "labour_id", "subcontractor_id", "sub_id", "member_id");
+                                    if (!mId.isEmpty()) {
+                                        String idVal = optCleanString(mObj, "id");
+                                        if (eId.isEmpty()) eId = idVal;
+                                    } else {
+                                        mId = optCleanString(mObj, "id");
+                                    }
+
+                                    String fName = optCleanString(mObj, "first_name", "emp_name", "name");
+                                    String pName = optCleanString(mObj, "projname", "project_name");
+                                    String iTime = optCleanString(mObj, "in_time", "timein");
+                                    String oTime = optCleanString(mObj, "out_time", "timeout");
+
                                     moveRecords.add(new MoveRecordModel(
-                                            mObj.optString("move_id", ""),
-                                            mObj.optString("first_name", ""),
-                                            mObj.optString("projname", ""),
-                                            mObj.optString("in_time", ""),
-                                            mObj.optString("out_time", ""),
-                                            mObj.optBoolean("has_in", false),
-                                            mObj.optBoolean("has_out", false),
+                                            mId,
+                                            eId,
+                                            fName,
+                                            pName,
+                                            iTime,
+                                            oTime,
+                                            mObj.optBoolean("has_in", !iTime.isEmpty() && !"--".equals(iTime)),
+                                            mObj.optBoolean("has_out", !oTime.isEmpty() && !"--".equals(oTime)),
                                             mObj.optString("in_photo_url", ""),
                                             mObj.optString("out_photo_url", "")
                                     ));
@@ -260,5 +277,18 @@ public class ManageAttendanceApi {
         };
 
         com.app.fourscontracting.MySingleton.getmInstance(context).addToRequestque(request);
+    }
+
+    private static String optCleanString(JSONObject obj, String... keys) {
+        if (obj == null) return "";
+        for (String key : keys) {
+            if (obj.has(key) && !obj.isNull(key)) {
+                String val = obj.optString(key, "").trim();
+                if (!val.isEmpty() && !"null".equalsIgnoreCase(val) && !"--".equals(val)) {
+                    return val;
+                }
+            }
+        }
+        return "";
     }
 }

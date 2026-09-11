@@ -30,6 +30,12 @@
         tools:layout="@layout/fragment_move_site" />
 
     <fragment
+        android:id="@+id/nav_manage_move_site"
+        android:name="com.app.fourscontracting.ui.move.ManageMoveSiteFragment"
+        android:label="Manage Move Site"
+        tools:layout="@layout/fragment_manage_move_site" />
+
+    <fragment
         android:id="@+id/nav_manage_attendance"
         android:name="com.app.fourscontracting.ui.attendance.ManageAttendanceFragment"
         android:label="Manage Attendance"

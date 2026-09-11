@@ -229,4 +229,30 @@ public class ManageAttendanceTest {
 
         assertTrue(match);
     }
+
+    @Test
+    public void testEmployeeIdExtractionWithIdAndAttendId() throws Exception {
+        String jsonStr = "{\"id\": \"85\", \"attend_id\": \"50\", \"first_name\": \"Worker Dave\"}";
+        JSONObject obj = new JSONObject(jsonStr);
+
+        String attendIdVal = obj.has("attend_id") && !obj.isNull("attend_id") ? obj.optString("attend_id", "").trim() : "";
+        String userIdVal = obj.has("user_id") && !obj.isNull("user_id") ? obj.optString("user_id", "").trim() : "";
+        String empIdVal = obj.has("empid") && !obj.isNull("empid") ? obj.optString("empid", "").trim() : "";
+
+        if (!attendIdVal.isEmpty()) {
+            String idVal = obj.has("id") && !obj.isNull("id") ? obj.optString("id", "").trim() : "";
+            if (userIdVal.isEmpty()) userIdVal = idVal;
+            if (empIdVal.isEmpty()) empIdVal = idVal;
+        }
+
+        if (empIdVal.isEmpty()) empIdVal = userIdVal;
+
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                attendIdVal, userIdVal, empIdVal, obj.optString("first_name"), "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+
+        assertEquals("50", record.getAttendId());
+        assertEquals("85", record.getEmpId());
+        assertEquals("85", record.getUserId());
+    }
 }

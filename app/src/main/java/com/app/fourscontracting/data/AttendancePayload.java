@@ -14,6 +14,8 @@ public class AttendancePayload {
     public final String clientRequestId;
     public String uid = "";
     public String empid = "";
+    public String moveId = "";
+    public String attendId = "";
     public String timein = "";
     public String imagepath = "";
     /** Wire type: IN, OUT, or MOVE */
@@ -40,10 +42,51 @@ public class AttendancePayload {
 
     public Map<String, String> toFormParams() {
         Map<String, String> params = new HashMap<>();
-        params.put("uid", nullToEmpty(uid));
-        params.put("empid", nullToEmpty(empid));
+        String empVal = nullToEmpty(empid);
+        String uidVal = nullToEmpty(uid);
+        String moveVal = nullToEmpty(moveId);
+        String attendVal = nullToEmpty(attendId);
+
+        // Target worker ID (e.g. "85") must be sent as uid, empid, emp_id, employee_id, user_id
+        // so legacy backend PHP scripts searching by $uid or $empid find worker #85's active record.
+        String targetWorkerId = !empVal.isEmpty() ? empVal : uidVal;
+        String managerIdVal = !uidVal.isEmpty() ? uidVal : targetWorkerId;
+
+        params.put("uid", targetWorkerId);
+        params.put("empid", targetWorkerId);
+        params.put("emp_id", targetWorkerId);
+        params.put("employee_id", targetWorkerId);
+        params.put("user_id", targetWorkerId);
+
+        // Supervisor manager UID
+        params.put("subadmin_id", managerIdVal);
+        params.put("manager_uid", managerIdVal);
+        params.put("manager_id", managerIdVal);
+
+        if (!attendVal.isEmpty()) {
+            params.put("attend_id", attendVal);
+            params.put("attendance_id", attendVal);
+        }
+
+        if (!moveVal.isEmpty()) {
+            params.put("move_id", moveVal);
+            params.put("moveid", moveVal);
+        }
+
+        if (!attendVal.isEmpty()) {
+            params.put("id", attendVal);
+        } else if (!moveVal.isEmpty()) {
+            params.put("id", moveVal);
+        }
+
         params.put("timein", nullToEmpty(timein));
+        params.put("timeout", nullToEmpty(timein));
+        params.put("out_time", nullToEmpty(timein));
+        params.put("time_out", nullToEmpty(timein));
+
         params.put("imagepath", nullToEmpty(imagepath));
+        params.put("out_photo", nullToEmpty(imagepath));
+        params.put("photo", nullToEmpty(imagepath));
 
         // Legacy PHP expects IN/OUT. Movement OUT must stay OUT (not forced to IN).
         String wireType;
@@ -60,12 +103,21 @@ public class AttendancePayload {
         params.put("is_movement", isMovement ? "1" : "0");
         if (isMovement) {
             params.put("action_type", "OUT".equals(wireType) ? "MOVE_OUT" : "MOVE");
+            params.put("move_type", "OUT".equals(wireType) ? "OUT" : "IN");
         } else {
             params.put("action_type", wireType);
         }
 
-        params.put("project_id", nullToEmpty(projectId));
-        params.put("departmentid", nullToEmpty(projectId));
+        if ("OUT".equalsIgnoreCase(wireType)) {
+            params.put("action", "checkout");
+            params.put("out_time", nullToEmpty(timein));
+            params.put("time_out", nullToEmpty(timein));
+        }
+
+        String proj = nullToEmpty(projectId);
+        params.put("project_id", proj);
+        params.put("departmentid", proj);
+        params.put("projectid", proj);
         params.put("projname", nullToEmpty(projname));
 
         String loc = nullToEmpty(locationId);
@@ -99,6 +151,8 @@ public class AttendancePayload {
         o.put("client_request_id", clientRequestId);
         o.put("uid", nullToEmpty(uid));
         o.put("empid", nullToEmpty(empid));
+        o.put("move_id", nullToEmpty(moveId));
+        o.put("attend_id", nullToEmpty(attendId));
         o.put("timein", nullToEmpty(timein));
         o.put("imagepath", nullToEmpty(imagepath));
         o.put("type", nullToEmpty(type));
@@ -118,6 +172,8 @@ public class AttendancePayload {
         AttendancePayload p = new AttendancePayload(o.optString("client_request_id", ""));
         p.uid = o.optString("uid", "");
         p.empid = o.optString("empid", "");
+        p.moveId = o.optString("move_id", o.optString("moveid", ""));
+        p.attendId = o.optString("attend_id", o.optString("attendance_id", ""));
         p.timein = o.optString("timein", "");
         p.imagepath = o.optString("imagepath", "");
         p.type = o.optString("type", "IN");

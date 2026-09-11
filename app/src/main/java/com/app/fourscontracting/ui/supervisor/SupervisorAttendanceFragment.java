@@ -369,34 +369,36 @@ public class SupervisorAttendanceFragment extends Fragment
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
         String sUid = supervisorUid != null ? supervisorUid.trim() : "";
 
-        // 1. If empId is provided and belongs to a DIFFERENT worker (e.g. 37 != 85), reject immediately
-        if (!eId.isEmpty() && !sUid.isEmpty()) {
-            boolean isSame = eId.equalsIgnoreCase(sUid);
-            if (!isSame) {
-                try {
-                    isSame = Integer.parseInt(eId) == Integer.parseInt(sUid);
-                } catch (Exception ignored) {}
-            }
-            if (!isSame) {
-                return false;
-            }
-        }
-
-        // 2. If empId or userId matches supervisorUid, or userId == empId, accept!
+        // 1. If empId or userId matches supervisorUid directly (string or numeric)
         if (!sUid.isEmpty()) {
-            if (!eId.isEmpty() && eId.equalsIgnoreCase(sUid)) return true;
-            if (!uId.isEmpty() && uId.equalsIgnoreCase(sUid)) return true;
+            if (!eId.isEmpty()) {
+                boolean isSame = eId.equalsIgnoreCase(sUid);
+                if (!isSame) {
+                    try {
+                        isSame = Integer.parseInt(eId) == Integer.parseInt(sUid);
+                    } catch (Exception ignored) {}
+                }
+                if (isSame) return true;
+            }
+            if (!uId.isEmpty()) {
+                boolean isSameUser = uId.equalsIgnoreCase(sUid);
+                if (!isSameUser) {
+                    try {
+                        isSameUser = Integer.parseInt(uId) == Integer.parseInt(sUid);
+                    } catch (Exception ignored) {}
+                }
+                if (isSameUser) return true;
+            }
         }
 
-        if (!uId.isEmpty() && !eId.isEmpty() && uId.equalsIgnoreCase(eId)) {
-            return true;
-        }
-
-        // 3. Name match fallback
+        // 2. Name match fallback (only if neither eId nor uId belongs to a different worker ID)
         if (!TextUtils.isEmpty(r.getFirstName()) && !TextUtils.isEmpty(supervisorName)) {
             String name = r.getFirstName().trim();
             String supName = supervisorName.trim();
             if (supName.equalsIgnoreCase(name) || supName.toLowerCase().contains(name.toLowerCase()) || name.toLowerCase().contains(supName.toLowerCase())) {
+                if (!eId.isEmpty() && !sUid.isEmpty() && !eId.equalsIgnoreCase(sUid)) {
+                    return false;
+                }
                 return true;
             }
         }
@@ -665,16 +667,24 @@ public class SupervisorAttendanceFragment extends Fragment
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
 
-    private void launchLocationVerifyForSessionWithAction(String punchType, String sUid) {
+    private void launchLocationVerifyForSessionWithAction(String punchType, String targetEmpId) {
+        launchLocationVerifyForSessionWithAction(punchType, targetEmpId, "");
+    }
+
+    private void launchLocationVerifyForSessionWithAction(String punchType, String targetEmpId, String attendId) {
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", false);
         intent.putExtra("IS_CHANGE_SITE", false);
         intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("uid", sUid);
-        intent.putExtra("empid", sUid);
-        intent.putExtra("pending_eid", sUid);
+        intent.putExtra("uid", getSupervisorUid());
+        intent.putExtra("empid", targetEmpId);
+        intent.putExtra("pending_eid", targetEmpId);
         intent.putExtra("type", punchType);
         intent.putExtra("pending_action", punchType);
+        if (attendId != null && !attendId.isEmpty()) {
+            intent.putExtra("attend_id", attendId);
+            intent.putExtra("attendance_id", attendId);
+        }
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
 
@@ -722,9 +732,23 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
 
+        String targetWorkerId = record.getEmpId();
+        if (TextUtils.isEmpty(targetWorkerId) || "--".equals(targetWorkerId.trim())) {
+            targetWorkerId = record.getUserId();
+        }
+        if (TextUtils.isEmpty(targetWorkerId) || "--".equals(targetWorkerId.trim())) {
+            if (isSupervisorSelfRecord(record)) {
+                targetWorkerId = getSupervisorUid();
+            } else {
+                Toast.makeText(context, "Employee ID is missing for this attendance record.", Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+
         if (sessionPrefs == null) sessionPrefs = new SessionPrefs(context);
         if (!sessionPrefs.isLocationSessionValid()) {
             Toast.makeText(context, AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
+            launchLocationVerifyForSessionWithAction("OUT", targetWorkerId, record.getAttendId());
             return;
         }
 
@@ -734,11 +758,15 @@ public class SupervisorAttendanceFragment extends Fragment
         if (TextUtils.isEmpty(targetProjName)) targetProjName = record.getProjName();
 
         Intent intent = new Intent(context, com.app.fourscontracting.LocationActivity.class);
-        intent.putExtra("empid", record.getEmpId());
+        intent.putExtra("empid", targetWorkerId);
+        if (record.getAttendId() != null && !record.getAttendId().isEmpty()) {
+            intent.putExtra("attend_id", record.getAttendId());
+            intent.putExtra("attendance_id", record.getAttendId());
+        }
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
-        intent.putExtra("uid", supervisorUid);
+        intent.putExtra("uid", getSupervisorUid());
         intent.putExtra("project_id", targetLocId);
         intent.putExtra("departmentid", targetLocId);
         intent.putExtra("projname", targetProjName);
