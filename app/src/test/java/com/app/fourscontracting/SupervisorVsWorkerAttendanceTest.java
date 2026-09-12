@@ -28,9 +28,11 @@ public class SupervisorVsWorkerAttendanceTest {
         assertEquals("85", params.get("empid"));
         assertEquals("85", params.get("emp_id"));
         assertEquals("85", params.get("employee_id"));
-        assertEquals("85", params.get("user_id"));
-        assertEquals("85", params.get("uid"));
+        assertEquals("85", params.get("eid"));
 
+        assertEquals("101", params.get("uid"));
+        assertEquals("101", params.get("user_id"));
+        assertEquals("101", params.get("userid"));
         assertEquals("101", params.get("subadmin_id"));
         assertEquals("101", params.get("manager_uid"));
         assertEquals("101", params.get("manager_id"));
@@ -73,5 +75,26 @@ public class SupervisorVsWorkerAttendanceTest {
 
         boolean isSelfRecord = supervisorRecord.getEmpId().equalsIgnoreCase(supervisorUid);
         assertTrue("Supervisor's own record #101 must match supervisor UID #101", isSelfRecord);
+    }
+
+    @Test
+    public void testSelfAttendancePayload_hasSameUserIdAndEmpId() {
+        String selfUserId = "43";
+
+        AttendancePayload payload = new AttendancePayload();
+        payload.uid = selfUserId;
+        payload.empid = selfUserId;
+        payload.attendId = "2233";
+        payload.type = "OUT";
+
+        Map<String, String> params = payload.toFormParams();
+
+        assertEquals("43", params.get("uid"));
+        assertEquals("43", params.get("userid"));
+        assertEquals("43", params.get("user_id"));
+        assertEquals("43", params.get("empid"));
+        assertEquals("43", params.get("emp_id"));
+        assertEquals("43", params.get("employee_id"));
+        assertEquals("43", params.get("subadmin_id"));
     }
 }

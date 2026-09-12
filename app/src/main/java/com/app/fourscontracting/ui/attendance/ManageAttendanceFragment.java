@@ -409,10 +409,13 @@ public class ManageAttendanceFragment extends Fragment
         if (context == null || record == null || !isAdded()) return;
 
         String targetEmpId = record.getEmpId();
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
+        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {
             targetEmpId = record.getUserId();
         }
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim())) {
+        if (targetEmpId != null && uid != null && uid.trim().equalsIgnoreCase(targetEmpId.trim())) {
+            targetEmpId = "";
+        }
+        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {
             Toast.makeText(context, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
             return;
         }

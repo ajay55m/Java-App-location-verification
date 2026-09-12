@@ -131,8 +131,8 @@ public class MoveSiteTest {
         assertEquals("85", form.get("empid"));
         assertEquals("85", form.get("emp_id"));
         assertEquals("85", form.get("employee_id"));
-        assertEquals("85", form.get("user_id"));
-        assertEquals("85", form.get("uid"));
+        assertEquals("34", form.get("user_id"));
+        assertEquals("34", form.get("uid"));
         assertEquals("34", form.get("subadmin_id"));
         assertEquals("34", form.get("manager_uid"));
         assertEquals("MR99", form.get("move_id"));

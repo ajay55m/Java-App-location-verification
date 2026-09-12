@@ -255,4 +255,48 @@ public class ManageAttendanceTest {
         assertEquals("85", record.getEmpId());
         assertEquals("85", record.getUserId());
     }
+
+    @Test
+    public void testRecordWithOnlyIdFieldMapsToBothAttendIdAndEmpId() throws Exception {
+        String jsonStr = "{\"id\": \"85\", \"first_name\": \"Worker Dave\"}";
+        JSONObject obj = new JSONObject(jsonStr);
+
+        String attendIdVal = obj.has("attend_id") && !obj.isNull("attend_id") ? obj.optString("attend_id", "").trim() : "";
+        String userIdVal = obj.has("user_id") && !obj.isNull("user_id") ? obj.optString("user_id", "").trim() : "";
+        String empIdVal = obj.has("empid") && !obj.isNull("empid") ? obj.optString("empid", "").trim() : "";
+        String idVal = obj.has("id") && !obj.isNull("id") ? obj.optString("id", "").trim() : "";
+
+        if (!attendIdVal.isEmpty()) {
+            if (userIdVal.isEmpty()) userIdVal = idVal;
+            if (empIdVal.isEmpty()) empIdVal = idVal;
+        } else {
+            attendIdVal = idVal;
+            if (userIdVal.isEmpty()) userIdVal = idVal;
+            if (empIdVal.isEmpty()) empIdVal = idVal;
+        }
+
+        if (empIdVal.isEmpty()) empIdVal = userIdVal;
+        if (userIdVal.isEmpty()) userIdVal = empIdVal;
+
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                attendIdVal, userIdVal, empIdVal, obj.optString("first_name"), "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+
+        assertEquals("85", record.getAttendId());
+        assertEquals("85", record.getEmpId());
+        assertEquals("85", record.getUserId());
+    }
+
+    @Test
+    public void testRecordWithNullAndDashLiteralEmpIdFiltering() {
+        AttendanceRecordModel recordNull = new AttendanceRecordModel(
+                "50", "null", "85", "Worker John", "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+        assertEquals("85", recordNull.getEmpId());
+
+        AttendanceRecordModel recordDash = new AttendanceRecordModel(
+                "50", "--", "85", "Worker Sam", "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+        assertEquals("85", recordDash.getEmpId());
+    }
 }

@@ -51,18 +51,12 @@ public class AttendanceRecordModel {
         if (userId != null && !userId.trim().isEmpty() && !"null".equalsIgnoreCase(userId.trim()) && !"--".equals(userId.trim())) {
             return userId.trim();
         }
-        if (empId != null && !empId.trim().isEmpty() && !"null".equalsIgnoreCase(empId.trim()) && !"--".equals(empId.trim())) {
-            return empId.trim();
-        }
         return "";
     }
 
     public String getEmpId() {
         if (empId != null && !empId.trim().isEmpty() && !"null".equalsIgnoreCase(empId.trim()) && !"--".equals(empId.trim())) {
             return empId.trim();
-        }
-        if (userId != null && !userId.trim().isEmpty() && !"null".equalsIgnoreCase(userId.trim()) && !"--".equals(userId.trim())) {
-            return userId.trim();
         }
         return "";
     }

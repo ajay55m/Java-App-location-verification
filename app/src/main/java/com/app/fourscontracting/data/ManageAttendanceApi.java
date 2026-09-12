@@ -113,13 +113,15 @@ public class ManageAttendanceApi {
                             String projNameVal = optCleanString(ownObj, "projname", "project_name", "location_name");
                             String uIdVal = optCleanString(ownObj, "userid", "user_id", "uid");
                             String eIdVal = optCleanString(ownObj, "empid", "emp_id", "employee_id");
+                            String idVal = optCleanString(ownObj, "id");
                             
                             if (!attendIdVal.isEmpty()) {
-                                String idVal = optCleanString(ownObj, "id");
                                 if (uIdVal.isEmpty()) uIdVal = idVal;
                                 if (eIdVal.isEmpty()) eIdVal = idVal;
                             } else {
-                                attendIdVal = optCleanString(ownObj, "id");
+                                attendIdVal = idVal;
+                                if (uIdVal.isEmpty()) uIdVal = idVal;
+                                if (eIdVal.isEmpty()) eIdVal = idVal;
                             }
 
                             if (eIdVal.isEmpty()) eIdVal = uIdVal;
@@ -152,19 +154,17 @@ public class ManageAttendanceApi {
                                 JSONObject rObj = recArray.optJSONObject(i);
                                 if (rObj != null) {
                                     String attendIdVal = optCleanString(rObj, "attend_id", "attendance_id");
-                                    String userIdVal = optCleanString(rObj, "userid", "user_id", "uid", "employee_code", "emp_code", "subcontractor_id", "sub_id", "labor_id", "labour_id", "member_id");
-                                    String empIdVal = optCleanString(rObj, "empid", "emp_id", "employee_id", "employee_code", "emp_code", "userid", "user_id", "uid", "labor_id", "labour_id", "subcontractor_id", "sub_id", "member_id");
+                                    String userIdVal = optCleanString(rObj, "userid", "user_id", "uid", "subadmin_id", "manager_uid");
+                                    String empIdVal = optCleanString(rObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id");
+                                    String idVal = optCleanString(rObj, "id");
 
                                     if (!attendIdVal.isEmpty()) {
-                                        String idVal = optCleanString(rObj, "id");
-                                        if (userIdVal.isEmpty()) userIdVal = idVal;
-                                        if (empIdVal.isEmpty()) empIdVal = idVal;
+                                        if (empIdVal.isEmpty() && !idVal.isEmpty() && !idVal.equalsIgnoreCase(uid) && !idVal.equalsIgnoreCase(userIdVal)) {
+                                            empIdVal = idVal;
+                                        }
                                     } else {
-                                        attendIdVal = optCleanString(rObj, "id");
+                                        attendIdVal = idVal;
                                     }
-
-                                    if (empIdVal.isEmpty()) empIdVal = userIdVal;
-                                    if (userIdVal.isEmpty()) userIdVal = empIdVal;
 
                                     String firstNameVal = optCleanString(rObj, "first_name", "emp_name", "name", "employee_name", "username");
                                     String projNameVal = optCleanString(rObj, "projname", "project_name", "project", "location_name");
@@ -197,12 +197,16 @@ public class ManageAttendanceApi {
                                 JSONObject mObj = moveArray.optJSONObject(i);
                                 if (mObj != null) {
                                     String mId = optCleanString(mObj, "move_id", "moveid");
-                                    String eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "userid", "user_id", "uid", "labor_id", "labour_id", "subcontractor_id", "sub_id", "member_id");
+                                    String uIdVal = optCleanString(mObj, "userid", "user_id", "uid", "subadmin_id", "manager_uid");
+                                    String eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id");
+                                    String idVal = optCleanString(mObj, "id");
+
                                     if (!mId.isEmpty()) {
-                                        String idVal = optCleanString(mObj, "id");
-                                        if (eId.isEmpty()) eId = idVal;
+                                        if (eId.isEmpty() && !idVal.isEmpty() && !idVal.equalsIgnoreCase(uid) && !idVal.equalsIgnoreCase(uIdVal)) {
+                                            eId = idVal;
+                                        }
                                     } else {
-                                        mId = optCleanString(mObj, "id");
+                                        mId = idVal;
                                     }
 
                                     String fName = optCleanString(mObj, "first_name", "emp_name", "name");

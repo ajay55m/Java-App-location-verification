@@ -47,21 +47,24 @@ public class AttendancePayload {
         String moveVal = nullToEmpty(moveId);
         String attendVal = nullToEmpty(attendId);
 
-        // Target worker ID (e.g. "85") must be sent as uid, empid, emp_id, employee_id, user_id
-        // so legacy backend PHP scripts searching by $uid or $empid find worker #85's active record.
+        // Target worker ID (e.g. "43") must be sent as empid, emp_id, employee_id, eid.
+        // Supervisor manager ID (e.g. "85") must be sent as uid, userid, user_id, subadmin_id, manager_uid.
         String targetWorkerId = !empVal.isEmpty() ? empVal : uidVal;
         String managerIdVal = !uidVal.isEmpty() ? uidVal : targetWorkerId;
 
-        params.put("uid", targetWorkerId);
-        params.put("empid", targetWorkerId);
-        params.put("emp_id", targetWorkerId);
-        params.put("employee_id", targetWorkerId);
-        params.put("user_id", targetWorkerId);
-
-        // Supervisor manager UID
+        // User / Supervisor performing the action (userid in DB)
+        params.put("uid", managerIdVal);
+        params.put("userid", managerIdVal);
+        params.put("user_id", managerIdVal);
         params.put("subadmin_id", managerIdVal);
         params.put("manager_uid", managerIdVal);
         params.put("manager_id", managerIdVal);
+
+        // Employee whose attendance is being recorded (empid in DB)
+        params.put("empid", targetWorkerId);
+        params.put("emp_id", targetWorkerId);
+        params.put("employee_id", targetWorkerId);
+        params.put("eid", targetWorkerId);
 
         if (!attendVal.isEmpty()) {
             params.put("attend_id", attendVal);
