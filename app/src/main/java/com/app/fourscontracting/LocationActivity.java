@@ -129,18 +129,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
                 Object obj = bundle.get("employee_id");
                 if (obj != null) employeeId = String.valueOf(obj);
             }
-            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("user_id")) {
-                Object obj = bundle.get("user_id");
-                if (obj != null) employeeId = String.valueOf(obj);
-            }
-            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("userid")) {
-                Object obj = bundle.get("userid");
-                if (obj != null) employeeId = String.valueOf(obj);
-            }
-            if ((employeeId == null || employeeId.isEmpty()) && bundle.containsKey("uid")) {
-                Object obj = bundle.get("uid");
-                if (obj != null) employeeId = String.valueOf(obj);
-            }
+
 
             if (bundle.containsKey("move_id")) {
                 Object obj = bundle.get("move_id");

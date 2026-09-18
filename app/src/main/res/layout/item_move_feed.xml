@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginEnd="12dp"
+    android:layout_marginStart="10dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="10dp"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@android:color/transparent"
-    app:cardCornerRadius="24dp"
-    app:cardElevation="8dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="4dp"
     app:strokeWidth="0dp">
 
     <LinearLayout
@@ -17,13 +17,13 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_luxury_card_surface"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="14dp">
 
-        <!-- Header: Worker Name & Status Pill -->
+        <!-- Top Header Row: Worker Name, Subtitle Project, Status Badge -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp">
+            android:layout_marginBottom="10dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -35,28 +35,43 @@
 
                 <!-- Worker Avatar Ring Emblem -->
                 <FrameLayout
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:background="@drawable/bg_luxury_avatar_ring"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_baseline_person_24"
                         app:tint="#38BDF8" />
                 </FrameLayout>
 
-                <TextView
-                    android:id="@+id/tv_move_emp_name"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:fontFamily="sans-serif-black"
-                    android:text="Worker Name"
-                    android:textColor="#0F172A"
-                    android:textSize="16sp" />
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_move_emp_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-black"
+                        android:text="Worker Name"
+                        android:textColor="#0F172A"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tv_move_proj_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Project Location"
+                        android:textColor="#64748B"
+                        android:textSize="11sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
@@ -91,188 +106,124 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_status_movement"
                     android:fontFamily="sans-serif-black"
-                    android:letterSpacing="0.06"
-                    android:paddingStart="12dp"
-                    android:paddingTop="5dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="5dp"
+                    android:letterSpacing="0.04"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
                     android:text="AT NEXT SITE"
                     android:textColor="#6366F1"
                     android:textSize="10sp" />
             </LinearLayout>
         </RelativeLayout>
 
-        <!-- Photo Row: IN & OUT -->
+        <!-- Shift Timeline Row: Side-by-side IN & OUT Time Metric Boxes -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
             android:baselineAligned="false"
             android:orientation="horizontal">
 
-            <!-- IN Photo Container -->
+            <!-- TIME IN Box -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_photo_container"
-                android:elevation="2dp"
+                android:background="@drawable/bg_luxury_metric_card"
                 android:orientation="vertical"
-                android:padding="4dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="126dp">
-
-                    <ImageView
-                        android:id="@+id/img_move_in_photo"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scaleType="centerCrop"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:id="@+id/ll_move_in_no_photo"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_baseline_camera_alt_24"
-                            app:tint="#94A3B8" />
-                    </LinearLayout>
-                </FrameLayout>
+                android:padding="10dp">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="6dp">
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_top_header_pill"
+                        android:backgroundTint="#16A34A" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_chip"
-                        android:fontFamily="sans-serif-black"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="sans-serif-bold"
                         android:letterSpacing="0.04"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="2dp"
                         android:text="MOVE IN"
                         android:textColor="#16A34A"
-                        android:textSize="9sp" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/tv_move_in_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-bold"
-                        android:text="--:--"
-                        android:textColor="#0F172A"
-                        android:textSize="12sp" />
+                        android:textSize="10sp" />
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_move_in_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="--:--"
+                    android:textColor="#0F172A"
+                    android:textSize="15sp" />
             </LinearLayout>
 
-            <!-- OUT Photo Container -->
+            <!-- TIME OUT Box -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_marginStart="4dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_photo_container"
-                android:elevation="2dp"
+                android:background="@drawable/bg_luxury_metric_card"
                 android:orientation="vertical"
-                android:padding="4dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="126dp">
-
-                    <ImageView
-                        android:id="@+id/img_move_out_photo"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scaleType="centerCrop"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:id="@+id/ll_move_out_no_photo"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_baseline_camera_alt_24"
-                            app:tint="#94A3B8" />
-                    </LinearLayout>
-                </FrameLayout>
+                android:padding="10dp">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="6dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_chip"
-                        android:fontFamily="sans-serif-black"
-                        android:letterSpacing="0.04"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="2dp"
-                        android:text="MOVE OUT"
-                        android:textColor="#EF4444"
-                        android:textSize="9sp" />
+                    android:orientation="horizontal">
 
                     <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_top_header_pill"
+                        android:backgroundTint="#D97706" />
 
                     <TextView
-                        android:id="@+id/tv_move_out_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
                         android:fontFamily="sans-serif-bold"
-                        android:text="--:--"
-                        android:textColor="#0F172A"
-                        android:textSize="12sp" />
+                        android:letterSpacing="0.04"
+                        android:text="MOVE OUT"
+                        android:textColor="#D97706"
+                        android:textSize="10sp" />
                 </LinearLayout>
-            </LinearLayout>
 
+                <TextView
+                    android:id="@+id/tv_move_out_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="--:--"
+                    android:textColor="#0F172A"
+                    android:textSize="15sp" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Divider & Footer -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="8dp"
-            android:background="#E2E8F0" />
-
+        <!-- Footer Actions Bar: Transfer Emblem + Proof Photo Thumbnails -->
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
 
+            <!-- Site Transfer Tag -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -292,18 +243,74 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_move_proj_name"
+            <!-- Compact Proof Photo Thumbnails -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
-                android:background="@drawable/bg_premium_highlight_card"
-                android:fontFamily="sans-serif-black"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text="Project Location"
-                android:textColor="#0F172A"
-                android:textSize="11sp" />
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- IN Photo Thumbnail -->
+                <FrameLayout
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_photo_container">
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/img_move_in_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.App.MediumComponent" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_move_in_no_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_baseline_camera_alt_24"
+                            app:tint="#CBD5E1" />
+                    </LinearLayout>
+                </FrameLayout>
+
+                <!-- OUT Photo Thumbnail -->
+                <FrameLayout
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_photo_container">
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/img_move_out_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.App.MediumComponent" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_move_out_no_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_baseline_camera_alt_24"
+                            app:tint="#CBD5E1" />
+                    </LinearLayout>
+                </FrameLayout>
+            </LinearLayout>
         </RelativeLayout>
 
     </LinearLayout>

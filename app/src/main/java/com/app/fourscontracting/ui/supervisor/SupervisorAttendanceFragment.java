@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.app.fourscontracting.AppMessages;
 import com.app.fourscontracting.DashboardActivity;
+import com.app.fourscontracting.LocationActivity;
 import com.app.fourscontracting.LocationVerifyActivity;
 import com.app.fourscontracting.R;
 import com.app.fourscontracting.SessionPrefs;
@@ -39,7 +40,9 @@ import com.app.fourscontracting.data.AttendanceFeedAdapter;
 import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
+import com.app.fourscontracting.data.MoveEmployeeModel;
 import com.app.fourscontracting.data.MoveRecordModel;
+import com.app.fourscontracting.data.MoveSiteApi;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -59,6 +62,7 @@ public class SupervisorAttendanceFragment extends Fragment
     private UserLocalStore userLocalStore;
     private SessionPrefs sessionPrefs;
     private final ManageAttendanceApi api = new ManageAttendanceApi();
+    private final MoveSiteApi moveSiteApi = new MoveSiteApi();
 
     private TextView tvSupervisorName;
     private TextView tvSupervisorEmpId;
@@ -126,7 +130,13 @@ public class SupervisorAttendanceFragment extends Fragment
         bindHeaderData();
 
         btnSelfTimeIn.setOnClickListener(v -> performSelfPunch("IN"));
-        btnSelfTimeOut.setOnClickListener(v -> performSelfPunch("OUT"));
+        btnSelfTimeOut.setOnClickListener(v -> {
+    if (currentActiveMoveRecord != null && currentActiveMoveRecord.isActive()) {
+        performSupervisorMoveOut(currentActiveMoveRecord);
+    } else {
+        performSelfPunch("OUT");
+    }
+});
         btnSelfMoveSite.setOnClickListener(v -> performSelfMove());
 
         historyAdapter = new AttendanceFeedAdapter(this);
@@ -314,6 +324,9 @@ public class SupervisorAttendanceFragment extends Fragment
         refreshData();
     }
 
+    private AttendanceRecordModel currentSelfRecord = null;
+    private MoveRecordModel currentActiveMoveRecord = null;
+
     private void loadSupervisorAttendanceData() {
         Context context = getContext();
         if (context == null || TextUtils.isEmpty(supervisorUid)) return;
@@ -329,11 +342,7 @@ public class SupervisorAttendanceFragment extends Fragment
             @Override
             public void onSuccess(String userName, List<AllocatedProjectModel> projects, List<AttendanceRecordModel> attendanceRecords, List<MoveRecordModel> moveRecords) {
                 if (!isAdded()) return;
-                if (attendanceRecords == null || attendanceRecords.isEmpty()) {
-                    fetchSupervisorAttendanceFallback(context, userName);
-                    return;
-                }
-                processSupervisorAttendanceFeed(userName, attendanceRecords);
+                processSupervisorAttendanceFeed(userName, attendanceRecords, moveRecords);
             }
 
             @Override
@@ -350,14 +359,14 @@ public class SupervisorAttendanceFragment extends Fragment
             public void onSuccess(String userName, List<AllocatedProjectModel> projects, List<AttendanceRecordModel> attendanceRecords, List<MoveRecordModel> moveRecords) {
                 if (!isAdded()) return;
                 if (progress != null) progress.setVisibility(View.GONE);
-                processSupervisorAttendanceFeed(!TextUtils.isEmpty(userName) ? userName : currentUserName, attendanceRecords);
+                processSupervisorAttendanceFeed(!TextUtils.isEmpty(userName) ? userName : currentUserName, attendanceRecords, moveRecords);
             }
 
             @Override
             public void onError(String message) {
                 if (!isAdded()) return;
                 if (progress != null) progress.setVisibility(View.GONE);
-                updateSelfUi(null);
+                updateSelfUiWithMovement(null, null);
             }
         });
     }
@@ -365,50 +374,67 @@ public class SupervisorAttendanceFragment extends Fragment
     private boolean isSupervisorSelfRecord(AttendanceRecordModel r) {
         if (r == null) return false;
 
-        String uId = r.getUserId() != null ? r.getUserId().trim() : "";
-        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
         String sUid = supervisorUid != null ? supervisorUid.trim() : "";
+        if (sUid.isEmpty()) return false;
 
-        // 1. If empId or userId matches supervisorUid directly (string or numeric)
-        if (!sUid.isEmpty()) {
-            if (!eId.isEmpty()) {
-                boolean isSame = eId.equalsIgnoreCase(sUid);
-                if (!isSame) {
-                    try {
-                        isSame = Integer.parseInt(eId) == Integer.parseInt(sUid);
-                    } catch (Exception ignored) {}
-                }
-                if (isSame) return true;
+        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            boolean isSame = eId.equalsIgnoreCase(sUid);
+            if (!isSame) {
+                try {
+                    isSame = Integer.parseInt(eId) == Integer.parseInt(sUid);
+                } catch (Exception ignored) {}
             }
-            if (!uId.isEmpty()) {
-                boolean isSameUser = uId.equalsIgnoreCase(sUid);
-                if (!isSameUser) {
-                    try {
-                        isSameUser = Integer.parseInt(uId) == Integer.parseInt(sUid);
-                    } catch (Exception ignored) {}
+            return isSame;
+        }
+
+        String uId = r.getUserId() != null ? r.getUserId().trim() : "";
+        if (!uId.isEmpty() && !"--".equals(uId) && !"null".equalsIgnoreCase(uId)) {
+            boolean isSameUser = uId.equalsIgnoreCase(sUid);
+            if (!isSameUser) {
+                try {
+                    isSameUser = Integer.parseInt(uId) == Integer.parseInt(sUid);
+                } catch (Exception ignored) {}
+            }
+            if (isSameUser) {
+                String workerName = r.getFirstName() != null ? r.getFirstName().trim() : "";
+                if (workerName.isEmpty() || "User".equalsIgnoreCase(workerName) || "Supervisor".equalsIgnoreCase(workerName)) {
+                    return true;
                 }
-                if (isSameUser) return true;
             }
         }
 
-        // 2. Name match fallback (only if neither eId nor uId belongs to a different worker ID)
         if (!TextUtils.isEmpty(r.getFirstName()) && !TextUtils.isEmpty(supervisorName)) {
             String name = r.getFirstName().trim();
             String supName = supervisorName.trim();
-            if (supName.equalsIgnoreCase(name) || supName.toLowerCase().contains(name.toLowerCase()) || name.toLowerCase().contains(supName.toLowerCase())) {
+            if (supName.equalsIgnoreCase(name)) {
                 if (!eId.isEmpty() && !sUid.isEmpty() && !eId.equalsIgnoreCase(sUid)) {
                     return false;
                 }
                 return true;
             }
         }
-
         return false;
     }
 
-    private void processSupervisorAttendanceFeed(String userName, List<AttendanceRecordModel> attendanceRecords) {
-        if (progress != null) progress.setVisibility(View.GONE);
+    private boolean isSupervisorSelfMoveRecord(MoveRecordModel r) {
+        if (r == null || supervisorUid == null || supervisorUid.trim().isEmpty()) return false;
+        String sUid = supervisorUid.trim();
+        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        if (!eId.isEmpty()) {
+            if (eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
 
+    private void processSupervisorAttendanceFeed(String userName, 
+                                              List<AttendanceRecordModel> attendanceRecords, 
+                                              List<MoveRecordModel> moveRecords) {
+        if (progress != null) progress.setVisibility(View.GONE);
+        // 1. Process main site attendance record
         AttendanceRecordModel selfRecord = null;
         if (attendanceRecords != null && !attendanceRecords.isEmpty()) {
             List<AttendanceRecordModel> supervisorRecords = new ArrayList<>();
@@ -417,34 +443,241 @@ public class SupervisorAttendanceFragment extends Fragment
                     supervisorRecords.add(r);
                 }
             }
-
             if (!supervisorRecords.isEmpty()) {
-                // 1. First priority: look for an active (open) punch
-                for (AttendanceRecordModel r : supervisorRecords) {
-                    if (r.isActive() && !TextUtils.isEmpty(r.getTimeIn()) && !"--".equals(r.getTimeIn())) {
-                        selfRecord = r;
-                        break;
+                selfRecord = supervisorRecords.get(0);
+                for (int i = 1; i < supervisorRecords.size(); i++) {
+                    AttendanceRecordModel cand = supervisorRecords.get(i);
+                    if (shouldPreferRecord(cand, selfRecord)) {
+                        selfRecord = cand;
                     }
                 }
-                // 2. Second priority: pick the latest record with valid timeIn
-                if (selfRecord == null) {
-                    for (int i = supervisorRecords.size() - 1; i >= 0; i--) {
-                        AttendanceRecordModel r = supervisorRecords.get(i);
-                        if (!TextUtils.isEmpty(r.getTimeIn()) && !"--".equals(r.getTimeIn())) {
-                            selfRecord = r;
+            }
+        }
+        // 2. Process active supervisor move site record from feed
+        MoveRecordModel feedActiveMove = null;
+        if (moveRecords != null && !moveRecords.isEmpty()) {
+            for (MoveRecordModel m : moveRecords) {
+                if (m != null && isSupervisorSelfMoveRecord(m) && m.isActive()) {
+                    feedActiveMove = m;
+                    break;
+                }
+            }
+        }
+        currentSelfRecord = selfRecord;
+
+        // Verify move status directly with api_get_move_employees.php
+        verifyMoveStatusWithApi(selfRecord, feedActiveMove);
+    }
+
+    private void verifyMoveStatusWithApi(AttendanceRecordModel selfRecord, MoveRecordModel feedActiveMove) {
+        Context context = getContext();
+        if (context == null || TextUtils.isEmpty(supervisorUid)) {
+            currentActiveMoveRecord = feedActiveMove;
+            updateSelfUiWithMovement(selfRecord, feedActiveMove);
+            return;
+        }
+
+        String locId = sessionPrefs != null ? sessionPrefs.getLocationId() : "";
+        moveSiteApi.fetchMoveEmployees(context, "", locId, new MoveSiteApi.EmployeesCallback() {
+            @Override
+            public void onSuccess(List<MoveEmployeeModel> employees, String locationName, int readyCount, int movingCount) {
+                if (!isAdded()) return;
+                MoveRecordModel verifiedActiveMove = null;
+                if (employees != null) {
+                    for (MoveEmployeeModel emp : employees) {
+                        if (emp != null && isSupervisorEmployeeMatch(emp.id) && emp.onMove) {
+                            String mSiteName = !TextUtils.isEmpty(locationName) ? locationName : (feedActiveMove != null ? feedActiveMove.getProjName() : "Moved Site");
+                            verifiedActiveMove = new MoveRecordModel(
+                                    !TextUtils.isEmpty(emp.moveId) ? emp.moveId : (feedActiveMove != null ? feedActiveMove.getMoveId() : "1"),
+                                    emp.id,
+                                    !TextUtils.isEmpty(emp.firstName) ? emp.firstName : supervisorName,
+                                    mSiteName,
+                                    emp.timeInDisplay,
+                                    emp.timeOutDisplay,
+                                    true,
+                                    false,
+                                    emp.photoUrl,
+                                    ""
+                            );
                             break;
                         }
                     }
                 }
-                // 3. Fallback: pick the last item in supervisorRecords
-                if (selfRecord == null) {
-                    selfRecord = supervisorRecords.get(supervisorRecords.size() - 1);
+
+                if (verifiedActiveMove != null) {
+                    currentActiveMoveRecord = verifiedActiveMove;
+                    updateSelfUiWithMovement(selfRecord, verifiedActiveMove);
+                } else if (employees != null) {
+                    currentActiveMoveRecord = null;
+                    updateSelfUiWithMovement(selfRecord, null);
+                } else {
+                    currentActiveMoveRecord = feedActiveMove;
+                    updateSelfUiWithMovement(selfRecord, feedActiveMove);
                 }
             }
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded()) return;
+                currentActiveMoveRecord = feedActiveMove;
+                updateSelfUiWithMovement(selfRecord, feedActiveMove);
+            }
+        });
+    }
+
+    private boolean isSupervisorEmployeeMatch(String empId) {
+        if (empId == null || supervisorUid == null) return false;
+        String eId = empId.trim();
+        String sUid = supervisorUid.trim();
+        if (eId.isEmpty() || sUid.isEmpty()) return false;
+        if (eId.equalsIgnoreCase(sUid)) return true;
+        try {
+            return Integer.parseInt(eId) == Integer.parseInt(sUid);
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+
+    private boolean shouldPreferRecord(AttendanceRecordModel cand, AttendanceRecordModel current) {
+        if (current == null) return true;
+        if (cand == null) return false;
+
+        boolean candActive = cand.isActive();
+        boolean currActive = current.isActive();
+
+        // If current is completed (has both IN and OUT), check if cand is an orphaned active record created at checkout time
+        if (!currActive && candActive) {
+            String currOut = current.getTimeOut() != null ? current.getTimeOut().trim() : "";
+            String candIn = cand.getTimeIn() != null ? cand.getTimeIn().trim() : "";
+            if (!currOut.isEmpty() && !candIn.isEmpty() && isTimeEqualOrClose(candIn, currOut)) {
+                // cand is an orphaned active record created by checkout; prefer the true completed record
+                return false;
+            }
+            return true;
         }
 
-        updateSelfUi(selfRecord);
+        if (!candActive && currActive) {
+            String candOut = cand.getTimeOut() != null ? cand.getTimeOut().trim() : "";
+            String currIn = current.getTimeIn() != null ? current.getTimeIn().trim() : "";
+            if (!candOut.isEmpty() && !currIn.isEmpty() && isTimeEqualOrClose(currIn, candOut)) {
+                return true;
+            }
+            return false;
+        }
+
+        // Both active or both completed: prefer higher attendId (latest record)
+        try {
+            long candId = Long.parseLong(cand.getAttendId());
+            long currId = Long.parseLong(current.getAttendId());
+            if (candId > currId) return true;
+            if (candId < currId) return false;
+        } catch (Exception ignored) {}
+
+        // Fallback: prefer completed record over active record if cand is completed
+        if (!candActive && currActive) return true;
+
+        return false;
     }
+
+    private boolean isTimeEqualOrClose(String time1, String time2) {
+        if (time1 == null || time2 == null) return false;
+        String t1 = time1.trim();
+        String t2 = time2.trim();
+        if (t1.isEmpty() || t2.isEmpty()) return false;
+        if (t1.equalsIgnoreCase(t2)) return true;
+
+        try {
+            String formatted1 = formatTime(t1);
+            String formatted2 = formatTime(t2);
+            return formatted1.equalsIgnoreCase(formatted2);
+        } catch (Exception ignored) {}
+
+        return false;
+    }
+
+   private void updateSelfUiWithMovement(AttendanceRecordModel attendanceRecord, MoveRecordModel activeMove) {
+    if (activeMove != null && activeMove.isActive()) {
+        if (tvSelfTimeIn != null) tvSelfTimeIn.setText(formatTime(activeMove.getInTime()));
+        if (tvSelfTimeOut != null) tvSelfTimeOut.setText(formatTime(activeMove.getOutTime()));
+
+        String siteName = activeMove.getProjName();
+        if (TextUtils.isEmpty(siteName)) siteName = "Moved Site";
+        if (tvSelfProject != null) {
+            tvSelfProject.setText("Project: " + siteName + " (Moved Site)");
+        }
+
+        if (tvSelfStatusBadge != null) {
+            tvSelfStatusBadge.setText("ACTIVE (MOVED SITE)");
+            tvSelfStatusBadge.setBackgroundResource(R.drawable.bg_luxury_status_active);
+            tvSelfStatusBadge.setTextColor(0xFFFFFFFF);
+        }
+
+        if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
+        if (btnSelfTimeOut != null) {
+            btnSelfTimeOut.setVisibility(View.VISIBLE);
+            btnSelfTimeOut.setText("SELF MOVE OUT");
+        }
+        if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(View.GONE);
+        return;
+    }
+
+    if (btnSelfTimeOut != null) {
+        btnSelfTimeOut.setText("SELF TIME OUT");
+    }
+    updateSelfUi(attendanceRecord);
+}
+
+
+
+    private void performSupervisorMoveOut(MoveRecordModel record) {
+    Context context = getContext();
+    if (context == null || record == null || !isAdded()) return;
+
+    String targetEmpId = !TextUtils.isEmpty(record.getEmpId()) ? record.getEmpId() : supervisorUid;
+
+    SessionPrefs session = new SessionPrefs(context);
+    if (!session.isLocationSessionValid()) {
+        Toast.makeText(context, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
+        Intent intent = new Intent(context, LocationVerifyActivity.class);
+        intent.putExtra("IS_INITIAL_VERIFY", false);
+        intent.putExtra("IS_CHANGE_SITE", false);
+        intent.putExtra("AUTO_START_VERIFY", true);
+        intent.putExtra("uid", supervisorUid);
+        intent.putExtra("empid", targetEmpId);
+        intent.putExtra("pending_eid", targetEmpId);
+        intent.putExtra("move_id", record.getMoveId());
+        intent.putExtra("moveid", record.getMoveId());
+        intent.putExtra("type", "OUT");
+        intent.putExtra("pending_action", "OUT");
+        intent.putExtra("is_movement", true);
+        startActivityForResult(intent, 1005);
+        return;
+    }
+
+    String freshToken = session.issueFreshVerificationToken();
+    String targetLocId = session.getLocationId();
+    String pName = session.getProjectName();
+    if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+
+    Intent intent = new Intent(context, LocationActivity.class);
+    intent.putExtra("empid", targetEmpId);
+    intent.putExtra("move_id", record.getMoveId());
+    intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : record.getFirstName());
+    intent.putExtra("photo_url", record.getInPhotoUrl());
+    intent.putExtra("type", "OUT");
+    intent.putExtra("is_movement", true);
+    intent.putExtra("uid", supervisorUid);
+    intent.putExtra("project_id", targetLocId);
+    intent.putExtra("departmentid", targetLocId);
+    intent.putExtra("projname", pName);
+    intent.putExtra("project_name", pName);
+    intent.putExtra("locationid", targetLocId);
+    intent.putExtra("loc_id", targetLocId);
+    intent.putExtra("MATCHED_LOC_ID", targetLocId);
+    intent.putExtra("VERIFIED", "true");
+    intent.putExtra("VERIFICATION_TOKEN", freshToken);
+    startActivityForResult(intent, 1005);
+}
 
     private void loadSupervisorHistoryData() {
         Context context = getContext();
@@ -464,10 +697,9 @@ public class SupervisorAttendanceFragment extends Fragment
                         if (isSupervisorSelfRecord(r)) {
                             String displayName = r.getFirstName();
                             if (TextUtils.isEmpty(displayName) || "User".equalsIgnoreCase(displayName.trim())) {
-                                displayName = (!TextUtils.isEmpty(supervisorName) && !"User".equalsIgnoreCase(supervisorName.trim())) ? supervisorName : (!TextUtils.isEmpty(userName) && !"User".equalsIgnoreCase(userName.trim())) ? userName : "Supervisor #" + supervisorUid;
+                                displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
                             }
-
-                            AttendanceRecordModel displayRecord = new AttendanceRecordModel(
+                            historyList.add(new AttendanceRecordModel(
                                     r.getAttendId(),
                                     r.getUserId(),
                                     r.getEmpId(),
@@ -480,11 +712,38 @@ public class SupervisorAttendanceFragment extends Fragment
                                     r.isHasOut(),
                                     r.getInPhotoUrl(),
                                     r.getOutPhotoUrl()
-                            );
-                            historyList.add(displayRecord);
+                            ));
                         }
                     }
                 }
+
+                if (moveRecords != null) {
+    for (MoveRecordModel m : moveRecords) {
+        if (m != null && isSupervisorSelfMoveRecord(m)) {
+            String displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
+            String siteName = m.getProjName();
+            if (TextUtils.isEmpty(siteName)) siteName = "Moved Site";
+            if (!siteName.toLowerCase().contains("moved")) {
+                siteName = siteName + " (Moved Site)";
+            }
+
+            historyList.add(new AttendanceRecordModel(
+                    "MOVE_" + m.getMoveId(),
+                    supervisorUid,
+                    m.getEmpId(),
+                    displayName,
+                    siteName,
+                    m.getInTime(),
+                    m.getOutTime(),
+                    0.0,
+                    m.isHasIn(),
+                    m.isHasOut(),
+                    m.getInPhotoUrl(),
+                    m.getOutPhotoUrl()
+            ));
+        }
+    }
+}
 
                 if (historyAdapter != null) {
                     historyAdapter.setItems(historyList);
@@ -591,7 +850,8 @@ public class SupervisorAttendanceFragment extends Fragment
     }
 
     private String formatTime(String rawTime) {
-        if (rawTime == null || rawTime.isEmpty() || "--".equals(rawTime) || "--:--".equals(rawTime)) {
+        if (rawTime == null || rawTime.trim().isEmpty() || "--".equals(rawTime.trim()) || "--:--".equals(rawTime.trim())
+                || "00:00:00".equals(rawTime.trim()) || "00.00.00".equals(rawTime.trim()) || "00:00".equals(rawTime.trim()) || "null".equalsIgnoreCase(rawTime.trim())) {
             return "--:--";
         }
         if (rawTime.toLowerCase().contains("am") || rawTime.toLowerCase().contains("pm")) {
@@ -638,10 +898,12 @@ public class SupervisorAttendanceFragment extends Fragment
         if (context == null) return;
 
         String sUid = getSupervisorUid();
+        String selfAttendId = (currentSelfRecord != null && !TextUtils.isEmpty(currentSelfRecord.getAttendId()))
+                ? currentSelfRecord.getAttendId() : "";
 
         if (!sessionPrefs.isLocationSessionValid()) {
             Toast.makeText(context, AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
-            launchLocationVerifyForSessionWithAction(punchType, sUid);
+            launchLocationVerifyForSessionWithAction(punchType, sUid, selfAttendId);
             return;
         }
 
@@ -653,6 +915,11 @@ public class SupervisorAttendanceFragment extends Fragment
         intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", punchType);
         intent.putExtra("uid", sUid);
+        if (!TextUtils.isEmpty(selfAttendId)) {
+            intent.putExtra("attend_id", selfAttendId);
+            intent.putExtra("attendance_id", selfAttendId);
+            intent.putExtra("id", selfAttendId);
+        }
         String pId = !TextUtils.isEmpty(projId) ? projId : sessionPrefs.getProjectId();
         String pName = !TextUtils.isEmpty(projName) ? projName : sessionPrefs.getProjectName();
         intent.putExtra("project_id", pId);
@@ -732,17 +999,17 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
 
-        String targetWorkerId = record.getEmpId();
-        if (TextUtils.isEmpty(targetWorkerId) || "--".equals(targetWorkerId.trim())) {
-            targetWorkerId = record.getUserId();
+        String sUid = getSupervisorUid();
+        String targetWorkerId = "";
+        if (isSupervisorSelfRecord(record)) {
+            targetWorkerId = sUid;
+        } else {
+            targetWorkerId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, sUid);
         }
+
         if (TextUtils.isEmpty(targetWorkerId) || "--".equals(targetWorkerId.trim())) {
-            if (isSupervisorSelfRecord(record)) {
-                targetWorkerId = getSupervisorUid();
-            } else {
-                Toast.makeText(context, "Employee ID is missing for this attendance record.", Toast.LENGTH_LONG).show();
-                return;
-            }
+            Toast.makeText(context, "Employee ID is missing for this attendance record.", Toast.LENGTH_LONG).show();
+            return;
         }
 
         if (sessionPrefs == null) sessionPrefs = new SessionPrefs(context);
@@ -759,9 +1026,11 @@ public class SupervisorAttendanceFragment extends Fragment
 
         Intent intent = new Intent(context, com.app.fourscontracting.LocationActivity.class);
         intent.putExtra("empid", targetWorkerId);
+        intent.putExtra("pending_eid", targetWorkerId);
         if (record.getAttendId() != null && !record.getAttendId().isEmpty()) {
             intent.putExtra("attend_id", record.getAttendId());
             intent.putExtra("attendance_id", record.getAttendId());
+            intent.putExtra("id", record.getAttendId());
         }
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());

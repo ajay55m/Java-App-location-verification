@@ -108,6 +108,10 @@ public class AttendanceRecordModel {
     }
 
     public boolean isActive() {
-        return timeOut.isEmpty() || "--".equals(timeOut);
+        if (timeOut == null || timeOut.trim().isEmpty() || "--".equals(timeOut.trim())) {
+            return true;
+        }
+        String t = timeOut.trim();
+        return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "null".equalsIgnoreCase(t);
     }
 }

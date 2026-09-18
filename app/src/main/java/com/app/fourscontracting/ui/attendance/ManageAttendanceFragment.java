@@ -222,27 +222,31 @@ public class ManageAttendanceFragment extends Fragment
 
     private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
         if (inputRecords == null) return new ArrayList<>();
-        if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
-            return inputRecords;
-        }
 
         String targetName = "";
-        for (AllocatedProjectModel p : allocatedProjects) {
-            if (selectedProjectId.equalsIgnoreCase(p.getId())) {
-                targetName = p.getProjname() != null ? p.getProjname().trim().toLowerCase() : "";
-                break;
+        if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
+            for (AllocatedProjectModel p : allocatedProjects) {
+                if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                    targetName = p.getProjname() != null ? p.getProjname().trim().toLowerCase() : "";
+                    break;
+                }
             }
-        }
-        if (targetName.isEmpty()) {
-            targetName = selectedProjectId.trim().toLowerCase();
+            if (targetName.isEmpty()) {
+                targetName = selectedProjectId.trim().toLowerCase();
+            }
         }
 
         List<AttendanceRecordModel> filtered = new ArrayList<>();
         for (AttendanceRecordModel record : inputRecords) {
             if (record == null) continue;
-            String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
-            if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+
+            if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
+            } else {
+                String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
+                if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+                    filtered.add(record);
+                }
             }
         }
         return filtered;
@@ -405,18 +409,44 @@ public class ManageAttendanceFragment extends Fragment
 
     @Override
     public void onTimeOutClicked(AttendanceRecordModel record) {
+        performManageAttendanceCheckOut(record);
+    }
+
+    /**
+     * Resolves target worker employee ID for Manage Attendance Checkout.
+     * Checks record's empId first; if empty or invalid, falls back to userId or attendId,
+     * ensuring supervisorUid is never mistakenly identified as the worker ID.
+     */
+    public static String resolveTargetWorkerId(AttendanceRecordModel record, String supervisorUid) {
+        if (record == null) return "";
+
+        String empId = record.getEmpId();
+        if (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim()) && !"null".equalsIgnoreCase(empId.trim())) {
+            return empId.trim();
+        }
+
+        String userId = record.getUserId();
+        if (userId != null && !userId.trim().isEmpty() && !"--".equals(userId.trim()) && !"null".equalsIgnoreCase(userId.trim())) {
+            if (supervisorUid == null || supervisorUid.trim().isEmpty() || !userId.trim().equalsIgnoreCase(supervisorUid.trim())) {
+                return userId.trim();
+            }
+        }
+
+        return "";
+    }
+
+    public static String resolveTargetWorkerId(AttendanceRecordModel record) {
+        return resolveTargetWorkerId(record, null);
+    }
+
+    public void performManageAttendanceCheckOut(AttendanceRecordModel record) {
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
 
-        String targetEmpId = record.getEmpId();
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {
-            targetEmpId = record.getUserId();
-        }
-        if (targetEmpId != null && uid != null && uid.trim().equalsIgnoreCase(targetEmpId.trim())) {
-            targetEmpId = "";
-        }
-        if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {
-            Toast.makeText(context, "Employee ID is missing for this worker record.", Toast.LENGTH_LONG).show();
+        String targetWorkerId = resolveTargetWorkerId(record, uid);
+
+        if (TextUtils.isEmpty(targetWorkerId)) {
+            Toast.makeText(context, "Employee ID is missing for this worker record.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -428,10 +458,11 @@ public class ManageAttendanceFragment extends Fragment
             intent.putExtra("IS_CHANGE_SITE", false);
             intent.putExtra("AUTO_START_VERIFY", true);
             intent.putExtra("uid", uid);
-            intent.putExtra("empid", targetEmpId);
-            intent.putExtra("pending_eid", targetEmpId);
+            intent.putExtra("empid", targetWorkerId);
+            intent.putExtra("pending_eid", targetWorkerId);
             intent.putExtra("attend_id", record.getAttendId());
             intent.putExtra("attendance_id", record.getAttendId());
+            intent.putExtra("id", record.getAttendId());
             intent.putExtra("type", "OUT");
             intent.putExtra("pending_action", "OUT");
             startActivityForResult(intent, 1005);
@@ -444,9 +475,11 @@ public class ManageAttendanceFragment extends Fragment
         if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
 
         Intent intent = new Intent(context, LocationActivity.class);
-        intent.putExtra("empid", targetEmpId);
+        intent.putExtra("empid", targetWorkerId);
+        intent.putExtra("pending_eid", targetWorkerId);
         intent.putExtra("attend_id", record.getAttendId());
         intent.putExtra("attendance_id", record.getAttendId());
+        intent.putExtra("id", record.getAttendId());
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");

@@ -58,12 +58,15 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
 
         String empName = item.getFirstName();
         if (empName == null || empName.trim().isEmpty() || "User".equalsIgnoreCase(empName.trim())) {
-            empName = (item.getEmpId() != null && !item.getEmpId().trim().isEmpty()) ? "Supervisor #" + item.getEmpId() : "Supervisor";
+            empName = (item.getEmpId() != null && !item.getEmpId().trim().isEmpty()) ? "Worker #" + item.getEmpId() : "Worker";
         }
         holder.tvEmpName.setText(empName);
 
         // Status Pill & Check Out Action Button
-        if (item.isActive()) {
+        String resolvedTarget = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(item);
+        boolean hasValidWorkerTarget = !resolvedTarget.isEmpty() && !"--".equals(resolvedTarget);
+
+        if (item.isActive() && hasValidWorkerTarget) {
             holder.tvStatusPill.setText("ACTIVE");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
             holder.tvStatusPill.setTextColor(0xFFFFFFFF);
@@ -76,8 +79,8 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
                 });
             }
         } else {
-            holder.tvStatusPill.setText("COMPLETED");
-            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);
+            holder.tvStatusPill.setText(item.isActive() ? "ACTIVE" : "COMPLETED");
+            holder.tvStatusPill.setBackgroundResource(item.isActive() ? R.drawable.bg_luxury_status_active : R.drawable.bg_luxury_status_completed);
             holder.tvStatusPill.setTextColor(0xFFFFFFFF);
             if (holder.btnCheckOut != null) {
                 holder.btnCheckOut.setVisibility(View.GONE);

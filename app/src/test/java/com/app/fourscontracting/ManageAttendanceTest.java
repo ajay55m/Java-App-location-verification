@@ -1,6 +1,7 @@
 package com.app.fourscontracting;
 
 import com.app.fourscontracting.data.AllocatedProjectModel;
+import com.app.fourscontracting.data.AttendancePayload;
 import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.MoveRecordModel;
 
@@ -14,6 +15,45 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class ManageAttendanceTest {
+
+    @Test
+    public void testWorkerIdResolution_keepsWorkerSeparateFromSupervisor() throws Exception {
+        JSONObject record = new JSONObject();
+        record.put("empid", "301");
+        record.put("userid", "85");
+        record.put("emp_name", "Ajay");
+
+        assertEquals("301", com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(record, "85"));
+    }
+
+    @Test
+    public void testWorkerIdResolution_prefersExplicitWorkerId() throws Exception {
+        JSONObject record = new JSONObject();
+        record.put("id", "9001");
+        record.put("empid", "301");
+        record.put("userid", "85");
+
+        assertEquals("301", com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(record, "85"));
+    }
+
+    @Test
+    public void testWorkerIdResolution_readsNestedEmployeeObject() throws Exception {
+        JSONObject record = new JSONObject();
+        record.put("id", "9001");
+        record.put("userid", "85");
+        record.put("employee", new JSONObject().put("id", "301"));
+
+        assertEquals("301", com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(record, "85"));
+    }
+
+    @Test
+    public void testWorkerIdResolution_rejectsRowIdAsWorkerId() throws Exception {
+        JSONObject record = new JSONObject();
+        record.put("id", "2244");
+        record.put("userid", "85");
+
+        assertEquals("", com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(record, "85"));
+    }
 
     @Test
     public void testAttendanceRecordModel_activeState() {
@@ -298,5 +338,126 @@ public class ManageAttendanceTest {
                 "50", "--", "85", "Worker Sam", "Site A", "08:00:00", "", 0.0, true, false, "", ""
         );
         assertEquals("85", recordDash.getEmpId());
+    }
+
+    @Test
+    public void testWorkerTargetEmpIdStrictlyUsesWorkerEmpId() {
+        AttendanceRecordModel workerRecord = new AttendanceRecordModel(
+                "2241", "85", "43", "Worker Name", "Site A", "11:14:00", "", 0.0, true, false, "", ""
+        );
+        String targetEmpId = workerRecord.getEmpId();
+        assertEquals("43", targetEmpId);
+        assertNotEquals("85", targetEmpId);
+    }
+
+    @Test
+    public void testTargetEmpIdFallbackResolution() {
+        // Case 1: empId is "--" or empty, but userId is valid "102"
+        AttendanceRecordModel recordWithUserIdOnly = new AttendanceRecordModel(
+                "501", "102", "--", "Worker Name", "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+        String resolvedId1 = recordWithUserIdOnly.getEmpId();
+        if (resolvedId1 == null || resolvedId1.trim().isEmpty() || "--".equals(resolvedId1.trim()) || "null".equalsIgnoreCase(resolvedId1.trim())) {
+            resolvedId1 = recordWithUserIdOnly.getUserId();
+        }
+        assertEquals("102", resolvedId1);
+
+        // Case 2: empId and userId are missing/invalid, attendId is "2244". attendId MUST NOT be used as worker ID.
+        AttendanceRecordModel recordWithAttendIdOnly = new AttendanceRecordModel(
+                "2244", "--", "", "Worker Name", "Site A", "08:00:00", "", 0.0, true, false, "", ""
+        );
+        String resolvedId2 = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(recordWithAttendIdOnly, "85");
+        assertEquals("", resolvedId2);
+        assertNotEquals("2244", resolvedId2);
+    }
+
+    @Test
+    public void testResolveTargetWorkerId_prefersEmpIdOverUserId() {
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                "1001", "85", "RST/001", "Ajay Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+        );
+        String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);
+        String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record);
+
+        assertEquals("RST/001", resolvedFragmentId);
+        assertEquals("RST/001", resolvedActivityId);
+    }
+
+    @Test
+    public void testResolveTargetWorkerId_fallsBackToUserIdWhenEmpIdMissing() {
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                "1002", "43", "--", "Ajay Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+        );
+        String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, "85");
+        String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record, "85");
+
+        assertEquals("43", resolvedFragmentId);
+        assertEquals("43", resolvedActivityId);
+    }
+
+    @Test
+    public void testResolveTargetWorkerId_rejectsSupervisorUidAsWorkerId() {
+        String supervisorUid = "85";
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                "--", supervisorUid, "--", "Worker Ajay", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+        );
+
+        String resolvedId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, supervisorUid);
+        assertEquals("", resolvedId);
+    }
+
+    @Test
+    public void testManageAttendanceCheckOut_perfectIdPassingForEmployeeOut() {
+        String supervisorUid = "85";
+        String workerEmpId = "43";
+        String attendId = "555";
+
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                attendId, supervisorUid, workerEmpId, "Ajay Worker", "Site A", "08:30:00", "", 0.0, true, false, "", ""
+        );
+
+        String targetWorkerId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);
+        assertEquals(workerEmpId, targetWorkerId);
+
+        // Verify checkout payload params construction for employee out:
+        AttendancePayload payload = new AttendancePayload();
+        payload.uid = supervisorUid;
+        payload.empid = targetWorkerId;
+        payload.attendId = record.getAttendId();
+        payload.type = "OUT";
+
+        java.util.Map<String, String> params = payload.toFormParams();
+        assertEquals("43", params.get("empid"));
+        assertEquals("43", params.get("emp_id"));
+        assertEquals("43", params.get("employee_id"));
+        assertEquals("43", params.get("eid"));
+        assertEquals("85", params.get("uid"));
+        assertEquals("85", params.get("user_id"));
+        assertEquals("OUT", params.get("type"));
+        assertEquals("555", params.get("attend_id"));
+    }
+
+    @Test
+    public void testSelfVsManageAttendanceCheckOut_idPassingDifference() {
+        String supervisorUid = "85";
+        String workerEmpId = "43";
+
+        // Manage Attendance Checkout: supervisorUid (85) in uid, workerEmpId (43) in empid
+        AttendancePayload managePayload = new AttendancePayload();
+        managePayload.uid = supervisorUid;
+        managePayload.empid = workerEmpId;
+        managePayload.type = "OUT";
+
+        // Self Attendance Checkout: supervisorUid (85) in BOTH uid and empid
+        AttendancePayload selfPayload = new AttendancePayload();
+        selfPayload.uid = supervisorUid;
+        selfPayload.empid = supervisorUid;
+        selfPayload.type = "OUT";
+
+        assertNotEquals(managePayload.empid, selfPayload.empid);
+        assertEquals("43", managePayload.empid);
+        assertEquals("85", selfPayload.empid);
+        assertEquals("85", managePayload.uid);
+        assertEquals("85", selfPayload.uid);
     }
 }

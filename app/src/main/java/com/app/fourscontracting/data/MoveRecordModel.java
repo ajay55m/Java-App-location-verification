@@ -80,6 +80,10 @@ public class MoveRecordModel {
     }
 
     public boolean isActive() {
-        return outTime.isEmpty() || "--".equals(outTime);
+        if (outTime == null || outTime.trim().isEmpty() || "--".equals(outTime.trim())) {
+            return true;
+        }
+        String t = outTime.trim();
+        return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "null".equalsIgnoreCase(t);
     }
 }

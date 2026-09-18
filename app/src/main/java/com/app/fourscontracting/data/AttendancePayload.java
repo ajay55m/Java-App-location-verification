@@ -69,11 +69,13 @@ public class AttendancePayload {
         if (!attendVal.isEmpty()) {
             params.put("attend_id", attendVal);
             params.put("attendance_id", attendVal);
+            params.put("attendance_record_id", attendVal);
         }
 
         if (!moveVal.isEmpty()) {
             params.put("move_id", moveVal);
             params.put("moveid", moveVal);
+            params.put("movement_id", moveVal);
         }
 
         if (!attendVal.isEmpty()) {
@@ -113,6 +115,8 @@ public class AttendancePayload {
 
         if ("OUT".equalsIgnoreCase(wireType)) {
             params.put("action", "checkout");
+            params.put("checkout", "1");
+            params.put("checkout_type", isMovement ? "movement" : "attendance");
             params.put("out_time", nullToEmpty(timein));
             params.put("time_out", nullToEmpty(timein));
         }

@@ -219,8 +219,8 @@ public class LocationVerifyActivity extends AppActivity {
             if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("empid");
             if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("emp_id");
             if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("employee_id");
-            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("user_id");
-            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("userid");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("worker_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("labour_id");
 
             pendingAction = intent.getStringExtra("pending_action");
             lockedLocationId = targetLocationId != null ? targetLocationId : lockedLocationId;
@@ -248,9 +248,16 @@ public class LocationVerifyActivity extends AppActivity {
             if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("pending_eid");
             if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("emp_id");
             if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("employee_id");
-            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("user_id");
-            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("userid");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("worker_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("labour_id");
             if (empId == null) empId = "";
+
+            managerUid = intent.getStringExtra("uid");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("user_id");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("userid");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("manager_uid");
+            if (managerUid == null) managerUid = "";
+
             empName = intent.getStringExtra("emp_name");
             if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("empname");
             if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("employee_name");
@@ -264,7 +271,6 @@ public class LocationVerifyActivity extends AppActivity {
                 photoUrl = com.app.fourscontracting.data.ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId;
             }
             projectId = intent.getStringExtra("projname") != null ? intent.getStringExtra("projname") : "";
-            managerUid = intent.getStringExtra("uid") != null ? intent.getStringExtra("uid") : "";
             type = intent.getStringExtra("type") != null ? intent.getStringExtra("type") : "IN";
             moveId = intent.getStringExtra("move_id") != null ? intent.getStringExtra("move_id")
                     : (intent.getStringExtra("moveid") != null ? intent.getStringExtra("moveid") : "");
@@ -346,7 +352,6 @@ public class LocationVerifyActivity extends AppActivity {
                     Bundle extras = new Bundle();
                     String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
                             : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
-                            : (managerUid != null && !managerUid.trim().isEmpty() && !"--".equals(managerUid.trim())) ? managerUid.trim()
                             : "";
                     if (targetEmpId.isEmpty()) {
                         Intent resultIntent = new Intent();
@@ -1512,7 +1517,6 @@ public class LocationVerifyActivity extends AppActivity {
                     if (!isFinishing() && !isDestroyed()) {
                         String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
                                                 : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
-                                                : (managerUid != null && !managerUid.trim().isEmpty() && !"--".equals(managerUid.trim())) ? managerUid.trim()
                                                 : "";
                         if (targetEmpId.isEmpty()) {
                             Intent resIntent = new Intent();

@@ -459,11 +459,13 @@
 
                 <!-- Quick Summary Stats Metric Bar -->
                 <LinearLayout
+                    android:id="@+id/ll_supervisor_history_stats"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="14dp"
                     android:baselineAligned="false"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:visibility="gone">
 
                     <!-- Total Records Card -->
                     <LinearLayout

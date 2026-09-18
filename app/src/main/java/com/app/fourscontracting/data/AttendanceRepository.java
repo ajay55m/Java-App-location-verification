@@ -51,7 +51,11 @@ public class AttendanceRepository {
         }
 
         post(payload, result -> {
-            if (!result.success && result.message != null && result.message.toLowerCase().contains("no active movement")) {
+            if (!result.success
+                    && !payload.isMovement
+                    && !"OUT".equalsIgnoreCase(payload.type)
+                    && result.message != null
+                    && result.message.toLowerCase().contains("no active movement")) {
                 // If site movement table has no record, retry once as standard attendance check-out
                 payload.isMovement = false;
                 post(payload, fallbackResult -> {
