@@ -73,7 +73,7 @@ public class MoveRecordModel {
             }
             return val;
         }
-        if (isHasIn() && moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
+        if (moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
             return "view_attendance_img.php?move_id=" + moveId.trim() + "&type=in&source=hrms";
         }
         return "";
@@ -87,7 +87,7 @@ public class MoveRecordModel {
             }
             return val;
         }
-        if (isHasOut() && moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
+        if (moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
             return "view_attendance_img.php?move_id=" + moveId.trim() + "&type=out&source=hrms";
         }
         return "";

@@ -214,5 +214,13 @@ public class MoveSiteTest {
         );
         assertEquals("view_attendance_img.php?image_id=1234&move_id=75&type=in&source=hrms", recordWithNumericImageIds.getInPhotoUrl());
         assertEquals("view_attendance_img.php?image_id=5678&move_id=75&type=out&source=hrms", recordWithNumericImageIds.getOutPhotoUrl());
+
+        // Case 5: Move record move_id=60 fallback image endpoint resolution when photo fields are empty in JSON
+        MoveRecordModel recordMove60 = new MoveRecordModel(
+                "60", "304", "Ajay", "Site D", "", "", false, false,
+                "", ""
+        );
+        assertEquals("view_attendance_img.php?move_id=60&type=in&source=hrms", recordMove60.getInPhotoUrl());
+        assertEquals("view_attendance_img.php?move_id=60&type=out&source=hrms", recordMove60.getOutPhotoUrl());
     }
 }
