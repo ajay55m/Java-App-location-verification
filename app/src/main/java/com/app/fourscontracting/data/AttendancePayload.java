@@ -87,12 +87,6 @@ public class AttendancePayload {
         params.put("timein", nullToEmpty(timein));
         params.put("timeout", nullToEmpty(timein));
         params.put("out_time", nullToEmpty(timein));
-        params.put("time_out", nullToEmpty(timein));
-
-        params.put("imagepath", nullToEmpty(imagepath));
-        params.put("out_photo", nullToEmpty(imagepath));
-        params.put("photo", nullToEmpty(imagepath));
-
         // Legacy PHP expects IN/OUT. Movement OUT must stay OUT (not forced to IN).
         String wireType;
         if (type != null && type.equalsIgnoreCase("OUT")) {
@@ -104,6 +98,30 @@ public class AttendancePayload {
         } else {
             wireType = "IN";
         }
+
+        String imgPathVal = nullToEmpty(imagepath);
+        params.put("imagepath", imgPathVal);
+        params.put("image_path", imgPathVal);
+        params.put("photo", imgPathVal);
+
+        if ("OUT".equalsIgnoreCase(wireType)) {
+            params.put("out_photo", imgPathVal);
+            params.put("photo_out", imgPathVal);
+            params.put("out_image", imgPathVal);
+            params.put("move_out_photo", imgPathVal);
+            params.put("move_photo_out", imgPathVal);
+            params.put("move_out_image", imgPathVal);
+            params.put("move_out", imgPathVal);
+        } else {
+            params.put("in_photo", imgPathVal);
+            params.put("photo_in", imgPathVal);
+            params.put("in_image", imgPathVal);
+            params.put("move_in_photo", imgPathVal);
+            params.put("move_photo_in", imgPathVal);
+            params.put("move_in_image", imgPathVal);
+            params.put("move_in", imgPathVal);
+        }
+
         params.put("type", wireType);
         params.put("is_movement", isMovement ? "1" : "0");
         if (isMovement) {

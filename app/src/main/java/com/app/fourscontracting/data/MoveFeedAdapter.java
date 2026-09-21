@@ -89,7 +89,7 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         holder.tvOutTime.setText(formatTime(item.getOutTime()));
 
         // IN Photo
-        if (item.isHasIn() && !item.getInPhotoUrl().isEmpty()) {
+        if (!item.getInPhotoUrl().isEmpty()) {
             holder.imgInPhoto.setVisibility(View.VISIBLE);
             holder.llInNoPhoto.setVisibility(View.GONE);
             String fullInUrl = sanitizePhotoUrl(item.getInPhotoUrl());
@@ -107,7 +107,7 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         }
 
         // OUT Photo
-        if (item.isHasOut() && !item.getOutPhotoUrl().isEmpty()) {
+        if (!item.getOutPhotoUrl().isEmpty()) {
             holder.imgOutPhoto.setVisibility(View.VISIBLE);
             holder.llOutNoPhoto.setVisibility(View.GONE);
             String fullOutUrl = sanitizePhotoUrl(item.getOutPhotoUrl());
@@ -138,11 +138,9 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
     }
 
     private String sanitizePhotoUrl(String photoUrl) {
-        if (photoUrl == null || photoUrl.isEmpty()) return "";
-        if (photoUrl.startsWith("http://") || photoUrl.startsWith("https://")) {
-            return photoUrl;
-        }
-        return ApiConfig.SUBCONTRACTOR + "/" + photoUrl;
+        if (photoUrl == null || photoUrl.trim().isEmpty()) return "";
+        String sanitized = ImageLoaderHelper.sanitizeUrl(photoUrl);
+        return sanitized != null ? sanitized : "";
     }
 
     private String formatTime(String rawTime) {

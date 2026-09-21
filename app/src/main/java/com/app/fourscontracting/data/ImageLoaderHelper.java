@@ -139,7 +139,9 @@ public class ImageLoaderHelper {
                 LazyHeaders.Builder builder = new LazyHeaders.Builder()
                         .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36")
                         .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                        .addHeader("Referer", ApiConfig.SUBCONTRACTOR + "/");
+                        .addHeader("Referer", ApiConfig.SUBCONTRACTOR + "/")
+                        .addHeader(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY)
+                        .addHeader("X-API-KEY", ApiConfig.X_API_KEY);
 
                 String cookie = CookieHurlStack.getBypassCookie(context);
                 if (cookie != null && !cookie.isEmpty()) {
@@ -230,6 +232,9 @@ public class ImageLoaderHelper {
             return null;
         }
         String url = photoUrl.trim();
+        if (url.contains("view_attendance_img.php") && !url.contains("source=")) {
+            url = url + (url.contains("?") ? "&source=hrms" : "?source=hrms");
+        }
         if (url.startsWith("http://")) {
             url = url.replace("http://", "https://");
         } else if (!url.startsWith("https://")) {
@@ -249,26 +254,27 @@ public class ImageLoaderHelper {
         headers.put("Accept-Language", "en-US,en;q=0.9");
         headers.put("Referer", ApiConfig.SUBCONTRACTOR + "/");
 
-        String cookieVal;
+        String cookieVal = null;
         if (context != null) {
             try {
                 cookieVal = CookieHurlStack.getBypassCookie(context);
-            } catch (Exception ignored) {
-                cookieVal = CookieHurlStack.DEFAULT_BYPASS_COOKIE;
-            }
-        } else {
+            } catch (Exception ignored) {}
+        }
+        if (cookieVal == null || cookieVal.isEmpty()) {
             cookieVal = CookieHurlStack.DEFAULT_BYPASS_COOKIE;
+        } else if (!cookieVal.contains(CookieHurlStack.DEFAULT_BYPASS_COOKIE)) {
+            cookieVal = CookieHurlStack.DEFAULT_BYPASS_COOKIE + "; " + cookieVal;
         }
-        if (cookieVal != null && !cookieVal.isEmpty()) {
-            headers.put("Cookie", cookieVal);
-        }
-
+        headers.put("Cookie", cookieVal);
+        headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
+        headers.put("X-API-KEY", ApiConfig.X_API_KEY);
         return headers;
     }
 
     public static Map<String, String> buildImageAuthRetryHeaders(Context context) {
         Map<String, String> headers = buildImageRequestHeaders(context);
         headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
+        headers.put("X-API-KEY", ApiConfig.X_API_KEY);
         return headers;
     }
 
@@ -295,7 +301,7 @@ public class ImageLoaderHelper {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(10000);
-                conn.setInstanceFollowRedirects(true);
+                conn.setInstanceFollowRedirects(false);
                 conn.setRequestMethod("GET");
 
                 for (Map.Entry<String, String> entry : buildImageRequestHeaders(context).entrySet()) {
@@ -333,10 +339,17 @@ public class ImageLoaderHelper {
                     }
                 }
 
+                Log.d(TAG, "Fetching photo URL: " + currentUrl + " -> HTTP " + responseCode);
+
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     is = conn.getInputStream();
                     byte[] rawBytes = readStreamToByteArray(is);
-                    return decodeJpegWithSanitization(rawBytes);
+                    Log.d(TAG, "Downloaded " + (rawBytes != null ? rawBytes.length : 0) + " bytes for photo: " + currentUrl);
+                    Bitmap decoded = decodeJpegWithSanitization(rawBytes);
+                    if (decoded == null) {
+                        Log.e(TAG, "Failed to decode bitmap from " + (rawBytes != null ? rawBytes.length : 0) + " bytes for: " + currentUrl);
+                    }
+                    return decoded;
                 } else {
                     Log.w(TAG, "Failed HTTP " + responseCode + " for photo: " + currentUrl);
                 }

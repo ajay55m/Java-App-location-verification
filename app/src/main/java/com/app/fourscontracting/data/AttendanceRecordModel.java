@@ -86,25 +86,31 @@ public class AttendanceRecordModel {
     }
 
     public boolean isHasIn() {
-        return hasIn;
+        return hasIn || (timeIn != null && !timeIn.trim().isEmpty() && !"--".equals(timeIn.trim()) && !"--:--".equals(timeIn.trim()));
     }
 
     public boolean isHasOut() {
-        return hasOut;
+        return hasOut || (timeOut != null && !timeOut.trim().isEmpty() && !"--".equals(timeOut.trim()) && !"--:--".equals(timeOut.trim()));
     }
 
     public String getInPhotoUrl() {
-        if ((inPhotoUrl == null || inPhotoUrl.trim().isEmpty()) && hasIn && !attendId.isEmpty()) {
-            return "view_attendance_img.php?attendance_id=" + attendId + "&type=in";
+        if (inPhotoUrl != null && !inPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(inPhotoUrl.trim()) && !"0".equals(inPhotoUrl.trim())) {
+            return inPhotoUrl.trim();
         }
-        return inPhotoUrl;
+        if (isHasIn() && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
+            return "view_attendance_img.php?attendance_id=" + attendId.trim() + "&type=in&source=hrms";
+        }
+        return "";
     }
 
     public String getOutPhotoUrl() {
-        if ((outPhotoUrl == null || outPhotoUrl.trim().isEmpty()) && hasOut && !attendId.isEmpty()) {
-            return "view_attendance_img.php?attendance_id=" + attendId + "&type=out";
+        if (outPhotoUrl != null && !outPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(outPhotoUrl.trim()) && !"0".equals(outPhotoUrl.trim())) {
+            return outPhotoUrl.trim();
         }
-        return outPhotoUrl;
+        if (isHasOut() && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
+            return "view_attendance_img.php?attendance_id=" + attendId.trim() + "&type=out&source=hrms";
+        }
+        return "";
     }
 
     public boolean isActive() {

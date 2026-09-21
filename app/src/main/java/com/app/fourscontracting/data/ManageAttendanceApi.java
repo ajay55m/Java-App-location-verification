@@ -172,10 +172,10 @@ public class ManageAttendanceApi {
                                     String timeInVal = optCleanString(rObj, "timein", "time_in", "in_time");
                                     String timeOutVal = optCleanString(rObj, "timeout", "time_out", "out_time");
 
-                                    boolean hasIn = rObj.has("has_in") ? rObj.optBoolean("has_in", false) : (!timeInVal.isEmpty() && !"--".equals(timeInVal));
-                                    boolean hasOut = rObj.has("has_out") ? rObj.optBoolean("has_out", false) : (!timeOutVal.isEmpty() && !"--".equals(timeOutVal));
-                                    String inPhoto = optCleanString(rObj, "in_photo_url", "in_photo", "photo_in", "in_image");
-                                    String outPhoto = optCleanString(rObj, "out_photo_url", "out_photo", "photo_out", "out_image");
+                                    boolean hasIn = optCleanBoolean(rObj, "has_in", timeInVal);
+                                    boolean hasOut = optCleanBoolean(rObj, "has_out", timeOutVal);
+                                    String inPhoto = optCleanString(rObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo");
+                                    String outPhoto = optCleanString(rObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo");
 
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             attendIdVal,
@@ -202,30 +202,15 @@ public class ManageAttendanceApi {
                             for (int i = 0; i < moveArray.length(); i++) {
                                 JSONObject mObj = moveArray.optJSONObject(i);
                                 if (mObj != null) {
-                                    String mId = optCleanString(mObj, "move_id", "moveid");
-                                    String eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id", "uid", "userid", "user_id", "subadmin_id", "manager_uid");
-                                    String uIdVal = optCleanString(mObj, "userid", "user_id", "subadmin_id", "manager_uid");
-                                    String uidVal = optCleanString(mObj, "uid");
+                                    String mId = optCleanString(mObj, "move_id", "moveid", "attend_id", "attendance_id", "record_id", "id");
                                     String idVal = optCleanString(mObj, "id");
-
-                                    if (mId.isEmpty()) {
-                                        if (!idVal.isEmpty()) {
-                                            mId = idVal;
-                                        }
+                                    if (mId.isEmpty() && !idVal.isEmpty()) {
+                                        mId = idVal;
                                     }
 
+                                    String eId = resolveWorkerId(mObj, uid);
                                     if (eId.isEmpty()) {
-                                        if (!uidVal.isEmpty()) {
-                                            eId = uidVal;
-                                        }
-                                    }
-                                    if (eId.isEmpty()) {
-                                        if (!uIdVal.isEmpty()) {
-                                            eId = uIdVal;
-                                        }
-                                    }
-                                    if (eId.isEmpty() && !idVal.isEmpty() && !idVal.equalsIgnoreCase(mId)) {
-                                        eId = idVal;
+                                        eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id", "uid", "userid", "user_id");
                                     }
 
                                     String fName = optCleanString(mObj, "first_name", "emp_name", "name", "employee_name", "username");
@@ -233,11 +218,10 @@ public class ManageAttendanceApi {
                                     String iTime = optCleanString(mObj, "in_time", "timein", "time_in");
                                     String oTime = optCleanString(mObj, "out_time", "timeout", "time_out");
 
-                                    boolean hasIn = mObj.has("has_in") ? mObj.optBoolean("has_in", false) : (!iTime.isEmpty() && !"--".equals(iTime));
-                                    boolean hasOut = mObj.has("has_out") ? mObj.optBoolean("has_out", false) : (!oTime.isEmpty() && !"--".equals(oTime));
-
-                                    String inPhoto = optCleanString(mObj, "in_photo_url", "in_photo", "photo_in", "in_image");
-                                    String outPhoto = optCleanString(mObj, "out_photo_url", "out_photo", "photo_out", "out_image");
+                                    boolean hasIn = optCleanBoolean(mObj, "has_in", iTime);
+                                    boolean hasOut = optCleanBoolean(mObj, "has_out", oTime);
+                                    String inPhoto = optCleanString(mObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "move_in_photo", "move_in_image", "move_photo_in", "move_in", "in_image_id", "in_photo_id", "move_in_image_id", "photo_in_id");
+                                    String outPhoto = optCleanString(mObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo", "move_out_photo", "move_out_image", "move_photo_out", "move_out", "out_image_id", "out_photo_id", "move_out_image_id", "photo_out_id");
 
                                     moveRecords.add(new MoveRecordModel(
                                             mId,
@@ -321,6 +305,24 @@ public class ManageAttendanceApi {
         return "";
     }
 
+    private static boolean optCleanBoolean(JSONObject obj, String key, String timeVal) {
+        if (obj != null && obj.has(key) && !obj.isNull(key)) {
+            Object val = obj.opt(key);
+            if (val instanceof Boolean) {
+                return (Boolean) val;
+            }
+            if (val instanceof Number) {
+                return ((Number) val).intValue() != 0;
+            }
+            if (val instanceof String) {
+                String s = ((String) val).trim().toLowerCase();
+                if ("1".equals(s) || "true".equals(s) || "yes".equals(s)) return true;
+                if ("0".equals(s) || "false".equals(s) || "no".equals(s) || "".equals(s)) return false;
+            }
+        }
+        return timeVal != null && !timeVal.isEmpty() && !"--".equals(timeVal) && !"--:--".equals(timeVal) && !"00:00:00".equals(timeVal);
+    }
+
     /** Resolves worker identity from JSON record. */
     public static String resolveWorkerId(JSONObject record, String supervisorUid) {
         if (record == null) return "";
@@ -370,8 +372,8 @@ public class ManageAttendanceApi {
             }
         }
 
-        // 5. Fallback rawId
-        if (!rawId.isEmpty() && (attendIdKey.isEmpty() || !rawId.equalsIgnoreCase(attendIdKey))) {
+        // 5. Return rawId only if attend_id key was explicitly present and different from rawId
+        if (!rawId.isEmpty() && !attendIdKey.isEmpty() && !rawId.equalsIgnoreCase(attendIdKey)) {
             return rawId;
         }
 

@@ -57,13 +57,13 @@ public class ImageLoaderHelperTest {
     }
 
     @Test
-    public void testBuildImageRequestHeaders_doesNotIncludeApiKey() {
+    public void testBuildImageRequestHeaders_includesApiKey() {
         Map<String, String> headers = ImageLoaderHelper.buildImageRequestHeaders(null);
         assertNotNull(headers);
         assertEquals("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36", headers.get("User-Agent"));
         assertEquals("image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", headers.get("Accept"));
         assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/", headers.get("Referer"));
-        assertFalse(headers.containsKey("x-api-key"));
+        assertEquals("4S_Secure_Access_Token_2024_#$", headers.get("x-api-key"));
     }
 
     @Test
@@ -131,5 +131,50 @@ public class ImageLoaderHelperTest {
             assertTrue(sanitized.startsWith("https://"));
             assertTrue(sanitized.contains("get_photo.php?id="));
         }
+    }
+
+    @Test
+    public void testSanitizeUrl_moveInAndMoveOutEndpoint() {
+        String rawMoveIn = "view_attendance_img.php?move_id=60&type=in";
+        String sanitizedIn = ImageLoaderHelper.sanitizeUrl(rawMoveIn);
+        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=60&type=in&source=hrms", sanitizedIn);
+
+        String rawMoveOut = "view_attendance_img.php?move_id=60&type=out";
+        String sanitizedOut = ImageLoaderHelper.sanitizeUrl(rawMoveOut);
+        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=60&type=out&source=hrms", sanitizedOut);
+    }
+
+    @Test
+    public void testMoveRecordModel_InAndOutPhotoUrlResolution() {
+        // Case 1: Direct photo URLs provided
+        com.app.fourscontracting.data.MoveRecordModel directRecord = new com.app.fourscontracting.data.MoveRecordModel(
+                "60", "301", "Ajay", "Site A", "09:00 AM", "05:00 PM", true, true,
+                "https://4scontracting.com/uploads/move_in_60.jpg",
+                "https://4scontracting.com/uploads/move_out_60.jpg"
+        );
+        assertEquals("https://4scontracting.com/uploads/move_in_60.jpg", directRecord.getInPhotoUrl());
+        assertEquals("https://4scontracting.com/uploads/move_out_60.jpg", directRecord.getOutPhotoUrl());
+
+        // Case 2: Fallback photo URLs when empty
+        com.app.fourscontracting.data.MoveRecordModel fallbackRecord = new com.app.fourscontracting.data.MoveRecordModel(
+                "75", "302", "Worker", "Site B", "08:30 AM", "04:30 PM", true, true,
+                "", ""
+        );
+        assertEquals("view_attendance_img.php?move_id=75&type=in&source=hrms", fallbackRecord.getInPhotoUrl());
+        assertEquals("view_attendance_img.php?move_id=75&type=out&source=hrms", fallbackRecord.getOutPhotoUrl());
+
+        // Sanitized versions of fallback URLs
+        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=75&type=in&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getInPhotoUrl()));
+        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=75&type=out&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getOutPhotoUrl()));
+    }
+
+    @Test
+    public void testMoveRecordModel_NullAndZeroPhotoUrlHandling() {
+        com.app.fourscontracting.data.MoveRecordModel recordZeroNull = new com.app.fourscontracting.data.MoveRecordModel(
+                "80", "303", "Worker Null", "Site C", "08:30 AM", "04:30 PM", true, true,
+                "0", "null"
+        );
+        assertEquals("view_attendance_img.php?move_id=80&type=in&source=hrms", recordZeroNull.getInPhotoUrl());
+        assertEquals("view_attendance_img.php?move_id=80&type=out&source=hrms", recordZeroNull.getOutPhotoUrl());
     }
 }

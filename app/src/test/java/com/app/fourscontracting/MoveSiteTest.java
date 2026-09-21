@@ -145,4 +145,74 @@ public class MoveSiteTest {
         assertEquals("1", form.get("is_movement"));
         assertEquals("MOVE_OUT", form.get("action_type"));
     }
+
+    @Test
+    public void testAttendancePayloadMoveInAndOutImageParameters() {
+        // Move IN image payload parameters
+        com.app.fourscontracting.data.AttendancePayload inPayload = new com.app.fourscontracting.data.AttendancePayload();
+        inPayload.empid = "43";
+        inPayload.uid = "85";
+        inPayload.type = "IN";
+        inPayload.isMovement = true;
+        inPayload.imagepath = "move_in_captured_base64_or_path";
+
+        java.util.Map<String, String> inForm = inPayload.toFormParams();
+        assertEquals("43", inForm.get("empid"));
+        assertEquals("85", inForm.get("uid"));
+        assertEquals("move_in_captured_base64_or_path", inForm.get("imagepath"));
+        assertEquals("move_in_captured_base64_or_path", inForm.get("in_photo"));
+        assertEquals("move_in_captured_base64_or_path", inForm.get("move_in_photo"));
+        assertEquals("move_in_captured_base64_or_path", inForm.get("photo_in"));
+
+        // Move OUT image payload parameters
+        com.app.fourscontracting.data.AttendancePayload outPayload = new com.app.fourscontracting.data.AttendancePayload();
+        outPayload.empid = "43";
+        outPayload.uid = "85";
+        outPayload.moveId = "105";
+        outPayload.type = "OUT";
+        outPayload.isMovement = true;
+        outPayload.imagepath = "move_out_captured_base64_or_path";
+
+        java.util.Map<String, String> outForm = outPayload.toFormParams();
+        assertEquals("43", outForm.get("empid"));
+        assertEquals("105", outForm.get("move_id"));
+        assertEquals("move_out_captured_base64_or_path", outForm.get("imagepath"));
+        assertEquals("move_out_captured_base64_or_path", outForm.get("out_photo"));
+        assertEquals("move_out_captured_base64_or_path", outForm.get("move_out_photo"));
+        assertEquals("move_out_captured_base64_or_path", outForm.get("photo_out"));
+    }
+
+    @Test
+    public void testMoveRecordPhotoUrlResolution() {
+        // Case 1: Direct photo URL provided in API response
+        MoveRecordModel recordWithDirectPhoto = new MoveRecordModel(
+                "60", "301", "Ajay", "Site A", "11:16 AM", "", true, false,
+                "https://4scontracting.com/uploads/photo1.jpg", ""
+        );
+        assertEquals("https://4scontracting.com/uploads/photo1.jpg", recordWithDirectPhoto.getInPhotoUrl());
+
+        // Case 2: Fallback endpoint generation when inPhotoUrl is empty but inTime ("11:16 AM") is valid
+        MoveRecordModel recordWithTimeInFallback = new MoveRecordModel(
+                "60", "301", "Ajay", "Site A", "11:16 AM", "", false, false,
+                "", ""
+        );
+        assertTrue("isHasIn should return true when valid inTime exists", recordWithTimeInFallback.isHasIn());
+        assertEquals("Fallback Check-in photo URL", "view_attendance_img.php?move_id=60&type=in&source=hrms", recordWithTimeInFallback.getInPhotoUrl());
+
+        // Case 3: Check-out photo fallback when outTime ("11:16 AM") is valid
+        MoveRecordModel recordWithTimeOutFallback = new MoveRecordModel(
+                "61", "302", "Ajay", "Site B", "10:55 AM", "11:16 AM", true, false,
+                "", ""
+        );
+        assertTrue("isHasOut should return true when valid outTime exists", recordWithTimeOutFallback.isHasOut());
+        assertEquals("Fallback Check-out photo URL", "view_attendance_img.php?move_id=61&type=out&source=hrms", recordWithTimeOutFallback.getOutPhotoUrl());
+
+        // Case 4: Numeric Image ID mapping for IN and OUT
+        MoveRecordModel recordWithNumericImageIds = new MoveRecordModel(
+                "75", "303", "Ajay", "Site C", "09:00 AM", "05:00 PM", true, true,
+                "1234", "5678"
+        );
+        assertEquals("view_attendance_img.php?image_id=1234&move_id=75&type=in&source=hrms", recordWithNumericImageIds.getInPhotoUrl());
+        assertEquals("view_attendance_img.php?image_id=5678&move_id=75&type=out&source=hrms", recordWithNumericImageIds.getOutPhotoUrl());
+    }
 }

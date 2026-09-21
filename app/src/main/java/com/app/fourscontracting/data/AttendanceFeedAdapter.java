@@ -162,11 +162,9 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
     }
 
     private String sanitizePhotoUrl(String photoUrl) {
-        if (photoUrl == null || photoUrl.isEmpty()) return "";
-        if (photoUrl.startsWith("http://") || photoUrl.startsWith("https://")) {
-            return photoUrl;
-        }
-        return ApiConfig.SUBCONTRACTOR + "/" + photoUrl;
+        if (photoUrl == null || photoUrl.trim().isEmpty()) return "";
+        String sanitized = ImageLoaderHelper.sanitizeUrl(photoUrl);
+        return sanitized != null ? sanitized : "";
     }
 
     private String formatTime(String rawTime) {

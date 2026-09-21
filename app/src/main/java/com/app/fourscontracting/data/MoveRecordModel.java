@@ -58,25 +58,47 @@ public class MoveRecordModel {
     }
 
     public boolean isHasIn() {
-        return hasIn;
+        return hasIn || (inTime != null && !inTime.trim().isEmpty() && !"--".equals(inTime.trim()) && !"--:--".equals(inTime.trim()));
     }
 
     public boolean isHasOut() {
-        return hasOut;
+        return hasOut || (outTime != null && !outTime.trim().isEmpty() && !"--".equals(outTime.trim()) && !"--:--".equals(outTime.trim()));
     }
 
     public String getInPhotoUrl() {
-        if ((inPhotoUrl == null || inPhotoUrl.trim().isEmpty()) && hasIn && !moveId.isEmpty()) {
-            return "view_move_img.php?move_id=" + moveId + "&type=in";
+        if (inPhotoUrl != null && !inPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(inPhotoUrl.trim()) && !"0".equals(inPhotoUrl.trim())) {
+            String val = inPhotoUrl.trim();
+            if (isNumeric(val) && moveId != null && !moveId.trim().isEmpty()) {
+                return "view_attendance_img.php?image_id=" + val + "&move_id=" + moveId.trim() + "&type=in&source=hrms";
+            }
+            return val;
         }
-        return inPhotoUrl;
+        if (isHasIn() && moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
+            return "view_attendance_img.php?move_id=" + moveId.trim() + "&type=in&source=hrms";
+        }
+        return "";
     }
 
     public String getOutPhotoUrl() {
-        if ((outPhotoUrl == null || outPhotoUrl.trim().isEmpty()) && hasOut && !moveId.isEmpty()) {
-            return "view_move_img.php?move_id=" + moveId + "&type=out";
+        if (outPhotoUrl != null && !outPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(outPhotoUrl.trim()) && !"0".equals(outPhotoUrl.trim())) {
+            String val = outPhotoUrl.trim();
+            if (isNumeric(val) && moveId != null && !moveId.trim().isEmpty()) {
+                return "view_attendance_img.php?image_id=" + val + "&move_id=" + moveId.trim() + "&type=out&source=hrms";
+            }
+            return val;
         }
-        return outPhotoUrl;
+        if (isHasOut() && moveId != null && !moveId.trim().isEmpty() && !"null".equalsIgnoreCase(moveId.trim()) && !"0".equals(moveId.trim())) {
+            return "view_attendance_img.php?move_id=" + moveId.trim() + "&type=out&source=hrms";
+        }
+        return "";
+    }
+
+    private static boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        for (char c : str.trim().toCharArray()) {
+            if (!Character.isDigit(c)) return false;
+        }
+        return true;
     }
 
     public boolean isActive() {
