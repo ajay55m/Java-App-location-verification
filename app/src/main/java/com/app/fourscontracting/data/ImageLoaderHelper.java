@@ -175,9 +175,14 @@ public class ImageLoaderHelper {
                                     if (imgPhoto != null && avatarView != null) {
                                         imgPhoto.setImageBitmap(resource);
                                         imgPhoto.setVisibility(View.VISIBLE);
+                                        imgPhoto.invalidate();
+                                        imgPhoto.requestLayout();
                                         avatarView.setVisibility(View.GONE);
                                     } else {
                                         target.setImageBitmap(resource);
+                                        target.setVisibility(View.VISIBLE);
+                                        target.invalidate();
+                                        target.requestLayout();
                                     }
                                 }
                             }
@@ -221,9 +226,14 @@ public class ImageLoaderHelper {
                             if (imgPhoto != null && avatarView != null) {
                                 imgPhoto.setImageBitmap(bitmap);
                                 imgPhoto.setVisibility(View.VISIBLE);
+                                imgPhoto.invalidate();
+                                imgPhoto.requestLayout();
                                 avatarView.setVisibility(View.GONE);
                             } else {
                                 target.setImageBitmap(bitmap);
+                                target.setVisibility(View.VISIBLE);
+                                target.invalidate();
+                                target.requestLayout();
                             }
                         } else {
                             if (imgPhoto != null && avatarView != null) {

@@ -199,44 +199,11 @@ public class ManageAttendanceApi {
                         List<MoveRecordModel> moveRecords = new ArrayList<>();
                         JSONArray moveArray = response.optJSONArray("move_records");
                         if (moveArray != null) {
-                            for (int i = 0; i < moveArray.length(); i++) {
-                                JSONObject mObj = moveArray.optJSONObject(i);
-                                if (mObj != null) {
-                                    String mId = optCleanString(mObj, "move_id", "moveid", "attend_id", "attendance_id", "record_id", "id");
-                                    String idVal = optCleanString(mObj, "id");
-                                    if (mId.isEmpty() && !idVal.isEmpty()) {
-                                        mId = idVal;
-                                    }
-
-                                    String eId = resolveWorkerId(mObj, uid);
-                                    if (eId.isEmpty()) {
-                                        eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id", "uid", "userid", "user_id");
-                                    }
-
-                                    String fName = optCleanString(mObj, "first_name", "emp_name", "name", "employee_name", "username");
-                                    String pName = optCleanString(mObj, "projname", "project_name", "project", "location_name", "department_name", "site_name");
-                                    String iTime = optCleanString(mObj, "in_time", "timein", "time_in");
-                                    String oTime = optCleanString(mObj, "out_time", "timeout", "time_out");
-
-                                    boolean hasIn = optCleanBoolean(mObj, "has_in", iTime);
-                                    boolean hasOut = optCleanBoolean(mObj, "has_out", oTime);
-                                    String inPhoto = optCleanString(mObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "move_in_photo", "move_in_image", "move_photo_in", "move_in", "in_image_id", "in_photo_id", "move_in_image_id", "photo_in_id");
-                                    String outPhoto = optCleanString(mObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo", "move_out_photo", "move_out_image", "move_photo_out", "move_out", "out_image_id", "out_photo_id", "move_out_image_id", "photo_out_id");
-
-                                    moveRecords.add(new MoveRecordModel(
-                                            mId,
-                                            eId,
-                                            fName,
-                                            pName,
-                                            iTime,
-                                            oTime,
-                                            hasIn,
-                                            hasOut,
-                                            inPhoto,
-                                            outPhoto
-                                    ));
-                                }
-                            }
+                            parseMoveRecordsJsonArray(moveArray, uid, moveRecords);
+                        }
+                        JSONArray ownMoveArray = response.optJSONArray("own_move_records");
+                        if (ownMoveArray != null) {
+                            parseMoveRecordsJsonArray(ownMoveArray, uid, moveRecords);
                         }
 
                         callback.onSuccess(userName, projects, attendanceRecords, moveRecords);
@@ -378,5 +345,47 @@ public class ManageAttendanceApi {
         }
 
         return "";
+    }
+
+    private static void parseMoveRecordsJsonArray(JSONArray moveArray, String uid, List<MoveRecordModel> outList) {
+        if (moveArray == null || outList == null) return;
+        for (int i = 0; i < moveArray.length(); i++) {
+            JSONObject mObj = moveArray.optJSONObject(i);
+            if (mObj != null) {
+                String mId = optCleanString(mObj, "move_id", "moveid", "attend_id", "attendance_id", "record_id", "id");
+                String idVal = optCleanString(mObj, "id");
+                if (mId.isEmpty() && !idVal.isEmpty()) {
+                    mId = idVal;
+                }
+
+                String eId = resolveWorkerId(mObj, uid);
+                if (eId.isEmpty()) {
+                    eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id", "uid", "userid", "user_id");
+                }
+
+                String fName = optCleanString(mObj, "first_name", "emp_name", "name", "employee_name", "username");
+                String pName = optCleanString(mObj, "projname", "project_name", "project", "location_name", "department_name", "site_name");
+                String iTime = optCleanString(mObj, "in_time", "timein", "time_in");
+                String oTime = optCleanString(mObj, "out_time", "timeout", "time_out");
+
+                boolean hasIn = optCleanBoolean(mObj, "has_in", iTime);
+                boolean hasOut = optCleanBoolean(mObj, "has_out", oTime);
+                String inPhoto = optCleanString(mObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "move_in_photo", "move_in_image", "move_photo_in", "move_in", "in_image_id", "in_photo_id", "move_in_image_id", "photo_in_id");
+                String outPhoto = optCleanString(mObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo", "move_out_photo", "move_out_image", "move_photo_out", "move_out", "out_image_id", "out_photo_id", "move_out_image_id", "photo_out_id");
+
+                outList.add(new MoveRecordModel(
+                        mId,
+                        eId,
+                        fName,
+                        pName,
+                        iTime,
+                        oTime,
+                        hasIn,
+                        hasOut,
+                        inPhoto,
+                        outPhoto
+                ));
+            }
+        }
     }
 }
