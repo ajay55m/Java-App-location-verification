@@ -78,6 +78,7 @@ public class ImageLoaderHelper {
 
         if (photoUrl == null || photoUrl.trim().isEmpty() || "null".equalsIgnoreCase(photoUrl.trim())) {
             if (target != null) {
+                target.setTag(com.app.fourscontracting.R.id.img_lightbox_target, null);
                 target.setTag(null);
                 target.setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
             }
@@ -92,6 +93,7 @@ public class ImageLoaderHelper {
         String url = sanitizeUrl(photoUrl);
         if (url == null || url.isEmpty()) {
             if (target != null) {
+                target.setTag(com.app.fourscontracting.R.id.img_lightbox_target, null);
                 target.setTag(null);
                 target.setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
             }
@@ -103,6 +105,7 @@ public class ImageLoaderHelper {
             return;
         }
 
+        target.setTag(com.app.fourscontracting.R.id.img_lightbox_target, url);
         target.setTag(url);
 
         // Check Memory Cache first
@@ -133,7 +136,14 @@ public class ImageLoaderHelper {
 
         final String requestUrl = url;
 
-        // Try Glide loading with authenticated headers
+        // PHP image endpoints (view_attendance_img.php, get_photo.php) contain leading whitespace/null bytes
+        // that fail standard Glide stream decoding. Route directly to sanitizer fallback.
+        if (requestUrl.contains("view_attendance_img.php") || requestUrl.contains("get_photo.php")) {
+            loadWithSanitizerFallback(context, requestUrl, imgPhoto, avatarView, target);
+            return;
+        }
+
+        // Try Glide loading with authenticated headers for static image resources
         if (context != null && !requestUrl.startsWith("data:image/")) {
             try {
                 LazyHeaders.Builder builder = new LazyHeaders.Builder()
@@ -156,8 +166,9 @@ public class ImageLoaderHelper {
                         .into(new com.bumptech.glide.request.target.CustomTarget<Bitmap>() {
                             @Override
                             public void onResourceReady(@NonNull Bitmap resource, @Nullable com.bumptech.glide.request.transition.Transition<? super Bitmap> transition) {
-                                Object currentTag = target.getTag();
-                                if (currentTag == null || requestUrl.equals(currentTag)) {
+                                Object currentTag = target.getTag(com.app.fourscontracting.R.id.img_lightbox_target);
+                                if (currentTag == null) currentTag = target.getTag();
+                                if (currentTag == null || requestUrl.equals(currentTag) || !(currentTag instanceof String)) {
                                     LruCache<String, Bitmap> c = getMemoryCache();
                                     if (c != null) c.put(requestUrl, resource);
 
@@ -203,8 +214,9 @@ public class ImageLoaderHelper {
             Handler handler = getMainHandler();
             if (handler != null) {
                 handler.post(() -> {
-                    Object currentTag = target.getTag();
-                    if (currentTag == null || requestUrl.equals(currentTag)) {
+                    Object currentTag = target.getTag(com.app.fourscontracting.R.id.img_lightbox_target);
+                    if (currentTag == null) currentTag = target.getTag();
+                    if (currentTag == null || requestUrl.equals(currentTag) || !(currentTag instanceof String)) {
                         if (bitmap != null) {
                             if (imgPhoto != null && avatarView != null) {
                                 imgPhoto.setImageBitmap(bitmap);
