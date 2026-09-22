@@ -88,11 +88,14 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         holder.tvInTime.setText(formatTime(item.getInTime()));
         holder.tvOutTime.setText(formatTime(item.getOutTime()));
 
+        // Base URL for the image script
+        String baseUrl = ApiConfig.SUBCONTRACTOR + "/view_attendance_img.php?source=hrms&move_id=" + item.getMoveId() + "&type=";
+
         // IN Photo
-        if (!item.getInPhotoUrl().isEmpty()) {
+        if (item.isHasIn() || !item.getInPhotoUrl().isEmpty()) {
             holder.imgInPhoto.setVisibility(View.VISIBLE);
             holder.llInNoPhoto.setVisibility(View.GONE);
-            String fullInUrl = sanitizePhotoUrl(item.getInPhotoUrl());
+            String fullInUrl = baseUrl + "in";
             ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
 
             holder.imgInPhoto.setOnClickListener(v -> {
@@ -107,10 +110,10 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         }
 
         // OUT Photo
-        if (!item.getOutPhotoUrl().isEmpty()) {
+        if (item.isHasOut() || !item.getOutPhotoUrl().isEmpty()) {
             holder.imgOutPhoto.setVisibility(View.VISIBLE);
             holder.llOutNoPhoto.setVisibility(View.GONE);
-            String fullOutUrl = sanitizePhotoUrl(item.getOutPhotoUrl());
+            String fullOutUrl = baseUrl + "out";
             ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
 
             holder.imgOutPhoto.setOnClickListener(v -> {
@@ -135,12 +138,6 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
     @Override
     public int getItemCount() {
         return list.size();
-    }
-
-    private String sanitizePhotoUrl(String photoUrl) {
-        if (photoUrl == null || photoUrl.trim().isEmpty()) return "";
-        String sanitized = ImageLoaderHelper.sanitizeUrl(photoUrl);
-        return sanitized != null ? sanitized : "";
     }
 
     private String formatTime(String rawTime) {
