@@ -142,8 +142,8 @@ public class ManageAttendanceApi {
                                         ownObj.optDouble("break_hours", 0.0),
                                         ownObj.optBoolean("has_in", !timeInVal.isEmpty() && !"--".equals(timeInVal)),
                                         ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
-                                        ownObj.optString("in_photo_url", ""),
-                                        ownObj.optString("out_photo_url", "")
+                                        optCleanString(ownObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "photo", "photo_url"),
+                                        optCleanString(ownObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo")
                                 ));
                             }
                         }
@@ -199,11 +199,11 @@ public class ManageAttendanceApi {
                         List<MoveRecordModel> moveRecords = new ArrayList<>();
                         JSONArray moveArray = response.optJSONArray("move_records");
                         if (moveArray != null) {
-                            parseMoveRecordsJsonArray(moveArray, uid, moveRecords);
+                            parseMoveRecordsJsonArray(moveArray, uid, moveRecords, false);
                         }
                         JSONArray ownMoveArray = response.optJSONArray("own_move_records");
                         if (ownMoveArray != null) {
-                            parseMoveRecordsJsonArray(ownMoveArray, uid, moveRecords);
+                            parseMoveRecordsJsonArray(ownMoveArray, uid, moveRecords, true);
                         }
 
                         callback.onSuccess(userName, projects, attendanceRecords, moveRecords);
@@ -347,7 +347,7 @@ public class ManageAttendanceApi {
         return "";
     }
 
-    private static void parseMoveRecordsJsonArray(JSONArray moveArray, String uid, List<MoveRecordModel> outList) {
+    private static void parseMoveRecordsJsonArray(JSONArray moveArray, String uid, List<MoveRecordModel> outList, boolean isOwnRecords) {
         if (moveArray == null || outList == null) return;
         for (int i = 0; i < moveArray.length(); i++) {
             JSONObject mObj = moveArray.optJSONObject(i);
@@ -360,7 +360,10 @@ public class ManageAttendanceApi {
 
                 String eId = resolveWorkerId(mObj, uid);
                 if (eId.isEmpty()) {
-                    eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id", "uid", "userid", "user_id");
+                    eId = optCleanString(mObj, "empid", "emp_id", "employee_id", "labor_id", "labour_id", "subcontractor_id", "sub_id", "employee_code", "emp_code", "member_id");
+                }
+                if (eId.isEmpty() && isOwnRecords && uid != null && !uid.trim().isEmpty()) {
+                    eId = uid.trim();
                 }
 
                 String fName = optCleanString(mObj, "first_name", "emp_name", "name", "employee_name", "username");

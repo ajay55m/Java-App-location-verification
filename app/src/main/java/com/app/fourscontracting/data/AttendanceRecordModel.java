@@ -95,22 +95,41 @@ public class AttendanceRecordModel {
 
     public String getInPhotoUrl() {
         if (inPhotoUrl != null && !inPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(inPhotoUrl.trim()) && !"0".equals(inPhotoUrl.trim())) {
-            return inPhotoUrl.trim();
+            String val = inPhotoUrl.trim();
+            if (isNumeric(val) && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
+                return "view_attendance_img.php?image_id=" + val + "&attendance_id=" + attendId.trim() + "&type=in&source=hrms";
+            }
+            return val;
         }
         if (isHasIn() && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
             return "view_attendance_img.php?attendance_id=" + attendId.trim() + "&type=in&source=hrms";
+        }
+        if (isHasIn() && empId != null && !empId.trim().isEmpty() && !"null".equalsIgnoreCase(empId.trim()) && !"0".equals(empId.trim())) {
+            return "get_photo.php?id=" + empId.trim();
         }
         return "";
     }
 
     public String getOutPhotoUrl() {
         if (outPhotoUrl != null && !outPhotoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(outPhotoUrl.trim()) && !"0".equals(outPhotoUrl.trim())) {
-            return outPhotoUrl.trim();
+            String val = outPhotoUrl.trim();
+            if (isNumeric(val) && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
+                return "view_attendance_img.php?image_id=" + val + "&attendance_id=" + attendId.trim() + "&type=out&source=hrms";
+            }
+            return val;
         }
         if (isHasOut() && attendId != null && !attendId.trim().isEmpty() && !"null".equalsIgnoreCase(attendId.trim()) && !"0".equals(attendId.trim())) {
             return "view_attendance_img.php?attendance_id=" + attendId.trim() + "&type=out&source=hrms";
         }
         return "";
+    }
+
+    private static boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        for (char c : str.trim().toCharArray()) {
+            if (!Character.isDigit(c)) return false;
+        }
+        return true;
     }
 
     public boolean isActive() {

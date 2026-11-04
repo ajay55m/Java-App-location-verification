@@ -254,6 +254,9 @@ public class ImageLoaderHelper {
             return null;
         }
         String url = photoUrl.trim();
+        if (url.startsWith("data:image/")) {
+            return url;
+        }
         if (url.contains("view_attendance_img.php") && !url.contains("source=")) {
             url = url + (url.contains("?") ? "&source=hrms" : "?source=hrms");
         }

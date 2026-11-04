@@ -102,10 +102,11 @@ public class MoveRecordModel {
     }
 
     public boolean isActive() {
+        if (!hasOut) return true;
         if (outTime == null || outTime.trim().isEmpty() || "--".equals(outTime.trim())) {
             return true;
         }
         String t = outTime.trim();
-        return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "null".equalsIgnoreCase(t);
+        return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "12:00 AM".equalsIgnoreCase(t) || "12.00 AM".equalsIgnoreCase(t) || "null".equalsIgnoreCase(t);
     }
 }

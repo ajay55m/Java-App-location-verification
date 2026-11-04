@@ -112,18 +112,28 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         holder.tvInTime.setText(formatTime(item.getTimeIn()));
         holder.tvOutTime.setText(formatTime(item.getTimeOut()));
 
-        // IN Photo
-        if (item.isHasIn() && !item.getInPhotoUrl().isEmpty()) {
-            holder.imgInPhoto.setVisibility(View.VISIBLE);
-            holder.llInNoPhoto.setVisibility(View.GONE);
-            String fullInUrl = sanitizePhotoUrl(item.getInPhotoUrl());
-            ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
+        // Base URL for attendance photo endpoint script
+        String baseUrl = (!item.getAttendId().isEmpty()) ? (ApiConfig.SUBCONTRACTOR + "/view_attendance_img.php?source=hrms&attendance_id=" + item.getAttendId() + "&type=") : "";
 
-            holder.imgInPhoto.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onPhotoClicked(fullInUrl);
-                }
-            });
+        // IN Photo
+        if (item.isHasIn() || !item.getInPhotoUrl().isEmpty()) {
+            String rawIn = !item.getInPhotoUrl().isEmpty() ? item.getInPhotoUrl() : (!baseUrl.isEmpty() ? (baseUrl + "in") : "");
+            String fullInUrl = sanitizePhotoUrl(rawIn);
+            if (!fullInUrl.isEmpty()) {
+                holder.imgInPhoto.setVisibility(View.VISIBLE);
+                holder.llInNoPhoto.setVisibility(View.GONE);
+                ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
+
+                holder.imgInPhoto.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onPhotoClicked(fullInUrl);
+                    }
+                });
+            } else {
+                holder.imgInPhoto.setVisibility(View.GONE);
+                holder.llInNoPhoto.setVisibility(View.VISIBLE);
+                holder.imgInPhoto.setOnClickListener(null);
+            }
         } else {
             holder.imgInPhoto.setVisibility(View.GONE);
             holder.llInNoPhoto.setVisibility(View.VISIBLE);
@@ -131,17 +141,24 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         }
 
         // OUT Photo
-        if (item.isHasOut() && !item.getOutPhotoUrl().isEmpty()) {
-            holder.imgOutPhoto.setVisibility(View.VISIBLE);
-            holder.llOutNoPhoto.setVisibility(View.GONE);
-            String fullOutUrl = sanitizePhotoUrl(item.getOutPhotoUrl());
-            ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
+        if (item.isHasOut() || !item.getOutPhotoUrl().isEmpty()) {
+            String rawOut = !item.getOutPhotoUrl().isEmpty() ? item.getOutPhotoUrl() : (!baseUrl.isEmpty() ? (baseUrl + "out") : "");
+            String fullOutUrl = sanitizePhotoUrl(rawOut);
+            if (!fullOutUrl.isEmpty()) {
+                holder.imgOutPhoto.setVisibility(View.VISIBLE);
+                holder.llOutNoPhoto.setVisibility(View.GONE);
+                ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
 
-            holder.imgOutPhoto.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onPhotoClicked(fullOutUrl);
-                }
-            });
+                holder.imgOutPhoto.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onPhotoClicked(fullOutUrl);
+                    }
+                });
+            } else {
+                holder.imgOutPhoto.setVisibility(View.GONE);
+                holder.llOutNoPhoto.setVisibility(View.VISIBLE);
+                holder.imgOutPhoto.setOnClickListener(null);
+            }
         } else {
             holder.imgOutPhoto.setVisibility(View.GONE);
             holder.llOutNoPhoto.setVisibility(View.VISIBLE);

@@ -41,6 +41,7 @@ import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
 import com.app.fourscontracting.data.MoveEmployeeModel;
+import com.app.fourscontracting.data.MoveFeedAdapter;
 import com.app.fourscontracting.data.MoveRecordModel;
 import com.app.fourscontracting.data.MoveSiteApi;
 
@@ -55,7 +56,7 @@ import java.util.Locale;
  * while viewing past attendance history records with date filtering.
  */
 public class SupervisorAttendanceFragment extends Fragment
-        implements AttendanceFeedAdapter.Listener {
+        implements AttendanceFeedAdapter.Listener, MoveFeedAdapter.Listener {
 
     private static final int REQUEST_CODE_SELF_PUNCH = 2001;
 
@@ -88,6 +89,13 @@ public class SupervisorAttendanceFragment extends Fragment
     private TextView tvHistoryEmptyMsg;
     private RecyclerView rvPastHistory;
     private AttendanceFeedAdapter historyAdapter;
+
+    // Move Site History Views
+    private TextView tvMoveHistoryStatCount;
+    private View llMoveHistoryEmpty;
+    private TextView tvMoveHistoryEmptyMsg;
+    private RecyclerView rvSupervisorMoveHistory;
+    private MoveFeedAdapter moveHistoryAdapter;
 
     private String supervisorUid = "";
     private String supervisorName = "";
@@ -143,6 +151,12 @@ public class SupervisorAttendanceFragment extends Fragment
         rvPastHistory.setLayoutManager(new LinearLayoutManager(context));
         rvPastHistory.setAdapter(historyAdapter);
 
+        moveHistoryAdapter = new MoveFeedAdapter(this);
+        if (rvSupervisorMoveHistory != null) {
+            rvSupervisorMoveHistory.setLayoutManager(new LinearLayoutManager(context));
+            rvSupervisorMoveHistory.setAdapter(moveHistoryAdapter);
+        }
+
         setupHistoryDateSpinners();
 
         loadSupervisorAttendanceData();
@@ -178,6 +192,12 @@ public class SupervisorAttendanceFragment extends Fragment
         llHistoryEmpty = view.findViewById(R.id.ll_supervisor_history_empty);
         tvHistoryEmptyMsg = view.findViewById(R.id.tv_supervisor_history_empty_msg);
         rvPastHistory = view.findViewById(R.id.rv_supervisor_past_history);
+
+        // Move Site History Views Initialization
+        tvMoveHistoryStatCount = view.findViewById(R.id.tv_move_history_stat_count);
+        llMoveHistoryEmpty = view.findViewById(R.id.ll_move_history_empty);
+        tvMoveHistoryEmptyMsg = view.findViewById(R.id.tv_move_history_empty_msg);
+        rvSupervisorMoveHistory = view.findViewById(R.id.rv_supervisor_move_history);
 
         View btnHistoryRefresh = view.findViewById(R.id.btn_supervisor_history_refresh);
         if (btnHistoryRefresh != null) {
@@ -378,42 +398,33 @@ public class SupervisorAttendanceFragment extends Fragment
         if (sUid.isEmpty()) return false;
 
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
-        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
-            boolean isSame = eId.equalsIgnoreCase(sUid);
-            if (!isSame) {
-                try {
-                    isSame = Integer.parseInt(eId) == Integer.parseInt(sUid);
-                } catch (Exception ignored) {}
-            }
-            return isSame;
-        }
-
         String uId = r.getUserId() != null ? r.getUserId().trim() : "";
-        if (!uId.isEmpty() && !"--".equals(uId) && !"null".equalsIgnoreCase(uId)) {
-            boolean isSameUser = uId.equalsIgnoreCase(sUid);
-            if (!isSameUser) {
-                try {
-                    isSameUser = Integer.parseInt(uId) == Integer.parseInt(sUid);
-                } catch (Exception ignored) {}
-            }
-            if (isSameUser) {
-                String workerName = r.getFirstName() != null ? r.getFirstName().trim() : "";
-                if (workerName.isEmpty() || "User".equalsIgnoreCase(workerName) || "Supervisor".equalsIgnoreCase(workerName)) {
-                    return true;
-                }
-            }
+        String fName = r.getFirstName() != null ? r.getFirstName().trim() : "";
+        String sName = supervisorName != null ? supervisorName.trim() : "";
+
+        // 1. Direct eId match
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
         }
 
-        if (!TextUtils.isEmpty(r.getFirstName()) && !TextUtils.isEmpty(supervisorName)) {
-            String name = r.getFirstName().trim();
-            String supName = supervisorName.trim();
-            if (supName.equalsIgnoreCase(name)) {
-                if (!eId.isEmpty() && !sUid.isEmpty() && !eId.equalsIgnoreCase(sUid)) {
-                    return false;
-                }
+        // 2. Direct uId / userId match
+        if (!uId.isEmpty() && !"--".equals(uId) && !"null".equalsIgnoreCase(uId)) {
+            if (uId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (Integer.parseInt(uId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Supervisor name match if name is provided and not generic "Worker"
+        if (!fName.isEmpty() && !"Worker".equalsIgnoreCase(fName) && !sName.isEmpty()) {
+            if (fName.equalsIgnoreCase(sName)) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -421,14 +432,35 @@ public class SupervisorAttendanceFragment extends Fragment
         if (r == null || supervisorUid == null || supervisorUid.trim().isEmpty()) return false;
         String sUid = supervisorUid.trim();
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        String fName = r.getFirstName() != null ? r.getFirstName().trim() : "";
+        String sName = supervisorName != null ? supervisorName.trim() : "";
+
+        // Reject generic "Worker" entries and non-supervisor worker names
+        if (!fName.isEmpty()) {
+            if ("Worker".equalsIgnoreCase(fName)) return false;
+            if (!sName.isEmpty() && !"User".equalsIgnoreCase(fName) && !"Supervisor".equalsIgnoreCase(fName)) {
+                if (!fName.equalsIgnoreCase(sName)) {
+                    return false;
+                }
+            }
+        }
+
+        // 1. Check eId match against supervisorUid
         if (!eId.isEmpty()) {
             if (eId.equalsIgnoreCase(sUid)) return true;
             try {
                 if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
             } catch (Exception ignored) {}
         }
+
+        // 2. Check fName match against supervisorName
+        if (!fName.isEmpty() && !sName.isEmpty() && fName.equalsIgnoreCase(sName)) {
+            return true;
+        }
+
         return false;
     }
+
 
     private void processSupervisorAttendanceFeed(String userName, 
                                               List<AttendanceRecordModel> attendanceRecords, 
@@ -529,11 +561,15 @@ public class SupervisorAttendanceFragment extends Fragment
         if (empId == null || supervisorUid == null) return false;
         String eId = empId.trim();
         String sUid = supervisorUid.trim();
-        if (eId.isEmpty() || sUid.isEmpty()) return false;
-        if (eId.equalsIgnoreCase(sUid)) return true;
-        try {
-            return Integer.parseInt(eId) == Integer.parseInt(sUid);
-        } catch (Exception ignored) {}
+        if (!eId.isEmpty() && !sUid.isEmpty()) {
+            if (eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+        if (!eId.isEmpty() && !supervisorName.isEmpty() && !"Worker".equalsIgnoreCase(eId)) {
+            if (eId.equalsIgnoreCase(supervisorName.trim())) return true;
+        }
         return false;
     }
 
@@ -717,39 +753,39 @@ public class SupervisorAttendanceFragment extends Fragment
                     }
                 }
 
+                List<MoveRecordModel> moveHistoryList = new ArrayList<>();
                 if (moveRecords != null) {
-    for (MoveRecordModel m : moveRecords) {
-        if (m != null && isSupervisorSelfMoveRecord(m)) {
-            String displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
-            String siteName = m.getProjName();
-            if (TextUtils.isEmpty(siteName)) siteName = "Moved Site";
-            if (!siteName.toLowerCase().contains("moved")) {
-                siteName = siteName + " (Moved Site)";
-            }
-
-            historyList.add(new AttendanceRecordModel(
-                    "MOVE_" + m.getMoveId(),
-                    supervisorUid,
-                    m.getEmpId(),
-                    displayName,
-                    siteName,
-                    m.getInTime(),
-                    m.getOutTime(),
-                    0.0,
-                    m.isHasIn(),
-                    m.isHasOut(),
-                    m.getInPhotoUrl(),
-                    m.getOutPhotoUrl()
-            ));
-        }
-    }
-}
+                    for (MoveRecordModel m : moveRecords) {
+                        if (m != null && isSupervisorSelfMoveRecord(m)) {
+                            String displayName = m.getFirstName();
+                            if (TextUtils.isEmpty(displayName) || "Worker".equalsIgnoreCase(displayName.trim()) || "User".equalsIgnoreCase(displayName.trim()) || "Supervisor".equalsIgnoreCase(displayName.trim())) {
+                                displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
+                            }
+                            moveHistoryList.add(new MoveRecordModel(
+                                    m.getMoveId(),
+                                    m.getEmpId(),
+                                    displayName,
+                                    m.getProjName(),
+                                    m.getInTime(),
+                                    m.getOutTime(),
+                                    m.isHasIn(),
+                                    m.isHasOut(),
+                                    m.getInPhotoUrl(),
+                                    m.getOutPhotoUrl()
+                            ));
+                        }
+                    }
+                }
 
                 if (historyAdapter != null) {
                     historyAdapter.setItems(historyList);
                 }
+                if (moveHistoryAdapter != null) {
+                    moveHistoryAdapter.setItems(moveHistoryList);
+                }
 
                 updateHistoryUiStats(historyList);
+                updateMoveHistoryUiStats(moveHistoryList);
             }
 
             @Override
@@ -757,7 +793,9 @@ public class SupervisorAttendanceFragment extends Fragment
                 if (!isAdded()) return;
                 if (progressHistory != null) progressHistory.setVisibility(View.GONE);
                 if (historyAdapter != null) historyAdapter.setItems(new ArrayList<>());
+                if (moveHistoryAdapter != null) moveHistoryAdapter.setItems(new ArrayList<>());
                 updateHistoryUiStats(new ArrayList<>());
+                updateMoveHistoryUiStats(new ArrayList<>());
             }
         });
     }
@@ -789,6 +827,24 @@ public class SupervisorAttendanceFragment extends Fragment
                 }
             } else {
                 llHistoryEmpty.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void updateMoveHistoryUiStats(List<MoveRecordModel> moveRecords) {
+        int total = moveRecords != null ? moveRecords.size() : 0;
+        if (tvMoveHistoryStatCount != null) {
+            tvMoveHistoryStatCount.setText(total + (total == 1 ? " MOVE" : " MOVES"));
+        }
+
+        if (llMoveHistoryEmpty != null) {
+            if (total == 0) {
+                llMoveHistoryEmpty.setVisibility(View.VISIBLE);
+                if (tvMoveHistoryEmptyMsg != null) {
+                    tvMoveHistoryEmptyMsg.setText("No move site records found for the selected date.");
+                }
+            } else {
+                llMoveHistoryEmpty.setVisibility(View.GONE);
             }
         }
     }
@@ -992,6 +1048,13 @@ public class SupervisorAttendanceFragment extends Fragment
     @Override
     public void onPhotoClicked(String photoUrl) {
         showLightboxDialog(photoUrl);
+    }
+
+    @Override
+    public void onMoveOutClicked(MoveRecordModel record) {
+        if (record != null && record.isActive()) {
+            performSupervisorMoveOut(record);
+        }
     }
 
     @Override

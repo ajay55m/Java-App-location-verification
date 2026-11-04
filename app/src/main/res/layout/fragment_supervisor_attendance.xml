@@ -12,7 +12,7 @@
         android:orientation="vertical"
         android:padding="14dp">
 
-        <!-- Supervisor Profile Hero Card -->
+        <!-- 1. Supervisor Profile Hero Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -112,7 +112,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Today's Self Punch Card -->
+        <!-- 2. Today's Self Punch & Actions Card (Single Card Model for Today's Controls) -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -120,8 +120,8 @@
             app:cardBackgroundColor="#FFFFFF"
             app:cardCornerRadius="20dp"
             app:cardElevation="3dp"
-            app:strokeColor="#E2E8F0"
-            app:strokeWidth="1dp">
+            app:strokeColor="#CBD5E1"
+            app:strokeWidth="1.5dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -233,73 +233,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
+                    android:layout_marginBottom="14dp"
                     android:fontFamily="sans-serif-medium"
                     android:text="Project: --"
                     android:textColor="#64748B"
                     android:textSize="12sp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <!-- HIGHLIGHTED SUPERVISOR ACTIONS CARD -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="#F0F9FF"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="4dp"
-            app:strokeColor="#0284C7"
-            app:strokeWidth="2dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentStart="true"
-                        android:layout_centerVertical="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="⚡ "
-                            android:textSize="14sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-black"
-                            android:letterSpacing="0.06"
-                            android:text="SUPERVISOR ACTIONS"
-                            android:textColor="#03045E"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:background="@drawable/bg_top_header_pill"
-                        android:fontFamily="sans-serif-bold"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="3dp"
-                        android:text="LIVE CONTROL"
-                        android:textColor="#0284C7"
-                        android:textSize="10sp" />
-                </RelativeLayout>
-
+                <!-- Action Buttons Container inside same card -->
                 <!-- Self TIME IN Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_self_time_in"
@@ -355,15 +295,16 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- SUPERVISOR PAST ATTENDANCE HISTORY MANAGE SECTION -->
+        <!-- 3. UNIFIED HISTORY SECTION (SINGLE CARD MODEL FOR HISTORY) -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             app:cardBackgroundColor="#FFFFFF"
             app:cardCornerRadius="20dp"
-            app:cardElevation="4dp"
-            app:strokeWidth="0dp">
+            app:cardElevation="3dp"
+            app:strokeColor="#CBD5E1"
+            app:strokeWidth="1.5dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -371,7 +312,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- Section Header Title -->
+                <!-- Section Main Header Title & Refresh Button -->
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -389,7 +330,7 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="sans-serif-black"
                             android:letterSpacing="0.04"
-                            android:text="HISTORY"
+                            android:text="ATTENDANCE &amp; MOVE HISTORY"
                             android:textColor="#0F172A"
                             android:textSize="14sp" />
                     </LinearLayout>
@@ -561,7 +502,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-
                 <!-- History Progress Bar -->
                 <ProgressBar
                     android:id="@+id/progress_supervisor_history"
@@ -571,7 +511,18 @@
                     android:layout_marginVertical="12dp"
                     android:visibility="gone" />
 
-                <!-- Empty State -->
+                <!-- SECTION A: PAST ATTENDANCE HISTORY -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:fontFamily="sans-serif-bold"
+                    android:letterSpacing="0.04"
+                    android:text="ATTENDANCE PUNCH HISTORY"
+                    android:textColor="#475569"
+                    android:textSize="11sp" />
+
+                <!-- Empty State for Attendance History -->
                 <LinearLayout
                     android:id="@+id/ll_supervisor_history_empty"
                     android:layout_width="match_parent"
@@ -602,6 +553,95 @@
                 <!-- Past Attendance History List -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_supervisor_past_history"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
+
+                <!-- SEPARATOR DIVIDER BETWEEN NORMAL HISTORY AND MOVE SITE HISTORY -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="#E2E8F0" />
+
+                <!-- SECTION B: MOVE SITE HISTORY -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginEnd="6dp"
+                            app:srcCompat="@drawable/ic_baseline_move_site_24"
+                            app:tint="#4F46E5" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-bold"
+                            android:letterSpacing="0.04"
+                            android:text="MOVE SITE HISTORY"
+                            android:textColor="#4F46E5"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_move_history_stat_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_top_header_pill"
+                        android:fontFamily="sans-serif-bold"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="3dp"
+                        android:text="0 MOVES"
+                        android:textColor="#4F46E5"
+                        android:textSize="10sp" />
+                </RelativeLayout>
+
+                <!-- Empty State for Move Site History -->
+                <LinearLayout
+                    android:id="@+id/ll_move_history_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        app:srcCompat="@drawable/ic_baseline_move_site_24"
+                        app:tint="#94A3B8" />
+
+                    <TextView
+                        android:id="@+id/tv_move_history_empty_msg"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:gravity="center"
+                        android:text="No move site records found for this date."
+                        android:textColor="#64748B"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Move Site History List -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_supervisor_move_history"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:nestedScrollingEnabled="false" />

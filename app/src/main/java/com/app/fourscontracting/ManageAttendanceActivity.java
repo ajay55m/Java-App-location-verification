@@ -279,13 +279,11 @@ public class ManageAttendanceActivity extends AppActivity
         if (r == null || uid == null || uid.trim().isEmpty()) return false;
         String sUid = uid.trim();
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
-
-        if (!eId.isEmpty()) {
-            if (eId.equalsIgnoreCase(sUid)) return true;
-            try {
-                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
-            } catch (Exception ignored) {}
-        }
+        if (eId.isEmpty()) return true;
+        if (eId.equalsIgnoreCase(sUid)) return true;
+        try {
+            if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+        } catch (Exception ignored) {}
         return false;
     }
 

@@ -93,16 +93,23 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
 
         // IN Photo
         if (item.isHasIn() || !item.getInPhotoUrl().isEmpty()) {
-            holder.imgInPhoto.setVisibility(View.VISIBLE);
-            holder.llInNoPhoto.setVisibility(View.GONE);
-            String fullInUrl = baseUrl + "in";
-            ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
+            String rawIn = !item.getInPhotoUrl().isEmpty() ? item.getInPhotoUrl() : (baseUrl + "in");
+            String fullInUrl = sanitizePhotoUrl(rawIn);
+            if (!fullInUrl.isEmpty()) {
+                holder.imgInPhoto.setVisibility(View.VISIBLE);
+                holder.llInNoPhoto.setVisibility(View.GONE);
+                ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
 
-            holder.imgInPhoto.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onPhotoClicked(fullInUrl);
-                }
-            });
+                holder.imgInPhoto.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onPhotoClicked(fullInUrl);
+                    }
+                });
+            } else {
+                holder.imgInPhoto.setVisibility(View.GONE);
+                holder.llInNoPhoto.setVisibility(View.VISIBLE);
+                holder.imgInPhoto.setOnClickListener(null);
+            }
         } else {
             holder.imgInPhoto.setVisibility(View.GONE);
             holder.llInNoPhoto.setVisibility(View.VISIBLE);
@@ -111,16 +118,23 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
 
         // OUT Photo
         if (item.isHasOut() || !item.getOutPhotoUrl().isEmpty()) {
-            holder.imgOutPhoto.setVisibility(View.VISIBLE);
-            holder.llOutNoPhoto.setVisibility(View.GONE);
-            String fullOutUrl = baseUrl + "out";
-            ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
+            String rawOut = !item.getOutPhotoUrl().isEmpty() ? item.getOutPhotoUrl() : (baseUrl + "out");
+            String fullOutUrl = sanitizePhotoUrl(rawOut);
+            if (!fullOutUrl.isEmpty()) {
+                holder.imgOutPhoto.setVisibility(View.VISIBLE);
+                holder.llOutNoPhoto.setVisibility(View.GONE);
+                ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
 
-            holder.imgOutPhoto.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onPhotoClicked(fullOutUrl);
-                }
-            });
+                holder.imgOutPhoto.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onPhotoClicked(fullOutUrl);
+                    }
+                });
+            } else {
+                holder.imgOutPhoto.setVisibility(View.GONE);
+                holder.llOutNoPhoto.setVisibility(View.VISIBLE);
+                holder.imgOutPhoto.setOnClickListener(null);
+            }
         } else {
             holder.imgOutPhoto.setVisibility(View.GONE);
             holder.llOutNoPhoto.setVisibility(View.VISIBLE);
@@ -138,6 +152,12 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
     @Override
     public int getItemCount() {
         return list.size();
+    }
+
+    private String sanitizePhotoUrl(String photoUrl) {
+        if (photoUrl == null || photoUrl.trim().isEmpty()) return "";
+        String sanitized = ImageLoaderHelper.sanitizeUrl(photoUrl);
+        return sanitized != null ? sanitized : "";
     }
 
     private String formatTime(String rawTime) {
