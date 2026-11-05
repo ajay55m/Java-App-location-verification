@@ -101,25 +101,20 @@ public class AttendancePayload {
 
         String imgPathVal = nullToEmpty(imagepath);
         params.put("imagepath", imgPathVal);
-        params.put("image_path", imgPathVal);
         params.put("photo", imgPathVal);
 
         if ("OUT".equalsIgnoreCase(wireType)) {
             params.put("out_photo", imgPathVal);
             params.put("photo_out", imgPathVal);
-            params.put("out_image", imgPathVal);
-            params.put("move_out_photo", imgPathVal);
-            params.put("move_photo_out", imgPathVal);
-            params.put("move_out_image", imgPathVal);
-            params.put("move_out", imgPathVal);
+            if (isMovement) {
+                params.put("move_out_photo", imgPathVal);
+            }
         } else {
             params.put("in_photo", imgPathVal);
             params.put("photo_in", imgPathVal);
-            params.put("in_image", imgPathVal);
-            params.put("move_in_photo", imgPathVal);
-            params.put("move_photo_in", imgPathVal);
-            params.put("move_in_image", imgPathVal);
-            params.put("move_in", imgPathVal);
+            if (isMovement) {
+                params.put("move_in_photo", imgPathVal);
+            }
         }
 
         params.put("type", wireType);

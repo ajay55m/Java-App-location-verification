@@ -58,7 +58,7 @@ public class MainActivity extends AppActivity {
     UserLocalStore userLocalStore;
     String value = "";
     boolean doubleBackToExitPressedOnce = false;
-    String app_server_url = "https://4scontracting.com/SMCS_APP/fcm_app/subadminlogin.php";
+    String app_server_url = "https://www.4scontracting.com/SMCS_APP/fcm_app/subadminlogin.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -220,7 +220,12 @@ public class MainActivity extends AppActivity {
     }
 
     private void performLogin(final String rollNo, final String pwd, final String token) {
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, app_server_url,
+        String loginUrl = com.app.fourscontracting.data.ApiConfig.SUBADMIN_LOGIN;
+        if (loginUrl == null || loginUrl.isEmpty()) {
+            loginUrl = app_server_url;
+        }
+
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, loginUrl,
             new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
@@ -232,7 +237,8 @@ public class MainActivity extends AppActivity {
                     } else {
                         User user = new User(response);
                         someVariable = response;
-                        Toast.makeText(MainActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
+                        String welcomeName = !user.displayName.isEmpty() ? user.displayName : (!user.username.isEmpty() && !user.username.startsWith("{") ? user.username : rollNo);
+                        Toast.makeText(MainActivity.this, "Welcome, " + welcomeName + "! Login successful.", Toast.LENGTH_SHORT).show();
                         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
                         SharedPreferences.Editor editor = settings.edit();
                         editor.putString("username", response);
@@ -255,15 +261,28 @@ public class MainActivity extends AppActivity {
                     if (response != null && response.data != null) {
                         try {
                             String errorString = new String(response.data);
-                            Toast.makeText(MainActivity.this, errorString, Toast.LENGTH_LONG).show();
+                            if (errorString.startsWith("<") || errorString.contains("<head") || errorString.contains("<html")) {
+                                Toast.makeText(MainActivity.this, "Server connection error (Status " + response.statusCode + "). Please retry.", Toast.LENGTH_LONG).show();
+                            } else {
+                                String cleanMsg = UserLocalStore.getLoginErrorMessage(errorString);
+                                Toast.makeText(MainActivity.this, cleanMsg, Toast.LENGTH_LONG).show();
+                            }
                         } catch (Exception e) {
                             Toast.makeText(MainActivity.this, "Login error: " + error.getMessage(), Toast.LENGTH_LONG).show();
                         }
                     } else {
-                        Toast.makeText(MainActivity.this, "Network error during login", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "Network error during login. Please check connection.", Toast.LENGTH_LONG).show();
                     }
                 }
             }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "*/*");
+                return headers;
+            }
+
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
                 Map<String, String> params = new HashMap<>();
@@ -273,6 +292,13 @@ public class MainActivity extends AppActivity {
                 return params;
             }
         };
+
+        stringRequest.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                20000,
+                com.android.volley.DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
         MySingleton.getmInstance(MainActivity.this).addToRequestque(stringRequest);
     }
 

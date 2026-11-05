@@ -1,8 +1,38 @@
 package com.app.fourscontracting;
 
+import org.json.JSONObject;
+
 public class User {
-    public String username;
+    public String username; // Raw JSON response or username for backward compatibility
+    public String uid = "";
+    public String staffId = "";
+    public String userRole = "";
+    public String flag = "1";
+    public String email = "";
+    public String startLatLng = "0.0,0.0";
+    public String endLatLng = "0.0,0.0";
+    public String displayName = "";
+
     public User(String username) {
-        this.username = username;
+        this.username = username != null ? username : "";
+        parseJson(this.username);
+    }
+
+    private void parseJson(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return;
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("{")) {
+            try {
+                JSONObject obj = new JSONObject(trimmed);
+                this.uid = obj.optString("uid", obj.optString("id", obj.optString("user_id", "")));
+                this.staffId = obj.optString("staffid", obj.optString("staff_id", ""));
+                this.userRole = obj.optString("userrole", obj.optString("role", ""));
+                this.flag = obj.optString("flag", "1");
+                this.displayName = obj.optString("username", obj.optString("displayName", obj.optString("name", "")));
+                this.email = obj.optString("email", "");
+                this.startLatLng = obj.optString("start_lat_lng", "0.0,0.0");
+                this.endLatLng = obj.optString("end_lat_lng", "0.0,0.0");
+            } catch (Exception ignored) {}
+        }
     }
 }

@@ -29,7 +29,105 @@ public class UserLocalStore {
         if (prefs == null || user == null) return;
         SharedPreferences.Editor spEditor = prefs.edit();
         spEditor.putString("username", user.username != null ? user.username : "");
+        if (user.uid != null && !user.uid.isEmpty()) {
+            spEditor.putString("uid", user.uid);
+            spEditor.putString("user_id", user.uid);
+        }
+        if (user.staffId != null && !user.staffId.isEmpty()) {
+            spEditor.putString("staffid", user.staffId);
+            spEditor.putString("staff_id", user.staffId);
+        }
+        if (user.userRole != null && !user.userRole.isEmpty()) {
+            spEditor.putString("userrole", user.userRole);
+            spEditor.putString("role", user.userRole);
+        }
+        if (user.flag != null && !user.flag.isEmpty()) {
+            spEditor.putString("flag", user.flag);
+        }
+        if (user.displayName != null && !user.displayName.isEmpty()) {
+            spEditor.putString("display_name", user.displayName);
+        }
+        if (user.email != null) {
+            spEditor.putString("email", user.email);
+        }
+        if (user.startLatLng != null) {
+            spEditor.putString("start_lat_lng", user.startLatLng);
+        }
+        if (user.endLatLng != null) {
+            spEditor.putString("end_lat_lng", user.endLatLng);
+        }
         spEditor.apply();
+    }
+
+    public String getUid() {
+        SharedPreferences prefs = getPrefs();
+        String uid = prefs != null ? prefs.getString("uid", "") : "";
+        if (uid.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.uid != null && !u.uid.isEmpty()) {
+                uid = u.uid;
+            } else {
+                String raw = prefs != null ? prefs.getString("username", "") : "";
+                String[] parts = parseUserInfo(raw);
+                uid = parts.length > 0 ? parts[0] : "";
+            }
+        }
+        return uid;
+    }
+
+    public String getStaffId() {
+        SharedPreferences prefs = getPrefs();
+        String s = prefs != null ? prefs.getString("staffid", "") : "";
+        if (s.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.staffId != null) s = u.staffId;
+        }
+        return s;
+    }
+
+    public String getUserRole() {
+        SharedPreferences prefs = getPrefs();
+        String r = prefs != null ? prefs.getString("userrole", "") : "";
+        if (r.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.userRole != null) r = u.userRole;
+        }
+        return r;
+    }
+
+    public String getFlag() {
+        SharedPreferences prefs = getPrefs();
+        String f = prefs != null ? prefs.getString("flag", "") : "";
+        if (f.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.flag != null) f = u.flag;
+        }
+        return f;
+    }
+
+    public String getStartLatLng() {
+        SharedPreferences prefs = getPrefs();
+        String s = prefs != null ? prefs.getString("start_lat_lng", "") : "";
+        if (s.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.startLatLng != null) s = u.startLatLng;
+        }
+        return s;
+    }
+
+    public String getEndLatLng() {
+        SharedPreferences prefs = getPrefs();
+        String s = prefs != null ? prefs.getString("end_lat_lng", "") : "";
+        if (s.isEmpty()) {
+            User u = getLoggedInUser();
+            if (u != null && u.endLatLng != null) s = u.endLatLng;
+        }
+        return s;
+    }
+
+    public String getEmail() {
+        SharedPreferences prefs = getPrefs();
+        return prefs != null ? prefs.getString("email", "") : "";
     }
 
     public void storeUserProjectData(UserProject user) {
@@ -211,14 +309,16 @@ public class UserLocalStore {
                 if (uid.isEmpty()) uid = obj.optString("user_id", "");
                 if (uid.isEmpty()) uid = obj.optString("subadmin_id", "");
                 if (uid.isEmpty()) uid = obj.optString("empid", "");
+                if (uid.isEmpty()) uid = obj.optString("staffid", "");
 
-                String role = obj.optString("role", "");
-                if (role.isEmpty() || role.equals("0")) role = obj.optString("flag", "");
-                if (role.isEmpty()) role = obj.optString("user_type", "0");
+                String role = obj.optString("flag", "");
+                if (role.isEmpty() || role.equals("0")) role = obj.optString("userrole", "");
+                if (role.isEmpty()) role = obj.optString("role", "");
+                if (role.isEmpty()) role = obj.optString("user_type", "1");
 
-                String displayName = obj.optString("displayName", "");
+                String displayName = obj.optString("username", "");
+                if (displayName.isEmpty()) displayName = obj.optString("displayName", "");
                 if (displayName.isEmpty()) displayName = obj.optString("name", "");
-                if (displayName.isEmpty()) displayName = obj.optString("username", "");
                 if (displayName.isEmpty()) displayName = obj.optString("full_name", "");
                 if (displayName.isEmpty()) displayName = obj.optString("subadmin_name", "");
 

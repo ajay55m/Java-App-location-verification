@@ -148,7 +148,7 @@ public class ImageLoaderHelperTest {
     public void testMoveRecordModel_InAndOutPhotoUrlResolution() {
         // Case 1: Direct photo URLs provided
         com.app.fourscontracting.data.MoveRecordModel directRecord = new com.app.fourscontracting.data.MoveRecordModel(
-                "60", "301", "Ajay", "Site A", "09:00 AM", "05:00 PM", true, true,
+                "60", "301", "Worker", "Site A", "09:00 AM", "05:00 PM", true, true,
                 "https://4scontracting.com/uploads/move_in_60.jpg",
                 "https://4scontracting.com/uploads/move_out_60.jpg"
         );

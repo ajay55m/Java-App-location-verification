@@ -62,6 +62,16 @@ public class AttendanceResult {
             }
         }
 
+        if (trimmed.startsWith("<") || trimmed.contains("<head") || trimmed.contains("<html")) {
+            if (trimmed.contains("Not Acceptable") || trimmed.contains("Mod_Security")) {
+                return fail(AttendanceCodes.ERROR, "Server security check failed (406 Not Acceptable). Please try again.");
+            }
+            if (trimmed.contains("Forbidden") || trimmed.contains("403")) {
+                return fail(AttendanceCodes.ERROR, "Access forbidden (403). Please contact admin.");
+            }
+            return fail(AttendanceCodes.ERROR, "Server error received. Please try again.");
+        }
+
         if (trimmed.equalsIgnoreCase("success")) {
             return ok("Success");
         }

@@ -21,7 +21,7 @@ public class ManageAttendanceTest {
         JSONObject record = new JSONObject();
         record.put("empid", "301");
         record.put("userid", "85");
-        record.put("emp_name", "Ajay");
+        record.put("emp_name", "Worker");
 
         assertEquals("301", com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(record, "85"));
     }
@@ -374,7 +374,7 @@ public class ManageAttendanceTest {
     @Test
     public void testResolveTargetWorkerId_prefersEmpIdOverUserId() {
         AttendanceRecordModel record = new AttendanceRecordModel(
-                "1001", "85", "RST/001", "Ajay Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+                "1001", "85", "RST/001", "Standard Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
         );
         String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);
         String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record);
@@ -386,7 +386,7 @@ public class ManageAttendanceTest {
     @Test
     public void testResolveTargetWorkerId_fallsBackToUserIdWhenEmpIdMissing() {
         AttendanceRecordModel record = new AttendanceRecordModel(
-                "1002", "43", "--", "Ajay Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+                "1002", "43", "--", "Standard Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
         );
         String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, "85");
         String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record, "85");
@@ -399,7 +399,7 @@ public class ManageAttendanceTest {
     public void testResolveTargetWorkerId_rejectsSupervisorUidAsWorkerId() {
         String supervisorUid = "85";
         AttendanceRecordModel record = new AttendanceRecordModel(
-                "--", supervisorUid, "--", "Worker Ajay", "Site A", "09:00:00", "", 0.0, true, false, "", ""
+                "--", supervisorUid, "--", "Standard Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
         );
 
         String resolvedId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, supervisorUid);
@@ -413,7 +413,7 @@ public class ManageAttendanceTest {
         String attendId = "555";
 
         AttendanceRecordModel record = new AttendanceRecordModel(
-                attendId, supervisorUid, workerEmpId, "Ajay Worker", "Site A", "08:30:00", "", 0.0, true, false, "", ""
+                attendId, supervisorUid, workerEmpId, "Standard Worker", "Site A", "08:30:00", "", 0.0, true, false, "", ""
         );
 
         String targetWorkerId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);

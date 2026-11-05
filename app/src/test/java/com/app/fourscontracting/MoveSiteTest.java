@@ -186,14 +186,14 @@ public class MoveSiteTest {
     public void testMoveRecordPhotoUrlResolution() {
         // Case 1: Direct photo URL provided in API response
         MoveRecordModel recordWithDirectPhoto = new MoveRecordModel(
-                "60", "301", "Ajay", "Site A", "11:16 AM", "", true, false,
+                "60", "301", "Worker", "Site A", "11:16 AM", "", true, false,
                 "https://4scontracting.com/uploads/photo1.jpg", ""
         );
         assertEquals("https://4scontracting.com/uploads/photo1.jpg", recordWithDirectPhoto.getInPhotoUrl());
 
         // Case 2: Fallback endpoint generation when inPhotoUrl is empty but inTime ("11:16 AM") is valid
         MoveRecordModel recordWithTimeInFallback = new MoveRecordModel(
-                "60", "301", "Ajay", "Site A", "11:16 AM", "", false, false,
+                "60", "301", "Worker", "Site A", "11:16 AM", "", false, false,
                 "", ""
         );
         assertTrue("isHasIn should return true when valid inTime exists", recordWithTimeInFallback.isHasIn());
@@ -201,7 +201,7 @@ public class MoveSiteTest {
 
         // Case 3: Check-out photo fallback when outTime ("11:16 AM") is valid
         MoveRecordModel recordWithTimeOutFallback = new MoveRecordModel(
-                "61", "302", "Ajay", "Site B", "10:55 AM", "11:16 AM", true, false,
+                "61", "302", "Worker", "Site B", "10:55 AM", "11:16 AM", true, false,
                 "", ""
         );
         assertTrue("isHasOut should return true when valid outTime exists", recordWithTimeOutFallback.isHasOut());
@@ -209,7 +209,7 @@ public class MoveSiteTest {
 
         // Case 4: Numeric Image ID mapping for IN and OUT
         MoveRecordModel recordWithNumericImageIds = new MoveRecordModel(
-                "75", "303", "Ajay", "Site C", "09:00 AM", "05:00 PM", true, true,
+                "75", "303", "Worker", "Site C", "09:00 AM", "05:00 PM", true, true,
                 "1234", "5678"
         );
         assertEquals("view_attendance_img.php?image_id=1234&move_id=75&type=in&source=hrms", recordWithNumericImageIds.getInPhotoUrl());
@@ -217,7 +217,7 @@ public class MoveSiteTest {
 
         // Case 5: Move record move_id=60 fallback image endpoint resolution when photo fields are empty in JSON
         MoveRecordModel recordMove60 = new MoveRecordModel(
-                "60", "304", "Ajay", "Site D", "", "", false, false,
+                "60", "304", "Worker", "Site D", "", "", false, false,
                 "", ""
         );
         assertEquals("view_attendance_img.php?move_id=60&type=in&source=hrms", recordMove60.getInPhotoUrl());

@@ -605,11 +605,15 @@ public class DashboardActivity extends AppActivity {
                 try {
                     String status = response.optString("status", "");
                     if ("success".equalsIgnoreCase(status)) {
-                        JSONArray projectsArray = response.getJSONArray("projects");
+                        JSONArray projectsArray = response.optJSONArray("projects");
                         List<String> newProjectsList = new ArrayList<>();
-                        for (int i = 0; i < projectsArray.length(); i++) {
-                            JSONObject projObj = projectsArray.getJSONObject(i);
-                            newProjectsList.add(projObj.optString("projname", ""));
+                        if (projectsArray != null) {
+                            for (int i = 0; i < projectsArray.length(); i++) {
+                                JSONObject projObj = projectsArray.optJSONObject(i);
+                                if (projObj != null) {
+                                    newProjectsList.add(projObj.optString("projname", ""));
+                                }
+                            }
                         }
                         
                         userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
@@ -622,7 +626,15 @@ public class DashboardActivity extends AppActivity {
             error -> {
                 error.printStackTrace();
             }
-        );
+        ) {
+            @Override
+            public java.util.Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
+                java.util.Map<String, String> headers = new java.util.HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "*/*");
+                return headers;
+            }
+        };
 
         MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
     }

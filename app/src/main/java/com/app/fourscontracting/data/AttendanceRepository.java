@@ -14,6 +14,7 @@ import com.app.fourscontracting.MySingleton;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Attendance network + offline queue (repository layer for MVVM).
@@ -118,6 +119,14 @@ public class AttendanceRepository {
                         }
                     }
                 }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "*/*");
+                return headers;
+            }
+
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
                 return payload.toFormParams();

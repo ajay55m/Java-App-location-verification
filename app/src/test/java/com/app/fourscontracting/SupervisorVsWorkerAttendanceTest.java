@@ -68,12 +68,12 @@ public class SupervisorVsWorkerAttendanceTest {
         String supervisorUserIdInRecord = "85";
 
         AttendanceRecordModel workerRecord = new AttendanceRecordModel(
-                "2241", supervisorUserIdInRecord, workerEmpId, "Ajay Worker", "Site A",
+                "2241", supervisorUserIdInRecord, workerEmpId, "Standard Worker", "Site A",
                 "11:14:00", "", 0.0, true, false, "in.jpg", ""
         );
 
         boolean isSelfRecord = workerRecord.getEmpId().equalsIgnoreCase(supervisorUid);
-        assertFalse("Worker Ajay (empId 43) logged by supervisor 85 must NOT be classified as supervisor self-record", isSelfRecord);
+        assertFalse("Standard Worker (empId 43) logged by supervisor 85 must NOT be classified as supervisor self-record", isSelfRecord);
     }
 
     @Test
@@ -81,7 +81,7 @@ public class SupervisorVsWorkerAttendanceTest {
         String supervisorUid = "101";
 
         AttendanceRecordModel supervisorRecord = new AttendanceRecordModel(
-                "888", supervisorUid, supervisorUid, "Supervisor Ajay", "Site A",
+                "888", supervisorUid, supervisorUid, "Site Supervisor", "Site A",
                 "08:00:00", "", 0.0, true, false, "sup_in.jpg", ""
         );
 

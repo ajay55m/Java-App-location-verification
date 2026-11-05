@@ -69,7 +69,7 @@ public class LabourCountTest {
     public void testFilterCheckedInAndCompletedWorkersFromLabourQueue() throws JSONException {
         JSONObject w1 = new JSONObject();
         w1.put("id", "43");
-        w1.put("name", "Ajay (Completed)");
+        w1.put("name", "Worker (Completed)");
         w1.put("status_code", "SHIFT_FINISHED");
         w1.put("display_text", "Shift Finished (10:10 AM)");
 

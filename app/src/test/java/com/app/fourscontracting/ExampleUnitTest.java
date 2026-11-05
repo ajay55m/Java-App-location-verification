@@ -26,6 +26,35 @@ public class ExampleUnitTest {
     }
 
     @Test
+    public void testNewDbLoginResponse() throws Exception {
+        String newDbResponse = "{\n" +
+                "  \"status\": \"success\",\n" +
+                "  \"uid\": \"141\",\n" +
+                "  \"flag\": \"1\",\n" +
+                "  \"username\": \"gurdeepsinghpiara\",\n" +
+                "  \"email\": \"\",\n" +
+                "  \"staffid\": \"31\",\n" +
+                "  \"userrole\": \"employee\",\n" +
+                "  \"start_lat_lng\": \"0.0,0.0\",\n" +
+                "  \"end_lat_lng\": \"0.0,0.0\"\n" +
+                "}";
+
+        assertTrue(UserLocalStore.isLoginResponseSuccess(newDbResponse));
+
+        String[] userInfo = UserLocalStore.parseUserInfo(newDbResponse);
+        assertEquals("141", userInfo[0]); // uid
+        assertEquals("1", userInfo[1]);   // flag
+        assertEquals("gurdeepsinghpiara", userInfo[2]); // username
+
+        User user = new User(newDbResponse);
+        assertEquals("141", user.uid);
+        assertEquals("31", user.staffId);
+        assertEquals("employee", user.userRole);
+        assertEquals("gurdeepsinghpiara", user.displayName);
+        assertEquals("0.0,0.0", user.startLatLng);
+    }
+
+    @Test
     public void testParseUserInfoWithProjectsArray() throws Exception {
         String jsonResponse = "{\n" +
                 "  \"status\": \"success\",\n" +
