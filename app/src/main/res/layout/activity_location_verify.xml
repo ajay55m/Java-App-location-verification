@@ -274,13 +274,6 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
-                    <!-- Project Section Container -->
-                    <LinearLayout
-                        android:id="@+id/layoutProjectAllocation"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
                     <!-- Project Dropdown Field -->
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -430,36 +423,20 @@
                         </com.google.android.material.card.MaterialCardView>
                     </LinearLayout>
 
-                        <!-- Dark Navy Pill Action Button -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnVerify"
-                            android:layout_width="match_parent"
-                            android:layout_height="58dp"
-                            android:fontFamily="sans-serif-black"
-                            android:letterSpacing="0.05"
-                            android:text="VERIFY GPS CHECK"
-                            android:textColor="#FFFFFF"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            app:backgroundTint="#03045E"
-                            app:cornerRadius="29dp"
-                            app:elevation="6dp" />
-
-                    </LinearLayout>
-
-                    <!-- No Allocation Warning Notice -->
-                    <TextView
-                        android:id="@+id/tvNoAllocation"
+                    <!-- Dark Navy Pill Action Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnVerify"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:padding="24dp"
-                        android:text="No Project Allocated For You.\nPlease Contact Admin."
-                        android:textAlignment="center"
-                        android:textColor="#E63946"
-                        android:fontFamily="sans-serif-bold"
-                        android:textSize="16sp"
-                        android:visibility="gone" />
+                        android:layout_height="58dp"
+                        android:fontFamily="sans-serif-black"
+                        android:letterSpacing="0.05"
+                        android:text="VERIFY GPS CHECK"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="#03045E"
+                        app:cornerRadius="29dp"
+                        app:elevation="6dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
