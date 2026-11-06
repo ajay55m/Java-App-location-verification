@@ -49,6 +49,20 @@ public class ProjectSelectActivity extends AppActivity {
         adapter = new ProjectAdapter();
         recyclerView.setAdapter(adapter);
 
+        final View layoutAllocation = findViewById(R.id.layoutProjectAllocation);
+        final TextView tvNoAllocation = findViewById(R.id.tvNoAllocation);
+
+        String hasAllocation = getSharedPreferences("app", MODE_PRIVATE)
+                .getString("has_project_allocation", "0");
+        if ("0".equals(hasAllocation)) {
+            if (layoutAllocation != null) layoutAllocation.setVisibility(View.GONE);
+            if (tvNoAllocation != null) {
+                tvNoAllocation.setVisibility(View.VISIBLE);
+                tvNoAllocation.setText("No Project Allocated For You.\nPlease Contact Admin.");
+            }
+            return;
+        }
+
         UserLocalStore localStore = new UserLocalStore(this);
         User user = localStore.getLoggedInUser();
         String val = user != null ? user.username : "";
@@ -63,6 +77,16 @@ public class ProjectSelectActivity extends AppActivity {
         new ProjectApiHelper().fetchProjects(this, currentUid, new ProjectApiHelper.Callback() {
             @Override
             public void onSuccess(List<ProjectModel> loadedProjects, String username) {
+                if (loadedProjects == null || loadedProjects.isEmpty()) {
+                    if (layoutAllocation != null) layoutAllocation.setVisibility(View.GONE);
+                    if (tvNoAllocation != null) {
+                        tvNoAllocation.setVisibility(View.VISIBLE);
+                        tvNoAllocation.setText("No Project Allocated For You.\nPlease Contact Admin.");
+                    }
+                    return;
+                }
+                if (layoutAllocation != null) layoutAllocation.setVisibility(View.VISIBLE);
+                if (tvNoAllocation != null) tvNoAllocation.setVisibility(View.GONE);
                 projects.clear();
                 projects.addAll(loadedProjects);
                 adapter.notifyDataSetChanged();

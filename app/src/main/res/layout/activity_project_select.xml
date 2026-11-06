@@ -17,12 +17,33 @@
             android:textStyle="bold"
             android:paddingBottom="12dp" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/projectRecyclerView"
+        <LinearLayout
+            android:id="@+id/layoutProjectAllocation"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
-    </LinearLayout>
+            android:layout_weight="1"
+            android:orientation="vertical">
 
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/projectRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvNoAllocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:text="No Project Allocated For You.\nPlease Contact Admin."
+            android:textAlignment="center"
+            android:textColor="#D32F2F"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
 </FrameLayout>

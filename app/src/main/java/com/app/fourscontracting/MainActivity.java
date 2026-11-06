@@ -235,6 +235,13 @@ public class MainActivity extends AppActivity {
                         String errMsg = UserLocalStore.getLoginErrorMessage(response);
                         Toast.makeText(MainActivity.this, errMsg, Toast.LENGTH_SHORT).show();
                     } else {
+                        LoginResponse res = LoginResponse.fromJson(response);
+                        getSharedPreferences("app", MODE_PRIVATE).edit()
+                            .putString("staffid", res.staffid != null ? res.staffid : "")
+                            .putString("username", res.username != null ? res.username : "")
+                            .putString("has_project_allocation", res.has_project_allocation != null ? res.has_project_allocation : "0")
+                            .apply();
+
                         User user = new User(response);
                         someVariable = response;
                         String welcomeName = !user.displayName.isEmpty() ? user.displayName : (!user.username.isEmpty() && !user.username.startsWith("{") ? user.username : rollNo);

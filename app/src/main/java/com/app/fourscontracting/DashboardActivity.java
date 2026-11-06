@@ -552,13 +552,20 @@ public class DashboardActivity extends AppActivity {
     }
 
     private void setupProjectSpinner() {
+        String hasAllocation = getSharedPreferences("app", MODE_PRIVATE)
+                .getString("has_project_allocation", "0");
+        spinner = findViewById(R.id.spinner);
+        if ("0".equals(hasAllocation)) {
+            if (spinner != null) spinner.setVisibility(View.GONE);
+            return;
+        }
+
         User user = userLocalStore.getLoggedInUser();
         final String val = user.username != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
 
         if (val_list.length >= 4 && val_list[3] != null && !val_list[3].isEmpty()) {
             String[] project_list = val_list[3].split(",");
-            spinner = findViewById(R.id.spinner);
             if (spinner != null) {
                 ArrayAdapter<String> adapter = new ArrayAdapter<String>(DashboardActivity.this, android.R.layout.simple_spinner_item, project_list);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -589,6 +596,12 @@ public class DashboardActivity extends AppActivity {
     }
 
     private void fetchAssignedProjectsFromServer() {
+        String hasAllocation = getSharedPreferences("app", MODE_PRIVATE)
+                .getString("has_project_allocation", "0");
+        if ("0".equals(hasAllocation)) {
+            return;
+        }
+
         User user = userLocalStore.getLoggedInUser();
         final String val = user.username != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);

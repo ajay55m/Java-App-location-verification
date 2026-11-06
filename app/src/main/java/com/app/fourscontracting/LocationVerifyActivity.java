@@ -57,6 +57,8 @@ import java.util.Map;
 public class LocationVerifyActivity extends AppActivity {
     MaterialAutoCompleteTextView myProjectSpinner;
     Button btnVerify;
+    private View layoutProjectAllocation;
+    private TextView tvNoAllocation;
     private ProgressBar progressProjectsLoading;
     private TextView tvGpsLat;
     private TextView tvGpsLng;
@@ -300,6 +302,8 @@ public class LocationVerifyActivity extends AppActivity {
             myProjectSpinner = findViewById(R.id.myProjectSpinner);
             btnVerify = findViewById(R.id.btnVerify);
             inputSelectionCard = findViewById(R.id.inputSelectionCard);
+            layoutProjectAllocation = findViewById(R.id.layoutProjectAllocation);
+            tvNoAllocation = findViewById(R.id.tvNoAllocation);
             progressProjectsLoading = findViewById(R.id.progress_projects_loading);
             tvVerifyUserName = findViewById(R.id.tv_verify_user_name);
             tvVerifyDateTime = findViewById(R.id.tv_verify_datetime);
@@ -311,6 +315,26 @@ public class LocationVerifyActivity extends AppActivity {
 
             bindVerifyUserInfo();
             startLiveClock();
+
+            // STEP 5: Block LocationVerifyActivity if user has no project allocation
+            String hasAllocation = getSharedPreferences("app", MODE_PRIVATE)
+                    .getString("has_project_allocation", "0");
+            if ("0".equals(hasAllocation)) {
+                if (layoutProjectAllocation != null) layoutProjectAllocation.setVisibility(View.GONE);
+                if (tvNoAllocation != null) {
+                    tvNoAllocation.setVisibility(View.VISIBLE);
+                    tvNoAllocation.setText("No Project Allocated For You.\nPlease Contact Admin.");
+                }
+                Toast.makeText(this, "No Project Allocated", Toast.LENGTH_SHORT).show();
+                finish(); // Close screen, don't crash
+                return;
+            }
+
+            String projectCodeExtra = getIntent() != null ? getIntent().getStringExtra("project_code") : null;
+            if (projectCodeExtra != null && !projectCodeExtra.isEmpty()) {
+                selectedProjectId = projectCodeExtra;
+                projectId = projectCodeExtra;
+            }
 
             if (myProjectSpinner == null || btnVerify == null) {
                 throw new NullPointerException("XML Error: myProjectSpinner or btnVerify not found in activity_location_verify.xml");
@@ -978,14 +1002,22 @@ public class LocationVerifyActivity extends AppActivity {
                     }
 
                     if (projectList.isEmpty()) {
+                        if (layoutProjectAllocation != null) layoutProjectAllocation.setVisibility(View.GONE);
+                        if (tvNoAllocation != null) {
+                            tvNoAllocation.setVisibility(View.VISIBLE);
+                            tvNoAllocation.setText("No Project Allocated For You.\nPlease Contact Admin.");
+                        }
                         if (isAutoStartVerify) {
-                            showBlueprintFailure("No projects available for this account.", 0.0f);
+                            showBlueprintFailure("No Project Allocated For You.\nPlease Contact Admin.", 0.0f);
                         } else {
-                            Toast.makeText(this, "No projects found. Tap Verify card after retry.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "No Project Allocated For You.\nPlease Contact Admin.", Toast.LENGTH_LONG).show();
                             showRetryProjectsDialog();
                         }
                         return;
                     }
+
+                    if (layoutProjectAllocation != null) layoutProjectAllocation.setVisibility(View.VISIBLE);
+                    if (tvNoAllocation != null) tvNoAllocation.setVisibility(View.GONE);
 
                     bindProjectDropdown(projectList);
                     new SessionPrefs(this).saveProjectListCache(projectList);

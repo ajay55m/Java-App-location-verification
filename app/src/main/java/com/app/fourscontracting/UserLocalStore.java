@@ -56,7 +56,35 @@ public class UserLocalStore {
         if (user.endLatLng != null) {
             spEditor.putString("end_lat_lng", user.endLatLng);
         }
+        if (user.hasProjectAllocation != null) {
+            spEditor.putString("has_project_allocation", user.hasProjectAllocation);
+        }
         spEditor.apply();
+
+        if (context != null) {
+            try {
+                context.getSharedPreferences("app", Context.MODE_PRIVATE).edit()
+                    .putString("staffid", user.staffId != null ? user.staffId : "")
+                    .putString("username", user.displayName != null && !user.displayName.isEmpty() ? user.displayName : user.username)
+                    .putString("has_project_allocation", user.hasProjectAllocation != null ? user.hasProjectAllocation : "0")
+                    .apply();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public String getHasProjectAllocation() {
+        SharedPreferences prefs = getPrefs();
+        String alloc = prefs != null ? prefs.getString("has_project_allocation", "") : "";
+        if (alloc.isEmpty() && context != null) {
+            try {
+                alloc = context.getSharedPreferences("app", Context.MODE_PRIVATE).getString("has_project_allocation", "0");
+            } catch (Exception ignored) {}
+        }
+        return (alloc != null && !alloc.isEmpty()) ? alloc : "0";
+    }
+
+    public boolean hasProjectAllocation() {
+        return "1".equals(getHasProjectAllocation());
     }
 
     public String getUid() {
