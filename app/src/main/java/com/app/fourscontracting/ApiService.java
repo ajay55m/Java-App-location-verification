@@ -14,8 +14,13 @@ public interface ApiService {
     @POST("subadminlogin.php")
     Call<LoginResponse> login(@Field("id") String id, @Field("pwd") String pwd);
 
+    @FormUrlEncoded
     @POST("get_locations.php")
-    Call<List<ProjectModel>> getProjects();
+    Call<List<ProjectModel>> getProjects(@Field("project_id") String projectId);
+
+    default Call<List<ProjectModel>> getProjects() {
+        return getProjects("");
+    }
 
     @FormUrlEncoded
     @POST("get_locations.php")
@@ -44,3 +49,4 @@ public interface ApiService {
             @Field("mobile_session_id") String mobileSessionId
     );
 }
+

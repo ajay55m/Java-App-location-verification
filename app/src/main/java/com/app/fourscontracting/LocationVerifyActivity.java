@@ -141,12 +141,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
 
         setupProjectSelection();
 
-        if (projectCode != null && !projectCode.trim().isEmpty()) {
-            loadTargetLocation();
-        } else {
-            // Load projects from server so user can pick from dropdown
-            loadProjectsFromServer();
-        }
+        // Always load projects from server to populate dropdown spinner
+        loadProjectsFromServer();
     }
 
     private void initHeaderInfo() {
@@ -209,15 +205,31 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         }
                     });
 
-                    // Prefer RST or first project if none selected yet
-                    ProjectModel defaultProject = list.get(0);
-                    for (ProjectModel p : list) {
-                        if ("RST".equalsIgnoreCase(p.getProjectCode())) {
-                            defaultProject = p;
-                            break;
+                    boolean foundPreselected = false;
+                    if (projectCode != null && !projectCode.trim().isEmpty()
+                            && !"Verified Site".equalsIgnoreCase(projectCode.trim())
+                            && !com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode.trim())) {
+                        for (ProjectModel p : list) {
+                            if (projectCode.equalsIgnoreCase(p.getProjectCode())) {
+                                projectCode = p.getProjectCode();
+                                locationId = p.id;
+                                binding.myProjectSpinner.setText(p.toString(), false);
+                                loadTargetLocation();
+                                foundPreselected = true;
+                                break;
+                            }
                         }
                     }
-                    if (projectCode == null || projectCode.isEmpty()) {
+
+                    if (!foundPreselected) {
+                        // Prefer RST or first project if none selected yet
+                        ProjectModel defaultProject = list.get(0);
+                        for (ProjectModel p : list) {
+                            if ("RST".equalsIgnoreCase(p.getProjectCode())) {
+                                defaultProject = p;
+                                break;
+                            }
+                        }
                         projectCode = defaultProject.getProjectCode();
                         locationId = defaultProject.id;
                         binding.myProjectSpinner.setText(defaultProject.toString(), false);
@@ -491,13 +503,31 @@ public class LocationVerifyActivity extends AppCompatActivity {
         int isMock = LocationVerifier.isMockLocation(gpsLocation) ? 1 : 0;
         int deptId = session.getDeptId();
         if (deptId == 0) deptId = new UserLocalStore(this).getDeptId();
+        if (deptId == 0) deptId = 5;
+
+        int punchUid = session.getUid();
+        int punchEmpId = session.getEmpId();
+
+        Intent inc = getIntent();
+        if (inc != null) {
+            String extraUid = inc.getStringExtra("uid");
+            if (extraUid != null && !extraUid.isEmpty() && com.app.fourscontracting.data.AttendancePayload.isNumeric(extraUid)) {
+                try { punchUid = Integer.parseInt(extraUid.trim()); } catch (Exception ignored) {}
+            }
+            String extraEmp = inc.getStringExtra("empid");
+            if (extraEmp == null || extraEmp.isEmpty()) extraEmp = inc.getStringExtra("pending_eid");
+            if (extraEmp != null && !extraEmp.isEmpty() && com.app.fourscontracting.data.AttendancePayload.isNumeric(extraEmp)) {
+                try { punchEmpId = Integer.parseInt(extraEmp.trim()); } catch (Exception ignored) {}
+            }
+        }
+        if (punchEmpId == 0) punchEmpId = punchUid;
 
         if (binding.progressBar != null) binding.progressBar.setVisibility(View.VISIBLE);
         setButtonsEnabled(false);
 
         ApiClient.getService().punchAttendance(
-                session.getUid(),
-                session.getEmpId(),
+                punchUid,
+                punchEmpId,
                 deptId,
                 projectCode,
                 type,
@@ -524,6 +554,21 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         binding.tvStatus.setVisibility(View.VISIBLE);
                     }
                     Toast.makeText(LocationVerifyActivity.this, msg, Toast.LENGTH_LONG).show();
+
+                    SessionPrefs sessionPrefs = new SessionPrefs(LocationVerifyActivity.this);
+                    String freshToken = sessionPrefs.issueFreshVerificationToken();
+                    sessionPrefs.saveVerifiedLocation(String.valueOf(locationId), projectCode, freshToken);
+                    sessionPrefs.saveProject(projectCode, projectCode, "");
+
+                    Intent resultData = new Intent();
+                    resultData.putExtra("location_id", String.valueOf(locationId));
+                    resultData.putExtra("project_id", projectCode);
+                    resultData.putExtra("project_code", projectCode);
+                    resultData.putExtra("project_name", projectCode);
+                    resultData.putExtra("VERIFIED", "true");
+                    resultData.putExtra("VERIFICATION_TOKEN", freshToken);
+                    setResult(RESULT_OK, resultData);
+
                     capturedBase64 = ""; // Clear photo for next shift
                     loadTodayStatus(); // Auto IN <-> OUT
                 } else {

@@ -25,10 +25,39 @@ public class AttendancePayload {
     public String projname = "";
     public String locationId = "";
     public String breakHours = "";
+    public int deptId = 0;
+    public boolean isMock = false;
+    public String mobileSessionId = "";
     public double lat = Double.NaN;
     public double lng = Double.NaN;
     public float accuracy = -1f;
     public long gpsTimeMs = 0L;
+
+    public static boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        try {
+            Double.parseDouble(str.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public static String resolveProjectCode(String pId, String pName) {
+        String code = "";
+        if (pId != null && !pId.trim().isEmpty() && !isNumeric(pId.trim()) && !"Verified Site".equalsIgnoreCase(pId.trim())) {
+            code = pId.trim();
+        } else if (pName != null && !pName.trim().isEmpty() && !isNumeric(pName.trim()) && !"Verified Site".equalsIgnoreCase(pName.trim())) {
+            code = pName.trim();
+        }
+        if (code.contains(" - ")) {
+            code = code.split(" - ")[0].trim();
+        }
+        if (code.isEmpty() || isNumeric(code) || "Verified Site".equalsIgnoreCase(code)) {
+            code = "RST";
+        }
+        return code;
+    }
 
     public AttendancePayload() {
         this.clientRequestId = UUID.randomUUID().toString();
@@ -134,11 +163,21 @@ public class AttendancePayload {
             params.put("time_out", nullToEmpty(timein));
         }
 
-        String proj = nullToEmpty(projectId);
-        params.put("project_id", proj);
-        params.put("departmentid", proj);
-        params.put("projectid", proj);
-        params.put("projname", nullToEmpty(projname));
+        String effectiveProjectCode = resolveProjectCode(projectId, projname);
+        params.put("project_id", effectiveProjectCode);
+        params.put("project_code", effectiveProjectCode);
+        params.put("projname", !nullToEmpty(projname).isEmpty() ? projname : effectiveProjectCode);
+        params.put("projectname", effectiveProjectCode);
+        params.put("departmentid", effectiveProjectCode);
+        params.put("projectid", effectiveProjectCode);
+
+        int effectiveDept = deptId > 0 ? deptId : 5;
+        params.put("dept_id", String.valueOf(effectiveDept));
+        params.put("department_id", String.valueOf(effectiveDept));
+        params.put("is_mock", isMock ? "1" : "0");
+        if (mobileSessionId != null && !mobileSessionId.isEmpty()) {
+            params.put("mobile_session_id", mobileSessionId);
+        }
 
         String loc = nullToEmpty(locationId);
         params.put("location_id", loc);

@@ -29,3 +29,4 @@ public class ManagerResponse {
         public String photo;
     }
 }
+

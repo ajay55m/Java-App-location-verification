@@ -64,6 +64,7 @@ public class LabourManagementApi {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
                 headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
                 return headers;
             }
         };
@@ -147,6 +148,7 @@ public class LabourManagementApi {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
                 headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
                 return headers;
             }
         };
@@ -231,6 +233,7 @@ public class LabourManagementApi {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
                 headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
                 return headers;
             }
         };

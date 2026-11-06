@@ -17,3 +17,4 @@ public class LocationModel {
         return location_name != null ? location_name : "";
     }
 }
+

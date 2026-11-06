@@ -473,6 +473,13 @@ public class ManageAttendanceFragment extends Fragment
         String targetLocId = session.getLocationId();
         String pName = session.getProjectName();
         if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+        String projectCode = pName;
+        if (projectCode != null && projectCode.contains(" - ")) {
+            projectCode = projectCode.split(" - ")[0].trim();
+        }
+        if (projectCode == null || projectCode.isEmpty() || "Verified Site".equalsIgnoreCase(projectCode) || com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode)) {
+            projectCode = "RST";
+        }
 
         Intent intent = new Intent(context, LocationActivity.class);
         intent.putExtra("empid", targetWorkerId);
@@ -484,13 +491,16 @@ public class ManageAttendanceFragment extends Fragment
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
         intent.putExtra("uid", uid);
-        intent.putExtra("project_id", targetLocId);
-        intent.putExtra("departmentid", targetLocId);
-        intent.putExtra("projname", pName);
-        intent.putExtra("project_name", pName);
+        intent.putExtra("project_id", projectCode);
+        intent.putExtra("project_code", projectCode);
+        intent.putExtra("departmentid", projectCode);
+        intent.putExtra("projname", projectCode);
+        intent.putExtra("project_name", projectCode);
         intent.putExtra("locationid", targetLocId);
+        intent.putExtra("location_id", targetLocId);
         intent.putExtra("loc_id", targetLocId);
         intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("dept_id", new com.app.fourscontracting.SessionManager(context).getDeptId());
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, 1005);

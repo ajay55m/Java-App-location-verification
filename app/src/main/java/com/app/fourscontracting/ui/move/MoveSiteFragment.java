@@ -383,6 +383,17 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
         String targetLocId = session.getLocationId();
         String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
         String pName = getResolvedSiteName();
+        String projectCode = pName;
+        if (projectCode != null && projectCode.contains(" - ")) {
+            projectCode = projectCode.split(" - ")[0].trim();
+        }
+        if (projectCode == null || projectCode.isEmpty() || "Verified Site".equalsIgnoreCase(projectCode) || com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode)) {
+            if (pId != null && !pId.isEmpty() && !com.app.fourscontracting.data.AttendancePayload.isNumeric(pId) && !"Verified Site".equalsIgnoreCase(pId)) {
+                projectCode = pId.trim();
+            } else {
+                projectCode = "RST";
+            }
+        }
 
         Intent intent = new Intent(requireContext(), LocationActivity.class);
         intent.putExtra("empid", employee.id);
@@ -399,13 +410,23 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
         intent.putExtra("type", actionType);
         intent.putExtra("is_movement", true);
         intent.putExtra("uid", uid);
-        intent.putExtra("project_id", pId);
-        intent.putExtra("departmentid", pId);
-        intent.putExtra("projname", pName);
-        intent.putExtra("project_name", pName);
+        intent.putExtra("project_id", projectCode);
+        intent.putExtra("project_code", projectCode);
+        intent.putExtra("departmentid", projectCode);
+        intent.putExtra("projname", projectCode);
+        intent.putExtra("project_name", projectCode);
         intent.putExtra("locationid", targetLocId);
+        intent.putExtra("location_id", targetLocId);
         intent.putExtra("loc_id", targetLocId);
         intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        int effDept = 0;
+        if (selectedDeptId != null && !selectedDeptId.trim().isEmpty()) {
+            try { effDept = Integer.parseInt(selectedDeptId.trim()); } catch (Exception ignored) {}
+        }
+        if (effDept <= 0) {
+            effDept = new com.app.fourscontracting.SessionManager(requireContext()).getDeptId();
+        }
+        intent.putExtra("dept_id", effDept);
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, REQUEST_CODE_MOVE_PUNCH);

@@ -439,8 +439,10 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
         String freshToken = session.issueFreshVerificationToken();
         String targetLocId = session.getLocationId();
-        String pId = !TextUtils.isEmpty(projId) ? projId : session.getProjectId();
         String pName = getResolvedSiteName();
+        if (pName != null && pName.contains(" - ")) {
+            pName = pName.split(" - ")[0].trim();
+        }
 
         Intent intent = new Intent(requireContext(), LocationActivity.class);
         intent.putExtra("empid", item.getId());
@@ -448,13 +450,16 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         intent.putExtra("photo_url", item.getPhotoUrl());
         intent.putExtra("type", actionType);
         intent.putExtra("uid", uid);
-        intent.putExtra("project_id", pId);
-        intent.putExtra("departmentid", pId);
+        intent.putExtra("project_id", pName);
+        intent.putExtra("project_code", pName);
+        intent.putExtra("departmentid", pName);
         intent.putExtra("projname", pName);
         intent.putExtra("project_name", pName);
         intent.putExtra("locationid", targetLocId);
+        intent.putExtra("location_id", targetLocId);
         intent.putExtra("loc_id", targetLocId);
         intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("dept_id", selectedDeptId);
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, REQUEST_CODE_ATTENDANCE_PUNCH);

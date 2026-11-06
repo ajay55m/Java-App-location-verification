@@ -579,6 +579,13 @@ public class DashboardActivity extends AppActivity {
                             SharedPreferences.Editor editor = settings.edit();
                             editor.putString("projectname", value);
                             userLocalStore.storeUserProjectData(user);
+
+                            String code = value;
+                            if (code.contains(" - ")) {
+                                code = code.split(" - ")[0].trim();
+                            }
+                            new SessionPrefs(DashboardActivity.this).saveProject(code, value, "");
+                            new SessionPrefs(DashboardActivity.this).saveVerifiedLocation(code, value, java.util.UUID.randomUUID().toString());
                         }
                     }
 
@@ -626,6 +633,7 @@ public class DashboardActivity extends AppActivity {
                 java.util.Map<String, String> headers = new java.util.HashMap<>();
                 headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
                 headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
                 return headers;
             }
 

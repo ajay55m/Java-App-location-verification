@@ -80,6 +80,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
     private String moveId = "";
     private String attendId = "";
     private float punchAccuracy = -1f;
+    private int incomingDeptId = 0;
     private com.app.fourscontracting.ui.attendance.AttendanceViewModel attendanceViewModel;
 
     @Override
@@ -174,6 +175,29 @@ public class LocationActivity extends AppActivity implements LocationListener {
             if (bundle.containsKey("project_id")) {
                 Object obj = bundle.get("project_id");
                 if (obj != null) selectedProjectId = String.valueOf(obj);
+            }
+            if (bundle.containsKey("project_code")) {
+                Object obj = bundle.get("project_code");
+                if (obj != null && !String.valueOf(obj).trim().isEmpty()) {
+                    selectedProjectId = String.valueOf(obj).trim();
+                }
+            } else if (bundle.containsKey("projname")) {
+                Object obj = bundle.get("projname");
+                if (obj != null && !String.valueOf(obj).trim().isEmpty() && !com.app.fourscontracting.data.AttendancePayload.isNumeric(String.valueOf(obj))) {
+                    selectedProjectId = String.valueOf(obj).trim();
+                }
+            }
+
+            if (bundle.containsKey("dept_id")) {
+                Object obj = bundle.get("dept_id");
+                if (obj != null) {
+                    try { incomingDeptId = Integer.parseInt(String.valueOf(obj)); } catch (Exception ignored) {}
+                }
+            } else if (bundle.containsKey("department_id")) {
+                Object obj = bundle.get("department_id");
+                if (obj != null) {
+                    try { incomingDeptId = Integer.parseInt(String.valueOf(obj)); } catch (Exception ignored) {}
+                }
             }
 
             if (bundle.containsKey("type")) {
@@ -468,6 +492,19 @@ public class LocationActivity extends AppActivity implements LocationListener {
             }
         }
 
+        int effDeptId = incomingDeptId;
+        if (effDeptId <= 0) {
+            effDeptId = new SessionManager(this).getDeptId();
+        }
+        if (effDeptId <= 0) {
+            effDeptId = userLocalStore != null ? userLocalStore.getDeptId() : 0;
+        }
+        if (effDeptId <= 0) {
+            effDeptId = 5;
+        }
+
+        String resolvedCode = com.app.fourscontracting.data.AttendancePayload.resolveProjectCode(selectedProjectId, projname);
+
         com.app.fourscontracting.data.AttendancePayload payload = new com.app.fourscontracting.data.AttendancePayload();
         payload.uid = managerUid != null && !managerUid.isEmpty() ? managerUid : uid;
         payload.empid = employeeId != null ? employeeId : "";
@@ -477,8 +514,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
         payload.imagepath = imagepath != null ? imagepath : "";
         payload.type = attendanceType != null ? attendanceType.toUpperCase() : "IN";
         payload.isMovement = isMovement;
-        payload.projectId = selectedProjectId != null ? selectedProjectId : "";
-        payload.projname = projname != null ? projname : "";
+        payload.projectId = resolvedCode;
+        payload.projname = resolvedCode;
+        payload.deptId = effDeptId;
         payload.locationId = selectedLocationId != null ? selectedLocationId : "";
         payload.breakHours = breakHoursVal;
         payload.lat = punchLat;

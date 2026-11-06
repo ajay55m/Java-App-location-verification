@@ -7,3 +7,4 @@ public class PunchResponse {
     public String mobile_session_id;
     public int attendance_id, shift_id, shift_no, photo_id, total_minutes, department_id, distance;
 }
+
