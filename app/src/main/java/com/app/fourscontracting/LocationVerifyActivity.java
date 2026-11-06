@@ -38,6 +38,7 @@ import java.util.Collections;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -628,90 +629,68 @@ public class LocationVerifyActivity extends AppActivity {
     }
 
     private void loadAllProjectNames() {
-        UserLocalStore userLocalStore = new UserLocalStore(this);
-        User user = userLocalStore.getLoggedInUser();
-        String val = (user != null && user.username != null) ? user.username : "";
-        String[] val_list = UserLocalStore.parseUserInfo(val);
-        String uid = val_list.length > 0 ? val_list[0] : "";
-
-        // Instant UI load from local cache or assigned projects (0ms delay)
         SessionPrefs session = new SessionPrefs(this);
         java.util.List<Project> cached = session.getCachedProjectList(true);
-        if (!cached.isEmpty()) {
+        boolean hasFreshProjects = false;
+        for (Project p : cached) {
+            if (p != null && p.name != null && (p.name.contains("RST") || p.name.contains("FSCO"))) {
+                hasFreshProjects = true;
+                break;
+            }
+        }
+        if (hasFreshProjects && !cached.isEmpty()) {
             bindProjectDropdown(cached);
             autoSelectIfNeeded(cached);
-        } else {
-            List<Project> instantLocal = getInstantLocalProjects(val_list);
-            if (!instantLocal.isEmpty()) {
-                bindProjectDropdown(instantLocal);
-                autoSelectIfNeeded(instantLocal);
-            } else if (myProjectSpinner != null) {
-                myProjectSpinner.setText("Loading projects…", false);
-                myProjectSpinner.setEnabled(false);
-            }
+        } else if (myProjectSpinner != null) {
+            myProjectSpinner.setText("Loading projects…", false);
+            myProjectSpinner.setEnabled(false);
         }
 
         if (progressProjectsLoading != null) {
             progressProjectsLoading.setVisibility(View.VISIBLE);
         }
 
-        if (uid.isEmpty()) {
-            if (progressProjectsLoading != null) {
-                progressProjectsLoading.setVisibility(View.GONE);
-            }
-            useFallbackLocalProjects(val_list);
-            return;
-        }
+        // Fetch all active company project locations directly from get_locations.php
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_locations.php";
 
-        // Silent background update from server
-        String getProjectsUrl = "https://4scontracting.com/SMCS_APP/fcm_app/getprojects.php?uid=" + uid;
-
-        JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.GET, getProjectsUrl, null,
+        StringRequest getLocationsRequest = new StringRequest(Request.Method.POST, url,
             response -> {
                 if (progressProjectsLoading != null) {
                     progressProjectsLoading.setVisibility(View.GONE);
                 }
                 try {
-                    String status = response.optString("status", "");
-                    if (!"success".equalsIgnoreCase(status)) {
-                        if (cached.isEmpty()) useFallbackLocalProjects(val_list);
-                        return;
+                    JSONArray array = new JSONArray(response);
+                    List<Project> projectList = new ArrayList<>();
+                    java.util.Set<String> seenCodes = new java.util.HashSet<>();
+
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject obj = array.getJSONObject(i);
+                        String code = obj.optString("project_code", obj.optString("projname", ""));
+                        if (code.isEmpty()) {
+                            code = String.valueOf(obj.optInt("id", 0));
+                        }
+                        if (code.isEmpty() || "0".equals(code)) continue;
+                        if (seenCodes.contains(code.toLowerCase())) continue;
+                        seenCodes.add(code.toLowerCase());
+
+                        String desc = obj.optString("project_description", "");
+                        String displayName = (!desc.isEmpty() && !desc.equalsIgnoreCase(code))
+                                ? (code + " - " + desc)
+                                : code;
+                        String breakHours = obj.optString("break_hours", "0");
+                        projectList.add(new Project(code, displayName, breakHours));
                     }
 
-                    JSONArray projectsArray = response.optJSONArray("projects");
-                    List<String> newProjectsList = new ArrayList<>();
-                    List<Project> projectList = new ArrayList<>();
-                    if (projectsArray != null) {
-                        for (int i = 0; i < projectsArray.length(); i++) {
-                            JSONObject projObj = projectsArray.optJSONObject(i);
-                            if (projObj == null) continue;
-                            String proj = projObj.optString("projname", "");
-                            String id = projObj.optString("id", "");
-                            if (proj.isEmpty()) continue;
-                            newProjectsList.add(proj);
-                            projectList.add(new Project(id, proj, projObj.optString("break_hours", "")));
+                    if (!projectList.isEmpty()) {
+                        session.saveProjectListCache(projectList);
+                        if (myProjectSpinner != null) myProjectSpinner.setEnabled(true);
+                        bindProjectDropdown(projectList);
+                        if (!hasStartedAutoVerify && !hasCompletedVerification) {
+                            autoSelectIfNeeded(projectList);
                         }
                     }
-
-                    userLocalStore.updateAssignedProjects(newProjectsList, this);
-
-                    if (projectList.isEmpty()) {
-                        if (cached.isEmpty()) useFallbackLocalProjects(val_list);
-                        return;
-                    }
-
-                    session.saveProjectListCache(projectList);
-                    if (myProjectSpinner != null) myProjectSpinner.setEnabled(true);
-                    bindProjectDropdown(projectList);
-                    if (!hasStartedAutoVerify && !hasCompletedVerification) {
-                        autoSelectIfNeeded(projectList);
-                    }
-
-                    // Optional: enrich break_hours in background (does not block dropdown)
-                    enrichBreakHoursInBackground(projectList);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    if (cached.isEmpty()) useFallbackLocalProjects(val_list);
                 }
             },
             error -> {
@@ -719,20 +698,33 @@ public class LocationVerifyActivity extends AppActivity {
                     progressProjectsLoading.setVisibility(View.GONE);
                 }
                 error.printStackTrace();
-                if (cached.isEmpty()) {
-                    useFallbackLocalProjects(val_list);
-                } else if (myProjectSpinner != null) {
+                if (myProjectSpinner != null) {
                     myProjectSpinner.setEnabled(true);
                 }
             }
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                return headers;
+            }
 
-        getProjectsRequest.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
-                8000,
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String, String> params = new HashMap<>();
+                params.put("project_id", "");
+                return params;
+            }
+        };
+
+        getLocationsRequest.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                12000,
                 1,
                 com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
         ));
-        MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
+        MySingleton.getmInstance(this).addToRequestque(getLocationsRequest);
     }
 
     private List<Project> getInstantLocalProjects(String[] val_list) {
@@ -840,7 +832,15 @@ public class LocationVerifyActivity extends AppActivity {
                 }
             }) {
                 @Override
-                protected Map<String, String> getParams() {
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                    headers.put("Accept", "application/json, text/plain, */*");
+                    return headers;
+                }
+
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
                     Map<String, String> params = new HashMap<>();
                     params.put("project_id", currentProjId);
                     return params;
@@ -1145,7 +1145,15 @@ public class LocationVerifyActivity extends AppActivity {
             }
         }) {
             @Override
-            protected Map<String, String> getParams() {
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                return headers;
+            }
+
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
                 Map<String, String> params = new HashMap<>();
                 params.put("project_id", projId != null ? projId : "");
                 return params;

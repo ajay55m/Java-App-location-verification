@@ -39,8 +39,10 @@ import android.animation.ValueAnimator;
 import android.widget.ViewFlipper;
 import com.google.android.material.card.MaterialCardView;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
@@ -589,53 +591,55 @@ public class DashboardActivity extends AppActivity {
     }
 
     private void fetchAssignedProjectsFromServer() {
-        User user = userLocalStore.getLoggedInUser();
-        final String val = user.username != null ? user.username : "";
-        String[] val_list = UserLocalStore.parseUserInfo(val);
-        String uid = val_list.length > 0 ? val_list[0] : "";
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_locations.php";
 
-        if (uid.isEmpty()) {
-            return;
-        }
-
-        String getProjectsUrl = "https://4scontracting.com/SMCS_APP/fcm_app/getprojects.php?uid=" + uid;
-
-        JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.GET, getProjectsUrl, null,
+        StringRequest request = new StringRequest(Request.Method.POST, url,
             response -> {
                 try {
-                    String status = response.optString("status", "");
-                    if ("success".equalsIgnoreCase(status)) {
-                        JSONArray projectsArray = response.optJSONArray("projects");
-                        List<String> newProjectsList = new ArrayList<>();
-                        if (projectsArray != null) {
-                            for (int i = 0; i < projectsArray.length(); i++) {
-                                JSONObject projObj = projectsArray.optJSONObject(i);
-                                if (projObj != null) {
-                                    newProjectsList.add(projObj.optString("projname", ""));
-                                }
-                            }
-                        }
-                        
-                        userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
-                        setupProjectSpinner();
+                    JSONArray array = new JSONArray(response);
+                    List<String> newProjectsList = new ArrayList<>();
+                    java.util.Set<String> seen = new java.util.HashSet<>();
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject projObj = array.optJSONObject(i);
+                        if (projObj == null) continue;
+                        String code = projObj.optString("project_code", projObj.optString("projname", ""));
+                        if (code.isEmpty()) continue;
+                        if (seen.contains(code.toLowerCase())) continue;
+                        seen.add(code.toLowerCase());
+                        String desc = projObj.optString("project_description", "");
+                        String displayName = (!desc.isEmpty() && !desc.equalsIgnoreCase(code))
+                                ? (code + " - " + desc)
+                                : code;
+                        newProjectsList.add(displayName);
                     }
+                    
+                    userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
+                    setupProjectSpinner();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             },
-            error -> {
-                error.printStackTrace();
-            }
+            error -> error.printStackTrace()
         ) {
             @Override
-            public java.util.Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
+            public java.util.Map<String, String> getHeaders() throws AuthFailureError {
                 java.util.Map<String, String> headers = new java.util.HashMap<>();
                 headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
-                headers.put("Accept", "*/*");
+                headers.put("Accept", "application/json, text/plain, */*");
                 return headers;
+            }
+
+            @Override
+            protected java.util.Map<String, String> getParams() throws AuthFailureError {
+                java.util.Map<String, String> params = new java.util.HashMap<>();
+                params.put("project_id", "");
+                return params;
             }
         };
 
-        MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
+        request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                12000, 1, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+        MySingleton.getmInstance(this).addToRequestque(request);
     }
 }
