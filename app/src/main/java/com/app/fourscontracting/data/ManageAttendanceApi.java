@@ -219,7 +219,17 @@ public class ManageAttendanceApi {
                         callback.onError("Network connection error: Check your internet.");
                     }
                 }
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
+                headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
+                return headers;
+            }
+        };
 
         com.app.fourscontracting.MySingleton.getmInstance(context).addToRequestque(request);
     }
@@ -247,6 +257,16 @@ public class ManageAttendanceApi {
                 },
                 error -> callback.onError("Network error updating break status")
         ) {
+            @Override
+            public Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Cookie", "humans_21909=1");
+                headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
+                return headers;
+            }
+
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
