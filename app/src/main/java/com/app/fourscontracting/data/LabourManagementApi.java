@@ -3,6 +3,7 @@ package com.app.fourscontracting.data;
 import android.content.Context;
 import android.net.Uri;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.app.fourscontracting.MySingleton;
@@ -11,7 +12,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST API client for native Labour Management (replacing employee_details.php WebView).
@@ -55,7 +58,15 @@ public class LabourManagementApi {
                     }
                 },
                 error -> callback.onError("Network error loading departments")
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                return headers;
+            }
+        };
         MySingleton.getmInstance(context).addToRequestque(request);
     }
 
@@ -114,7 +125,9 @@ public class LabourManagementApi {
                             if (stats.has("present_here") || stats.has("in_count")) {
                                 inCount = stats.optInt("present_here", stats.optInt("in_count", computedIn));
                             }
-                            if (stats.has("out_count") || stats.has("time_out_count")) {
+                            if (stats.has("absent")) {
+                                outCount = stats.optInt("absent", computedOut);
+                            } else if (stats.has("out_count") || stats.has("time_out_count")) {
                                 outCount = stats.optInt("out_count", stats.optInt("time_out_count", computedOut));
                             }
                         }
@@ -128,7 +141,15 @@ public class LabourManagementApi {
                     // Fallback to legacy endpoint if server is using api_get_move_employees.php
                     fetchEmployeesFallback(context, locationId, deptId, callback);
                 }
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                return headers;
+            }
+        };
         MySingleton.getmInstance(context).addToRequestque(request);
     }
 
@@ -204,7 +225,15 @@ public class LabourManagementApi {
                     }
                 },
                 error -> callback.onError("Network error loading employee details")
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("Accept", "application/json, text/plain, */*");
+                return headers;
+            }
+        };
         MySingleton.getmInstance(context).addToRequestque(request);
     }
 }

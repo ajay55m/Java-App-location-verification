@@ -236,10 +236,14 @@ public class MainActivity extends AppActivity {
                         Toast.makeText(MainActivity.this, errMsg, Toast.LENGTH_SHORT).show();
                     } else {
                         LoginResponse res = LoginResponse.fromJson(response);
+                        new SessionManager(MainActivity.this).saveLogin(res);
+                        android.util.Log.d("LOGIN_SUCCESS", "uid=" + res.uid + ", empid=" + res.staffid + ", dept_id=" + res.getDeptId());
                         getSharedPreferences("app", MODE_PRIVATE).edit()
+                            .putString("uid", res.uid != null ? res.uid : "")
                             .putString("staffid", res.staffid != null ? res.staffid : "")
                             .putString("username", res.username != null ? res.username : "")
-                            .putString("has_project_allocation", res.has_project_allocation != null ? res.has_project_allocation : "0")
+                            .putString("has_project_allocation", res.has_project_allocation != null ? res.has_project_allocation : "1")
+                            .putInt("dept_id", res.getDeptId())
                             .apply();
 
                         User user = new User(response);

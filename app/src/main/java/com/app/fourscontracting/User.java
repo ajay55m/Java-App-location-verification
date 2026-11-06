@@ -13,6 +13,7 @@ public class User {
     public String endLatLng = "0.0,0.0";
     public String displayName = "";
     public String hasProjectAllocation = "0";
+    public int deptId = 0;
 
     public User(String username) {
         this.username = username != null ? username : "";
@@ -33,6 +34,8 @@ public class User {
                 this.email = obj.optString("email", "");
                 this.startLatLng = obj.optString("start_lat_lng", "0.0,0.0");
                 this.endLatLng = obj.optString("end_lat_lng", "0.0,0.0");
+                String deptVal = obj.optString("department_id", obj.optString("dept_id", obj.optString("employee_department_id", "0")));
+                try { this.deptId = Integer.parseInt(deptVal); } catch (Exception ignored) {}
                 if (obj.has("has_project_allocation")) {
                     this.hasProjectAllocation = obj.optString("has_project_allocation", "0");
                 } else {

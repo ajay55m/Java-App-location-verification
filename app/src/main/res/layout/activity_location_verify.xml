@@ -438,6 +438,71 @@
                         app:cornerRadius="29dp"
                         app:elevation="6dp" />
 
+                    <!-- Dynamic Punch Action Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPunch"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="sans-serif-black"
+                        android:letterSpacing="0.05"
+                        android:text="PUNCH IN"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        app:backgroundTint="#03045E"
+                        app:cornerRadius="29dp"
+                        app:elevation="6dp" />
+
+                    <!-- Selfie photo preview card (shown after capture) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardSelfiePreview"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="10dp"
+                        android:visibility="gone"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="3dp"
+                        app:strokeColor="#03045E"
+                        app:strokeWidth="1.5dp">
+                        <ImageView
+                            android:id="@+id/imgSelfie"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/tvStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textAlignment="center"
+                        android:textColor="#03045E"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvDetails"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAlignment="center"
+                        android:textColor="#64748B"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp"
+                        android:indeterminateTint="#03045E"
+                        android:visibility="gone" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

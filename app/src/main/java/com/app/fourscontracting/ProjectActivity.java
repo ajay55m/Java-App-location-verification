@@ -1,87 +1,82 @@
 package com.app.fourscontracting;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
+import androidx.annotation.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class ProjectActivity extends AppActivity {
-    UserLocalStore userLocalStore;
-    Spinner spinner;
+    private Spinner spinner;
+    private final List<ProjectModel> projectList = new ArrayList<>();
+    private boolean isInitial = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_project);
 
-//        Toolbar toolbar = findViewById(R.id.toolbar);
-//        setSupportActionBar(toolbar);
-//        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
-        userLocalStore = new UserLocalStore(this);
-        User user = userLocalStore.getLoggedInUser();
-        final String val = user.username != null ? user.username : "";
-        String[] val_list = UserLocalStore.parseUserInfo(val);
-
-
-        //Toast.makeText(ProjectActivity.this, val_list[3], Toast.LENGTH_SHORT).show();
-
-        String[] project_list = val_list.length > 3 ? val_list[3].split(",") : new String[]{""};
-
         spinner = findViewById(R.id.spinner);
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(ProjectActivity.this, android.R.layout.simple_spinner_item, project_list);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
+        loadProjects();
+    }
 
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+    private void loadProjects() {
+        ApiClient.getService().getProjects().enqueue(new Callback<List<ProjectModel>>() {
             @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String value = parent.getItemAtPosition(position).toString();
-                Toast.makeText(ProjectActivity.this, value, Toast.LENGTH_SHORT).show();
-                Intent homepage = new Intent(ProjectActivity.this, DashboardActivity.class);
-                homepage.putExtra("key", val);
-                homepage.putExtra("projectname", value);
-                startActivity(homepage);
+            public void onResponse(@NonNull Call<List<ProjectModel>> call, @NonNull Response<List<ProjectModel>> response) {
+                if (response.body() != null && !response.body().isEmpty()) {
+                    projectList.clear();
+                    projectList.addAll(response.body());
+
+                    ArrayAdapter<ProjectModel> adapter = new ArrayAdapter<>(
+                            ProjectActivity.this,
+                            android.R.layout.simple_spinner_item,
+                            projectList
+                    );
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    spinner.setAdapter(adapter);
+
+                    spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            if (isInitial) {
+                                isInitial = false;
+                                return;
+                            }
+                            ProjectModel selected = projectList.get(position);
+                            String code = selected.getProjectCode();
+                            Toast.makeText(ProjectActivity.this, "Selected: " + code, Toast.LENGTH_SHORT).show();
+
+                            Intent intent = new Intent(ProjectActivity.this, LocationVerifyActivity.class);
+                            intent.putExtra("project_code", code);
+                            intent.putExtra("location_id", selected.id);
+                            startActivity(intent);
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {}
+                    });
+                } else {
+                    Toast.makeText(ProjectActivity.this, "No projects returned from server", Toast.LENGTH_SHORT).show();
+                }
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
+            public void onFailure(@NonNull Call<List<ProjectModel>> call, @NonNull Throwable t) {
+                Toast.makeText(ProjectActivity.this, "Failed to load projects: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
-
-
-        /*LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < project_list.length; i++) {
-            LinearLayout row = new LinearLayout(this);
-            row.setLayoutParams(new LinearLayout.LayoutParams
-                    (LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT));
-            //for (int j = 0; j < 1; j++) {
-                Button btnTag = new Button(this);
-                btnTag.setLayoutParams(new LinearLayout.LayoutParams
-                        (LinearLayout.LayoutParams.MATCH_PARENT,
-                                LinearLayout.LayoutParams.MATCH_PARENT));
-                btnTag.setText(project_list[i]);
-                btnTag.setId((i + 1));
-                //btnTag.setBackgroundColor(getResources().getColor(R.color.colorRed));
-                row.addView(btnTag);
-            //}
-            layout.addView(row);
-        }
-        setContentView(layout);*/
     }
 }

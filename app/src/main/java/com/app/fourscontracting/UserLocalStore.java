@@ -59,6 +59,7 @@ public class UserLocalStore {
         if (user.hasProjectAllocation != null) {
             spEditor.putString("has_project_allocation", user.hasProjectAllocation);
         }
+        spEditor.putInt("dept_id", user.deptId);
         spEditor.apply();
 
         if (context != null) {
@@ -67,9 +68,21 @@ public class UserLocalStore {
                     .putString("staffid", user.staffId != null ? user.staffId : "")
                     .putString("username", user.displayName != null && !user.displayName.isEmpty() ? user.displayName : user.username)
                     .putString("has_project_allocation", user.hasProjectAllocation != null ? user.hasProjectAllocation : "0")
+                    .putInt("dept_id", user.deptId)
                     .apply();
             } catch (Exception ignored) {}
         }
+    }
+
+    public int getDeptId() {
+        SharedPreferences prefs = getPrefs();
+        int d = prefs != null ? prefs.getInt("dept_id", 0) : 0;
+        if (d == 0 && context != null) {
+            try {
+                d = context.getSharedPreferences("app", Context.MODE_PRIVATE).getInt("dept_id", 0);
+            } catch (Exception ignored) {}
+        }
+        return d;
     }
 
     public String getHasProjectAllocation() {

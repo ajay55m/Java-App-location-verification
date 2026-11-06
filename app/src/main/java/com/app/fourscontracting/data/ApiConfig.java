@@ -17,9 +17,9 @@ public final class ApiConfig {
     public static final String SUBADMIN_LOGIN = FCM_APP + "/subadminlogin.php";
     public static final String EMPLOYEE_DETAILS = SUBCONTRACTOR + "/employee_details.php";
     /** JSON APIs for native Labour Management & Move Site */
-    public static final String API_GET_DEPARTMENTS = SUBCONTRACTOR + "/api_get_departments.php";
+    public static final String API_GET_DEPARTMENTS = FCM_APP + "/api_get_departments.php";
     public static final String API_GET_MOVE_EMPLOYEES = SUBCONTRACTOR + "/api_get_move_employees.php";
-    public static final String API_LABOUR_MANAGER = SUBCONTRACTOR + "/api_labour_manager.php";
+    public static final String API_LABOUR_MANAGER = FCM_APP + "/api_labour_manager.php";
     public static final String API_MANAGE_ATTENDANCE = SUBCONTRACTOR + "/api_manage_attendance.php";
 
     /** Same key as Postman header x-api-key (Move Site JSON APIs). */

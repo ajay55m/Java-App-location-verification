@@ -132,11 +132,11 @@ public class ProjectSelectActivity extends AppActivity {
 
                             UserLocalStore store = new UserLocalStore(this);
                             store.storeUserProjectData(new UserProject(project.projname));
-                            store.storeUserProjectID(project.id);
+                            store.storeUserProjectID(project.getProjectCode());
 
                             Intent intent = new Intent(ProjectSelectActivity.this, DashboardActivity.class);
                             intent.putExtra("destination_id", R.id.nav_profile);
-                            intent.putExtra("project_id", project.id);
+                            intent.putExtra("project_id", project.getProjectCode());
                             intent.putExtra("project_name", project.projname);
                             intent.putExtra("uid", currentUid);
                             intent.putExtra("location_id", json.optString("location_id", ""));
@@ -154,7 +154,7 @@ public class ProjectSelectActivity extends AppActivity {
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
                 params.put("uid", currentUid);
-                params.put("projid", project.id);
+                params.put("projid", project.getProjectCode());
                 params.put("lat", String.valueOf(lat));
                 params.put("lng", String.valueOf(lng));
                 return params;
@@ -176,7 +176,7 @@ public class ProjectSelectActivity extends AppActivity {
         public void onBindViewHolder(@NonNull ProjectViewHolder holder, int position) {
             ProjectModel project = projects.get(position);
             holder.title.setText(project.projname);
-            holder.subtitle.setText(project.id);
+            holder.subtitle.setText(project.getProjectCode());
             holder.itemView.setOnClickListener(v -> verifyProjectSelection(project));
         }
 
