@@ -101,20 +101,6 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             btnChangeSite.setOnClickListener(v -> launchLocationVerifyManualChangeSite());
         }
 
-        View cardTotal = view.findViewById(R.id.card_stat_total);
-        View cardIn = view.findViewById(R.id.card_stat_in);
-        View cardOut = view.findViewById(R.id.card_stat_out);
-
-        if (cardTotal != null) {
-            cardTotal.setOnClickListener(v -> setFilterMode(FilterMode.ALL));
-        }
-        if (cardIn != null) {
-            cardIn.setOnClickListener(v -> setFilterMode(FilterMode.IN));
-        }
-        if (cardOut != null) {
-            cardOut.setOnClickListener(v -> setFilterMode(FilterMode.OUT));
-        }
-
         // Live Search Filter
         if (etSearch != null) {
             etSearch.addTextChangedListener(new TextWatcher() {
@@ -349,51 +335,6 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         return false;
     }
 
-    private boolean isSupervisorSelf(LabourEmployeeModel m) {
-        if (m == null) return false;
-        String mId = m.getId() != null ? m.getId().trim() : "";
-        String mName = m.getName() != null ? m.getName().trim().toLowerCase(java.util.Locale.US) : "";
-
-        SessionManager sm = new SessionManager(requireContext());
-        String myEmpId = String.valueOf(sm.getEmpId()).trim();
-        String myUid = uid != null ? uid.trim() : "";
-        String myUsername = sm.getUsername() != null ? sm.getUsername().trim().toLowerCase(java.util.Locale.US) : "";
-        String myEmpName = sm.getEmpName() != null ? sm.getEmpName().trim().toLowerCase(java.util.Locale.US) : "";
-
-        // Check ID matches supervisor's empId or uid
-        if (!mId.isEmpty()) {
-            if (!myEmpId.isEmpty() && !"0".equals(myEmpId) && mId.equalsIgnoreCase(myEmpId)) {
-                return true;
-            }
-            if (!myUid.isEmpty() && !"0".equals(myUid) && mId.equalsIgnoreCase(myUid)) {
-                return true;
-            }
-            try {
-                if (!myEmpId.isEmpty() && !"0".equals(myEmpId) && Integer.parseInt(mId) == Integer.parseInt(myEmpId)) {
-                    return true;
-                }
-                if (!myUid.isEmpty() && !"0".equals(myUid) && Integer.parseInt(mId) == Integer.parseInt(myUid)) {
-                    return true;
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // Check name matches supervisor's username or full name
-        if (!mName.isEmpty()) {
-            if (!myUsername.isEmpty() && mName.contains(myUsername)) {
-                return true;
-            }
-            if (!myEmpName.isEmpty() && (mName.contains(myEmpName) || myEmpName.contains(mName))) {
-                return true;
-            }
-            if (mName.contains("gurdeep") || mName.contains("piara")) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private void loadEmployees() {
         if (progress != null)
             progress.setVisibility(View.VISIBLE);
@@ -442,13 +383,18 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
                                 visibleTotal++;
 
-                                if (m.isClockedIn()) {
-                                    visibleIn++;
-                                } else {
-                                    visibleOut++;
+                                // Don't display completed/shift-finished employees on Labour page (managed in Manage Attendance)
+                                if (m.isClockedOut()) {
+                                    visibleOut++; // Track OUT count for top metric strip
+                                    continue; // Do NOT add completed employees to the active worker list
                                 }
 
-                                // Perfectly integrate: display all employees (both IN and OUT) in Manage Labour
+                                // Don't display already checked-in employees on Labour page (check-out is managed in Manage Attendance)
+                                if (m.isClockedIn()) {
+                                    visibleIn++; // Track IN count for top metric strip
+                                    continue; // Do NOT add checked-in employees to the Labour check-in queue
+                                }
+
                                 fullEmployeeList.add(m);
                             }
                         }
@@ -484,15 +430,6 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                 });
     }
 
-    public enum FilterMode { ALL, IN, OUT }
-    private FilterMode currentFilterMode = FilterMode.ALL;
-
-    private void setFilterMode(FilterMode mode) {
-        this.currentFilterMode = mode;
-        String currentQuery = etSearch != null ? etSearch.getText().toString() : "";
-        filterEmployees(currentQuery);
-    }
-
     private void filterEmployees(String query) {
         if (fullEmployeeList.isEmpty()) {
             adapter.setItems(new ArrayList<>());
@@ -503,19 +440,19 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             return;
         }
 
+        if (TextUtils.isEmpty(query)) {
+            adapter.setItems(fullEmployeeList);
+            if (emptyContainer != null)
+                emptyContainer.setVisibility(View.GONE);
+            return;
+        }
+
         String q = query != null ? query.trim().toLowerCase(java.util.Locale.US) : "";
         List<LabourEmployeeModel> filtered = new ArrayList<>();
         for (LabourEmployeeModel item : fullEmployeeList) {
             if (item == null) continue;
 
-            if (currentFilterMode == FilterMode.IN && !item.isClockedIn()) {
-                continue;
-            }
-            if (currentFilterMode == FilterMode.OUT && item.isClockedIn()) {
-                continue;
-            }
-
-            if (q.isEmpty() || item.getName().toLowerCase(java.util.Locale.US).contains(q)
+            if (item.getName().toLowerCase(java.util.Locale.US).contains(q)
                     || item.getId().toLowerCase(java.util.Locale.US).contains(q)) {
                 filtered.add(item);
             }
@@ -525,15 +462,8 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         if (filtered.isEmpty()) {
             if (emptyContainer != null)
                 emptyContainer.setVisibility(View.VISIBLE);
-            if (tvEmpty != null) {
-                if (currentFilterMode == FilterMode.IN) {
-                    tvEmpty.setText("No workers currently clocked IN");
-                } else if (currentFilterMode == FilterMode.OUT) {
-                    tvEmpty.setText("No workers currently clocked OUT");
-                } else {
-                    tvEmpty.setText("No matching workers found");
-                }
-            }
+            if (tvEmpty != null)
+                tvEmpty.setText("No matching workers found");
         } else {
             if (emptyContainer != null)
                 emptyContainer.setVisibility(View.GONE);
