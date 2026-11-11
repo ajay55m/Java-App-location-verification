@@ -32,3 +32,4 @@ public class NetworkResult<T> {
         return status == Status.SUCCESS;
     }
 }
+

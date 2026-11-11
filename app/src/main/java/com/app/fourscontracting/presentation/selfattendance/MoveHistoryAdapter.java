@@ -5,3 +5,4 @@ public class MoveHistoryAdapter extends com.app.fourscontracting.data.MoveFeedAd
         super(listener);
     }
 }
+

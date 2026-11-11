@@ -11,3 +11,4 @@ public class SelfAttendanceRepository {
         ApiClient.getService().getSelfAttendance(uid, empId, deptId, locationId, day, month, year, withPhoto).enqueue(callback);
     }
 }
+

@@ -23,3 +23,4 @@ public class PunchResponse {
         return "success".equalsIgnoreCase(status);
     }
 }
+

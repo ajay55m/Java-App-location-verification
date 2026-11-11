@@ -15,3 +15,4 @@ public class ImageUtils {
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
     }
 }
+

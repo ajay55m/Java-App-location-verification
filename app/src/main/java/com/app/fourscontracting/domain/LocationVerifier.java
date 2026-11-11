@@ -20,3 +20,4 @@ public class LocationVerifier {
         return results[0];
     }
 }
+

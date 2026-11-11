@@ -22,3 +22,4 @@ public class LocationModel {
         return getLocationName();
     }
 }
+

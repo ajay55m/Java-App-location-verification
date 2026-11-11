@@ -447,15 +447,52 @@ public class SupervisorAttendanceFragment extends Fragment
 
         // 2. Info Card display
         if (res.own_attendance != null) {
+            String inTimeStr = !TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : res.own_attendance.in_time;
+            String outTimeStr = !TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : res.own_attendance.out_time;
             if (tvSelfTimeIn != null) {
-                tvSelfTimeIn.setText(!TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : "--:--");
+                tvSelfTimeIn.setText(!TextUtils.isEmpty(inTimeStr) ? inTimeStr : "--:--");
             }
             if (tvSelfTimeOut != null) {
-                tvSelfTimeOut.setText(!TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : "--:--");
+                tvSelfTimeOut.setText(!TextUtils.isEmpty(outTimeStr) ? outTimeStr : "--:--");
             }
+            String pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
+            if (TextUtils.isEmpty(pStr)) pStr = projName;
             if (tvSelfProject != null) {
-                String pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
                 tvSelfProject.setText(!TextUtils.isEmpty(pStr) ? pStr : "--");
+            }
+
+            // Also populate Shift 1 card in historyAdapter so it does not stay blank
+            String aId = (res.own_attendance.attend_id > 0) ? String.valueOf(res.own_attendance.attend_id) : "";
+            String uId = String.valueOf(res.uid);
+            String eId = String.valueOf(res.empid);
+            boolean hasIn = res.own_attendance.has_in || (!TextUtils.isEmpty(inTimeStr) && !"--".equals(inTimeStr));
+            boolean hasOut = res.own_attendance.has_out || (!TextUtils.isEmpty(outTimeStr) && !"--".equals(outTimeStr));
+            String inPhoto = !TextUtils.isEmpty(res.own_attendance.in_photo_url) ? res.own_attendance.in_photo_url : "";
+            String outPhoto = !TextUtils.isEmpty(res.own_attendance.out_photo_url) ? res.own_attendance.out_photo_url : "";
+
+            if (hasIn || !TextUtils.isEmpty(inTimeStr)) {
+                AttendanceRecordModel shift1Record = new AttendanceRecordModel(
+                        aId,
+                        uId,
+                        eId,
+                        !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid,
+                        pStr,
+                        inTimeStr,
+                        outTimeStr,
+                        0.0,
+                        hasIn,
+                        hasOut,
+                        inPhoto,
+                        outPhoto
+                );
+                currentSelfRecord = shift1Record;
+
+                List<AttendanceRecordModel> selfShift1List = new ArrayList<>();
+                selfShift1List.add(shift1Record);
+                if (historyAdapter != null) {
+                    historyAdapter.setItems(selfShift1List);
+                }
+                updateHistoryUiStats(selfShift1List);
             }
         } else {
             if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
@@ -885,6 +922,10 @@ public class SupervisorAttendanceFragment extends Fragment
                 if (attendanceRecords != null) {
                     for (AttendanceRecordModel r : attendanceRecords) {
                         if (isSupervisorSelfRecord(r)) {
+                            // Skip envelope summary objects that lack actual punch times
+                            if (TextUtils.isEmpty(r.getTimeIn()) && TextUtils.isEmpty(r.getTimeOut()) && !r.isHasIn() && !r.isHasOut()) {
+                                continue;
+                            }
                             String displayName = r.getFirstName();
                             if (TextUtils.isEmpty(displayName) || "User".equalsIgnoreCase(displayName.trim())) {
                                 displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
@@ -905,6 +946,10 @@ public class SupervisorAttendanceFragment extends Fragment
                             ));
                         }
                     }
+                }
+
+                if (historyList.isEmpty() && currentSelfRecord != null && (!TextUtils.isEmpty(currentSelfRecord.getTimeIn()) || currentSelfRecord.isHasIn())) {
+                    historyList.add(currentSelfRecord);
                 }
 
                 List<MoveRecordModel> moveHistoryList = new ArrayList<>();

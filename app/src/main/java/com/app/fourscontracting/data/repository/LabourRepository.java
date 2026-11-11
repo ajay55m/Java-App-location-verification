@@ -9,3 +9,4 @@ public class LabourRepository {
         ApiClient.getService().getLabourList(deptId, locationId, uid).enqueue(callback);
     }
 }
+

@@ -9,3 +9,4 @@ public class MoveRepository {
         ApiClient.getService().getMoveEmployees(deptId, locationId).enqueue(callback);
     }
 }
+

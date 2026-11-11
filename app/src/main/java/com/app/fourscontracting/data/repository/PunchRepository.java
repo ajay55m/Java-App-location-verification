@@ -12,3 +12,4 @@ public class PunchRepository {
                 imageBase64, latitude, longitude, accuracy, isMock, mobileSessionId).enqueue(callback);
     }
 }
+

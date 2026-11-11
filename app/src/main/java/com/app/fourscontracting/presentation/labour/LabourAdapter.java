@@ -5,3 +5,4 @@ public class LabourAdapter extends com.app.fourscontracting.data.LabourEmployeeA
         super(listener);
     }
 }
+

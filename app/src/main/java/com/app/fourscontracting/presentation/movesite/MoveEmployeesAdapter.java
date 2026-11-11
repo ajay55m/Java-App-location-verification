@@ -5,3 +5,4 @@ public class MoveEmployeesAdapter extends com.app.fourscontracting.ui.move.MoveE
         super(listener);
     }
 }
+

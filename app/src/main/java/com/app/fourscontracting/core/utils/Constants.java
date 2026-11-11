@@ -22,3 +22,4 @@ public final class Constants {
     public static final String KEY_DEPT_ID = "dept_id";
     public static final String KEY_PROJECT_ALLOCATION = "has_project_allocation";
 }
+

@@ -5,3 +5,4 @@ public class PunchHistoryAdapter extends com.app.fourscontracting.data.Attendanc
         super(listener);
     }
 }
+

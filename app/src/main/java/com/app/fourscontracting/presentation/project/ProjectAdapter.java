@@ -10,3 +10,4 @@ public class ProjectAdapter extends ArrayAdapter<ProjectModel> {
         super(context, resource, objects);
     }
 }
+

@@ -37,6 +37,10 @@ public class ManageAttendanceResponse {
         public String location_name;
         public boolean has_in;
         public boolean has_out;
+        public String in_time;
+        public String out_time;
+        public String in_photo_url;
+        public String out_photo_url;
     }
 
     public static class OwnMoveRecord {
@@ -69,6 +73,10 @@ public class ManageAttendanceResponse {
         public String location_name;
         public boolean has_in;
         public boolean has_out;
+        public String in_time;
+        public String out_time;
+        public String in_photo_url;
+        public String out_photo_url;
     }
 
     public static class WorkerMoveRecord {

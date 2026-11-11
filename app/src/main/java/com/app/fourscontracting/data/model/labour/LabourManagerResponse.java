@@ -23,3 +23,4 @@ public class LabourManagerResponse {
         public String photo;
     }
 }
+
