@@ -13,6 +13,7 @@ public class AttendanceRecordModel {
     private final boolean hasOut;
     private final String inPhotoUrl;
     private final String outPhotoUrl;
+    private int shiftNo = 1;
 
     public AttendanceRecordModel(String attendId, String firstName, String projName, String timeIn,
                                  String timeOut, double breakHours, boolean hasIn, boolean hasOut,
@@ -29,6 +30,12 @@ public class AttendanceRecordModel {
     public AttendanceRecordModel(String attendId, String userId, String empId, String firstName, String projName, String timeIn,
                                  String timeOut, double breakHours, boolean hasIn, boolean hasOut,
                                  String inPhotoUrl, String outPhotoUrl) {
+        this(attendId, userId, empId, firstName, projName, timeIn, timeOut, breakHours, hasIn, hasOut, inPhotoUrl, outPhotoUrl, 1);
+    }
+
+    public AttendanceRecordModel(String attendId, String userId, String empId, String firstName, String projName, String timeIn,
+                                 String timeOut, double breakHours, boolean hasIn, boolean hasOut,
+                                 String inPhotoUrl, String outPhotoUrl, int shiftNo) {
         this.attendId = attendId != null ? attendId : "";
         this.userId = userId != null ? userId : "";
         this.empId = empId != null ? empId : "";
@@ -41,6 +48,15 @@ public class AttendanceRecordModel {
         this.hasOut = hasOut;
         this.inPhotoUrl = inPhotoUrl != null ? inPhotoUrl : "";
         this.outPhotoUrl = outPhotoUrl != null ? outPhotoUrl : "";
+        this.shiftNo = shiftNo > 0 ? shiftNo : 1;
+    }
+
+    public int getShiftNo() {
+        return shiftNo > 0 ? shiftNo : 1;
+    }
+
+    public void setShiftNo(int shiftNo) {
+        this.shiftNo = shiftNo > 0 ? shiftNo : 1;
     }
 
     public String getAttendId() {

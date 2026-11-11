@@ -2,6 +2,7 @@ package com.app.fourscontracting.data;
 
 public class MoveRecordModel {
     private final String moveId;
+    private final String attendanceId;
     private final String empId;
     private final String firstName;
     private final String projName;
@@ -11,17 +12,25 @@ public class MoveRecordModel {
     private final boolean hasOut;
     private final String inPhotoUrl;
     private final String outPhotoUrl;
+    private int shiftNo = 2;
 
     public MoveRecordModel(String moveId, String firstName, String projName, String inTime,
                            String outTime, boolean hasIn, boolean hasOut,
                            String inPhotoUrl, String outPhotoUrl) {
-        this(moveId, "", firstName, projName, inTime, outTime, hasIn, hasOut, inPhotoUrl, outPhotoUrl);
+        this(moveId, "", "", firstName, projName, inTime, outTime, hasIn, hasOut, inPhotoUrl, outPhotoUrl, 2);
     }
 
     public MoveRecordModel(String moveId, String empId, String firstName, String projName, String inTime,
                            String outTime, boolean hasIn, boolean hasOut,
                            String inPhotoUrl, String outPhotoUrl) {
+        this(moveId, "", empId, firstName, projName, inTime, outTime, hasIn, hasOut, inPhotoUrl, outPhotoUrl, 2);
+    }
+
+    public MoveRecordModel(String moveId, String attendanceId, String empId, String firstName, String projName, String inTime,
+                           String outTime, boolean hasIn, boolean hasOut,
+                           String inPhotoUrl, String outPhotoUrl, int shiftNo) {
         this.moveId = moveId != null ? moveId : "";
+        this.attendanceId = attendanceId != null ? attendanceId : "";
         this.empId = empId != null ? empId : "";
         this.firstName = firstName != null ? firstName : "";
         this.projName = projName != null ? projName : "";
@@ -31,10 +40,23 @@ public class MoveRecordModel {
         this.hasOut = hasOut;
         this.inPhotoUrl = inPhotoUrl != null ? inPhotoUrl : "";
         this.outPhotoUrl = outPhotoUrl != null ? outPhotoUrl : "";
+        this.shiftNo = shiftNo > 0 ? shiftNo : 2;
     }
 
     public String getMoveId() {
         return moveId;
+    }
+
+    public String getAttendanceId() {
+        return attendanceId != null ? attendanceId : "";
+    }
+
+    public int getShiftNo() {
+        return shiftNo > 0 ? shiftNo : 2;
+    }
+
+    public void setShiftNo(int shiftNo) {
+        this.shiftNo = shiftNo > 0 ? shiftNo : 2;
     }
 
     public String getEmpId() {

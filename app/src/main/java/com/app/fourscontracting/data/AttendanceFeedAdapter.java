@@ -112,21 +112,23 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         holder.tvInTime.setText(formatTime(item.getTimeIn()));
         holder.tvOutTime.setText(formatTime(item.getTimeOut()));
 
-        // Base URL for attendance photo endpoint script
-        String baseUrl = (!item.getAttendId().isEmpty()) ? (ApiConfig.FCM_APP + "/view_attendance_img.php?attendance_id=" + item.getAttendId() + "&type=") : "";
+        // Resolve IN & OUT URLs using shift_no to avoid LruCache collisions
+        String attendanceId = item.getAttendId();
+        int shiftNo = item.getShiftNo();
+
+        String inUrl = ApiConfig.attendancePhotoUrl(item.getInPhotoUrl(), attendanceId, shiftNo, "in");
+        String outUrl = ApiConfig.attendancePhotoUrl(item.getOutPhotoUrl(), attendanceId, shiftNo, "out");
 
         // IN Photo
-        if (item.isHasIn() || !item.getInPhotoUrl().isEmpty()) {
-            String rawIn = !item.getInPhotoUrl().isEmpty() ? item.getInPhotoUrl() : (!baseUrl.isEmpty() ? (baseUrl + "in") : "");
-            String fullInUrl = sanitizePhotoUrl(rawIn);
-            if (!fullInUrl.isEmpty()) {
+        if (item.isHasIn() || !inUrl.isEmpty()) {
+            if (!inUrl.isEmpty()) {
                 holder.imgInPhoto.setVisibility(View.VISIBLE);
                 holder.llInNoPhoto.setVisibility(View.GONE);
-                ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
+                ImageLoaderHelper.loadImage(context, inUrl, holder.imgInPhoto, holder.llInNoPhoto);
 
                 View.OnClickListener inClick = v -> {
                     if (listener != null) {
-                        listener.onPhotoClicked(fullInUrl);
+                        listener.onPhotoClicked(inUrl);
                     }
                 };
                 holder.imgInPhoto.setOnClickListener(inClick);
@@ -145,17 +147,15 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         }
 
         // OUT Photo
-        if (item.isHasOut() || !item.getOutPhotoUrl().isEmpty()) {
-            String rawOut = !item.getOutPhotoUrl().isEmpty() ? item.getOutPhotoUrl() : (!baseUrl.isEmpty() ? (baseUrl + "out") : "");
-            String fullOutUrl = sanitizePhotoUrl(rawOut);
-            if (!fullOutUrl.isEmpty()) {
+        if (item.isHasOut() || !outUrl.isEmpty()) {
+            if (!outUrl.isEmpty()) {
                 holder.imgOutPhoto.setVisibility(View.VISIBLE);
                 holder.llOutNoPhoto.setVisibility(View.GONE);
-                ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
+                ImageLoaderHelper.loadImage(context, outUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
 
                 View.OnClickListener outClick = v -> {
                     if (listener != null) {
-                        listener.onPhotoClicked(fullOutUrl);
+                        listener.onPhotoClicked(outUrl);
                     }
                 };
                 holder.imgOutPhoto.setOnClickListener(outClick);

@@ -47,6 +47,7 @@ public class ManageAttendanceResponse {
         public int move_id;
         public int shift_id;
         public int shift_no;
+        public int attendance_id;
         public String in_time;
         public String out_time;
         public String in_at;
@@ -55,6 +56,8 @@ public class ManageAttendanceResponse {
         public String location_name;
         public boolean has_in;
         public boolean has_out;
+        public String in_photo_url;
+        public String out_photo_url;
         public String next_action;
     }
 

@@ -26,4 +26,51 @@ public final class ApiConfig {
     /** Same key as Postman header x-api-key (Move Site JSON APIs). */
     public static final String X_API_KEY = "4S_Secure_Access_Token_2024_#$";
     public static final String HEADER_X_API_KEY = "x-api-key";
+
+    /**
+     * Resolves authoritative attendance photo URL including shift_no to avoid LruCache collisions.
+     */
+    public static String attendancePhotoUrl(String photoUrl, String attendanceId, int shiftNo, String type) {
+        int sNo = shiftNo > 0 ? shiftNo : 1;
+        String cleanType = (type != null && !type.trim().isEmpty()) ? type.trim().toLowerCase(java.util.Locale.US) : "in";
+
+        if (photoUrl != null && !photoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(photoUrl.trim()) && !"0".equals(photoUrl.trim())) {
+            String url = photoUrl.trim();
+            if (url.contains("view_attendance_img.php")) {
+                if (!url.contains("shift_no=") && !url.contains("move_id=")) {
+                    url = url + (url.contains("?") ? "&" : "?") + "shift_no=" + sNo;
+                }
+                return ImageLoaderHelper.sanitizeUrl(url);
+            }
+            return ImageLoaderHelper.sanitizeUrl(url);
+        }
+
+        if (attendanceId != null && !attendanceId.trim().isEmpty() && !"0".equals(attendanceId.trim()) && !"null".equalsIgnoreCase(attendanceId.trim()) && !"--".equals(attendanceId.trim())) {
+            String generated = FCM_APP + "/view_attendance_img.php?attendance_id=" + attendanceId.trim() + "&shift_no=" + sNo + "&type=" + cleanType;
+            return ImageLoaderHelper.sanitizeUrl(generated);
+        }
+        return "";
+    }
+
+    public static String attendancePhotoUrl(String photoUrl, String attendanceId, String shiftNoStr, String type) {
+        int shiftNo = 1;
+        if (shiftNoStr != null && !shiftNoStr.trim().isEmpty()) {
+            try {
+                shiftNo = Integer.parseInt(shiftNoStr.trim());
+            } catch (Exception ignored) {}
+        }
+        return attendancePhotoUrl(photoUrl, attendanceId, shiftNo, type);
+    }
+
+    public static String movePhotoUrl(String photoUrl, String moveId, String type) {
+        String cleanType = (type != null && !type.trim().isEmpty()) ? type.trim().toLowerCase(java.util.Locale.US) : "in";
+        if (photoUrl != null && !photoUrl.trim().isEmpty() && !"null".equalsIgnoreCase(photoUrl.trim()) && !"0".equals(photoUrl.trim())) {
+            return ImageLoaderHelper.sanitizeUrl(photoUrl.trim());
+        }
+        if (moveId != null && !moveId.trim().isEmpty() && !"0".equals(moveId.trim()) && !"null".equalsIgnoreCase(moveId.trim())) {
+            String generated = FCM_APP + "/view_attendance_img.php?source=hrms&move_id=" + moveId.trim() + "&type=" + cleanType;
+            return ImageLoaderHelper.sanitizeUrl(generated);
+        }
+        return "";
+    }
 }

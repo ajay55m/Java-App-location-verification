@@ -483,7 +483,8 @@ public class SupervisorAttendanceFragment extends Fragment
                         hasIn,
                         hasOut,
                         inPhoto,
-                        outPhoto
+                        outPhoto,
+                        1
                 );
                 currentSelfRecord = shift1Record;
 
@@ -503,9 +504,15 @@ public class SupervisorAttendanceFragment extends Fragment
         // 3. Move/Shift records history
         List<MoveRecordModel> moveList = new ArrayList<>();
         if (res.own_move_records != null) {
+            String parentAttId = (res.own_attendance != null && res.own_attendance.attend_id > 0)
+                    ? String.valueOf(res.own_attendance.attend_id)
+                    : "";
             for (ManageAttendanceResponse.OwnMoveRecord mr : res.own_move_records) {
+                String mAttId = (mr.attendance_id > 0) ? String.valueOf(mr.attendance_id) : parentAttId;
+                int sNo = mr.shift_no > 0 ? mr.shift_no : (moveList.size() + 2);
                 MoveRecordModel m = new MoveRecordModel(
                         String.valueOf(mr.move_id),
+                        mAttId,
                         String.valueOf(res.empid),
                         supervisorName,
                         mr.location_name != null ? mr.location_name : mr.projname,
@@ -513,8 +520,9 @@ public class SupervisorAttendanceFragment extends Fragment
                         mr.out_time,
                         mr.has_in,
                         mr.has_out,
-                        "",
-                        ""
+                        mr.in_photo_url,
+                        mr.out_photo_url,
+                        sNo
                 );
                 moveList.add(m);
             }

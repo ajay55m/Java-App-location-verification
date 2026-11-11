@@ -196,6 +196,7 @@ public class ManageAttendanceApi {
                                 if (outPhoto.isEmpty() && outPhotoMap.containsKey(attendIdVal)) {
                                     outPhoto = outPhotoMap.get(attendIdVal);
                                 }
+                                int ownShiftNo = ownObj.optInt("shift_no", 1);
 
                                 attendanceRecords.add(new AttendanceRecordModel(
                                         attendIdVal,
@@ -209,7 +210,8 @@ public class ManageAttendanceApi {
                                         ownObj.optBoolean("has_in", !timeInVal.isEmpty() && !"--".equals(timeInVal)),
                                         ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
                                         inPhoto,
-                                        outPhoto
+                                        outPhoto,
+                                        ownShiftNo
                                 ));
                             }
                         }
@@ -274,6 +276,7 @@ public class ManageAttendanceApi {
                                     if (!attendIdVal.isEmpty()) seenRecordKeys.add("att_" + attendIdVal);
                                     if (!empIdVal.isEmpty()) seenRecordKeys.add("emp_" + empIdVal);
 
+                                    int shiftNoVal = rObj.optInt("shift_no", rObj.optInt("shift", 1));
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             attendIdVal,
                                             userIdVal,
@@ -286,7 +289,8 @@ public class ManageAttendanceApi {
                                             hasIn,
                                             hasOut,
                                             inPhoto,
-                                            outPhoto
+                                            outPhoto,
+                                            shiftNoVal
                                     ));
                                 }
                             }
@@ -312,9 +316,13 @@ public class ManageAttendanceApi {
                                     boolean hIn = optCleanBoolean(mObj, "has_in", tIn);
                                     boolean hOut = optCleanBoolean(mObj, "has_out", tOut);
                                     int mId = mObj.optInt("move_id", mObj.optInt("shift_id", 0));
+                                    int mShiftNo = mObj.optInt("shift_no", mObj.optInt("shift", 2));
                                     String inP = "";
                                     String outP = "";
-                                    if (mId > 0) {
+                                    if (!mAttId.isEmpty()) {
+                                        inP = ApiConfig.attendancePhotoUrl(optCleanString(mObj, "in_photo_url"), mAttId, mShiftNo, "in");
+                                        outP = ApiConfig.attendancePhotoUrl(optCleanString(mObj, "out_photo_url"), mAttId, mShiftNo, "out");
+                                    } else if (mId > 0) {
                                         inP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=in&source=hrms";
                                         outP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=out&source=hrms";
                                     }
@@ -330,7 +338,8 @@ public class ManageAttendanceApi {
                                             hIn,
                                             hOut,
                                             inP,
-                                            outP
+                                            outP,
+                                            mShiftNo
                                     ));
                                 }
                             }
@@ -537,8 +546,11 @@ public class ManageAttendanceApi {
                 String inPhoto = optCleanString(mObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "move_in_photo", "move_in_image", "move_photo_in", "move_in", "in_image_id", "in_photo_id", "move_in_image_id", "photo_in_id");
                 String outPhoto = optCleanString(mObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo", "move_out_photo", "move_out_image", "move_photo_out", "move_out", "out_image_id", "out_photo_id", "move_out_image_id", "photo_out_id");
 
+                String mAttId = optCleanString(mObj, "attendance_id", "attend_id");
+                int sNo = mObj.optInt("shift_no", mObj.optInt("shift_id", mObj.optInt("shift", outList.size() + 2)));
                 outList.add(new MoveRecordModel(
                         mId,
+                        mAttId,
                         eId,
                         fName,
                         pName,
@@ -547,7 +559,8 @@ public class ManageAttendanceApi {
                         hasIn,
                         hasOut,
                         inPhoto,
-                        outPhoto
+                        outPhoto,
+                        sNo
                 ));
             }
         }
