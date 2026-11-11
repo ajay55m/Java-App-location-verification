@@ -180,7 +180,15 @@ public class ManageAttendanceApi {
                                 uIdVal = eIdVal;
                             }
                             String nameVal = optCleanString(ownObj, "first_name", "emp_name", "name");
-                            if (nameVal.isEmpty()) nameVal = userName;
+                            if (nameVal.isEmpty()) {
+                                String sName = session != null ? session.getEmpName() : null;
+                                if (sName == null || sName.isEmpty()) sName = session != null ? session.getUsername() : null;
+                                if (sName != null && !sName.isEmpty()) {
+                                    nameVal = sName;
+                                } else {
+                                    nameVal = userName;
+                                }
+                            }
 
                             String dedupKey = (!attendIdVal.isEmpty()) ? ("att_" + attendIdVal) : ("emp_" + eIdVal);
                             if (!seenRecordKeys.contains(dedupKey) && (!attendIdVal.isEmpty() || !timeInVal.isEmpty())) {

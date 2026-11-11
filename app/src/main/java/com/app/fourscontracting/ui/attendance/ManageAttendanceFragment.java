@@ -320,11 +320,6 @@ public class ManageAttendanceFragment extends Fragment
             if (record == null)
                 continue;
 
-            // Exclude logged-in supervisor's own attendance (supervisor belongs in Self Attendance)
-            if (isSupervisorSelfRecord(record)) {
-                continue;
-            }
-
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
             } else {

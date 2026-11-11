@@ -283,10 +283,6 @@ public class ManageMoveSiteFragment extends Fragment
         List<MoveRecordModel> filtered = new ArrayList<>();
         for (MoveRecordModel record : inputRecords) {
             if (record == null) continue;
-            // Exclude logged-in supervisor's own moves (supervisor moves belong in Self Attendance)
-            if (isSupervisorSelfMoveRecord(record)) {
-                continue;
-            }
 
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);

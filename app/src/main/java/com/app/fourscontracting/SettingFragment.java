@@ -101,6 +101,20 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             btnChangeSite.setOnClickListener(v -> launchLocationVerifyManualChangeSite());
         }
 
+        View cardTotal = view.findViewById(R.id.card_stat_total);
+        View cardIn = view.findViewById(R.id.card_stat_in);
+        View cardOut = view.findViewById(R.id.card_stat_out);
+
+        if (cardTotal != null) {
+            cardTotal.setOnClickListener(v -> setFilterMode(FilterMode.ALL));
+        }
+        if (cardIn != null) {
+            cardIn.setOnClickListener(v -> setFilterMode(FilterMode.IN));
+        }
+        if (cardOut != null) {
+            cardOut.setOnClickListener(v -> setFilterMode(FilterMode.OUT));
+        }
+
         // Live Search Filter
         if (etSearch != null) {
             etSearch.addTextChangedListener(new TextWatcher() {
@@ -421,11 +435,6 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
                         if (employees != null) {
                             for (LabourEmployeeModel m : employees) {
-                                // Exclude logged-in supervisor from Labour Management (supervisor belongs in Self Attendance)
-                                if (isSupervisorSelf(m)) {
-                                    continue;
-                                }
-
                                 // Completely hide employees checked-in at another location
                                 if (isLockedOtherSite(m)) {
                                     continue;
@@ -433,20 +442,13 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
                                 visibleTotal++;
 
-                                // Don't display completed/shift-finished employees on Labour page (managed in
-                                // Manage Attendance)
-                                if (m.isClockedOut()) {
-                                    visibleOut++; // Track OUT count for top metric strip
-                                    continue; // Do NOT add completed employees to the active worker list
-                                }
-
-                                // Don't display already checked-in employees on Labour page (check-out is
-                                // managed in Manage Attendance)
                                 if (m.isClockedIn()) {
-                                    visibleIn++; // Track IN count for top metric strip
-                                    continue; // Do NOT add checked-in employees to the Labour check-in queue
+                                    visibleIn++;
+                                } else {
+                                    visibleOut++;
                                 }
 
+                                // Perfectly integrate: display all employees (both IN and OUT) in Manage Labour
                                 fullEmployeeList.add(m);
                             }
                         }
@@ -482,6 +484,15 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
                 });
     }
 
+    public enum FilterMode { ALL, IN, OUT }
+    private FilterMode currentFilterMode = FilterMode.ALL;
+
+    private void setFilterMode(FilterMode mode) {
+        this.currentFilterMode = mode;
+        String currentQuery = etSearch != null ? etSearch.getText().toString() : "";
+        filterEmployees(currentQuery);
+    }
+
     private void filterEmployees(String query) {
         if (fullEmployeeList.isEmpty()) {
             adapter.setItems(new ArrayList<>());
@@ -492,17 +503,20 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
             return;
         }
 
-        if (TextUtils.isEmpty(query)) {
-            adapter.setItems(fullEmployeeList);
-            if (emptyContainer != null)
-                emptyContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        String q = query.trim().toLowerCase();
+        String q = query != null ? query.trim().toLowerCase(java.util.Locale.US) : "";
         List<LabourEmployeeModel> filtered = new ArrayList<>();
         for (LabourEmployeeModel item : fullEmployeeList) {
-            if (item.getName().toLowerCase().contains(q) || item.getId().toLowerCase().contains(q)) {
+            if (item == null) continue;
+
+            if (currentFilterMode == FilterMode.IN && !item.isClockedIn()) {
+                continue;
+            }
+            if (currentFilterMode == FilterMode.OUT && item.isClockedIn()) {
+                continue;
+            }
+
+            if (q.isEmpty() || item.getName().toLowerCase(java.util.Locale.US).contains(q)
+                    || item.getId().toLowerCase(java.util.Locale.US).contains(q)) {
                 filtered.add(item);
             }
         }
@@ -511,8 +525,15 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         if (filtered.isEmpty()) {
             if (emptyContainer != null)
                 emptyContainer.setVisibility(View.VISIBLE);
-            if (tvEmpty != null)
-                tvEmpty.setText("No matching workers found");
+            if (tvEmpty != null) {
+                if (currentFilterMode == FilterMode.IN) {
+                    tvEmpty.setText("No workers currently clocked IN");
+                } else if (currentFilterMode == FilterMode.OUT) {
+                    tvEmpty.setText("No workers currently clocked OUT");
+                } else {
+                    tvEmpty.setText("No matching workers found");
+                }
+            }
         } else {
             if (emptyContainer != null)
                 emptyContainer.setVisibility(View.GONE);

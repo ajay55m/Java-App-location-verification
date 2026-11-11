@@ -66,23 +66,25 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
         }
         ImageLoaderHelper.loadImage(h.itemView.getContext(), photoUrl, h.imgPhoto, h.tvAvatar);
 
-        // Status Text & Badge
-        String displayStatus = !TextUtils.isEmpty(worker.getDisplayText())
-                ? worker.getDisplayText()
-                : (!TextUtils.isEmpty(worker.getSiteName()) ? worker.getSiteName() : "NOT MARKED");
-
-        h.tvBadge.setText(displayStatus);
-
         // Status-driven Button Logic:
-        // IN_HERE -> only OUT enabled
+        // IN_HERE / isClockedIn -> only OUT enabled
         // OFF_DUTY -> only IN enabled
         // LOCKED_OTHER -> both disabled, show site_name
-        // COMPLETED -> ready for Move Site / Shift 2
+        // COMPLETED / isClockedOut -> ready for Move Site / Shift 2
         String statusCode = worker.getStatusCode() != null ? worker.getStatusCode().trim().toUpperCase() : "";
         boolean canIn = worker.isCanIn();
         boolean canOut = worker.isCanOut();
+        boolean isClockedIn = worker.isClockedIn();
+        boolean isClockedOut = worker.isClockedOut();
 
-        if ("IN_HERE".equalsIgnoreCase(statusCode) || (!canIn && canOut)) {
+        // Status Text & Badge
+        String displayStatus = !TextUtils.isEmpty(worker.getDisplayText())
+                ? worker.getDisplayText()
+                : (isClockedIn ? "Clocked In" : (isClockedOut ? "Clocked Out" : (!TextUtils.isEmpty(worker.getSiteName()) ? worker.getSiteName() : "NOT MARKED")));
+
+        h.tvBadge.setText(displayStatus);
+
+        if (isClockedIn || "IN_HERE".equalsIgnoreCase(statusCode) || (!canIn && canOut)) {
             h.btnTimeIn.setVisibility(View.GONE);
             if (h.btnTimeOut != null) {
                 h.btnTimeOut.setVisibility(View.VISIBLE);
@@ -92,17 +94,7 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
                     if (listener != null) listener.onTimeOutClicked(worker);
                 });
             }
-        } else if ("OFF_DUTY".equalsIgnoreCase(statusCode) || (canIn && !canOut)) {
-            h.btnTimeIn.setVisibility(View.VISIBLE);
-            h.btnTimeIn.setEnabled(true);
-            h.btnTimeIn.setText("TIME IN");
-            h.btnTimeIn.setOnClickListener(v -> {
-                if (listener != null) listener.onTimeInClicked(worker);
-            });
-            if (h.btnTimeOut != null) {
-                h.btnTimeOut.setVisibility(View.GONE);
-            }
-        } else if ("COMPLETED".equalsIgnoreCase(statusCode)) {
+        } else if (isClockedOut || "COMPLETED".equalsIgnoreCase(statusCode)) {
             // Shift completed, ready for Move Site or Shift 2
             h.btnTimeIn.setVisibility(View.VISIBLE);
             h.btnTimeIn.setEnabled(true);
@@ -119,17 +111,14 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
                 h.btnTimeOut.setVisibility(View.GONE);
             }
         } else {
-            h.btnTimeIn.setVisibility(canIn ? View.VISIBLE : View.GONE);
-            h.btnTimeIn.setEnabled(canIn);
+            h.btnTimeIn.setVisibility(View.VISIBLE);
+            h.btnTimeIn.setEnabled(true);
+            h.btnTimeIn.setText("TIME IN");
             h.btnTimeIn.setOnClickListener(v -> {
                 if (listener != null) listener.onTimeInClicked(worker);
             });
             if (h.btnTimeOut != null) {
-                h.btnTimeOut.setVisibility(canOut ? View.VISIBLE : View.GONE);
-                h.btnTimeOut.setEnabled(canOut);
-                h.btnTimeOut.setOnClickListener(v -> {
-                    if (listener != null) listener.onTimeOutClicked(worker);
-                });
+                h.btnTimeOut.setVisibility(View.GONE);
             }
         }
 
@@ -145,13 +134,17 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
             h.tvBadge.setTextColor(Color.parseColor("#03045E"));
             setBadgeBackground(h.tvBadge, "#CAF0F8", "#90E0EF");
             h.itemView.setBackgroundResource(R.drawable.bg_move_emp_card);
-        } else if ("IN_HERE".equalsIgnoreCase(statusCode) || "PRESENT".equalsIgnoreCase(statusCode)) {
+        } else if (isClockedIn || "IN_HERE".equalsIgnoreCase(statusCode) || "PRESENT".equalsIgnoreCase(statusCode)) {
             h.tvBadge.setTextColor(Color.parseColor("#0077B6"));
             setBadgeBackground(h.tvBadge, "#CAF0F8", "#00B4D8");
             h.itemView.setBackgroundResource(R.drawable.bg_move_emp_card);
+        } else if (isClockedOut || "COMPLETED".equalsIgnoreCase(statusCode)) {
+            h.tvBadge.setTextColor(Color.parseColor("#D97706"));
+            setBadgeBackground(h.tvBadge, "#FEF3C7", "#F59E0B");
+            h.itemView.setBackgroundResource(R.drawable.bg_move_emp_card);
         } else {
-            h.tvBadge.setTextColor(Color.parseColor("#0077B6"));
-            setBadgeBackground(h.tvBadge, "#CAF0F8", "#90E0EF");
+            h.tvBadge.setTextColor(Color.parseColor("#475569"));
+            setBadgeBackground(h.tvBadge, "#F1F5F9", "#CBD5E1");
             h.itemView.setBackgroundResource(R.drawable.bg_move_emp_card);
         }
     }

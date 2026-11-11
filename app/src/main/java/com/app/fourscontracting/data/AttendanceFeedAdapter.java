@@ -57,6 +57,25 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         Context context = holder.itemView.getContext();
 
         String empName = item.getFirstName();
+        if (empName == null || empName.trim().isEmpty() || "User".equalsIgnoreCase(empName.trim()) || "Worker".equalsIgnoreCase(empName.trim()) || empName.startsWith("Worker #")) {
+            if (context != null) {
+                com.app.fourscontracting.SessionManager sm = new com.app.fourscontracting.SessionManager(context);
+                String myEmpId = sm.getEmpId() > 0 ? String.valueOf(sm.getEmpId()) : "";
+                String myUid = sm.getUid() > 0 ? String.valueOf(sm.getUid()) : "";
+                String sEmpName = sm.getEmpName();
+                String sUser = sm.getUsername();
+                String targetName = !android.text.TextUtils.isEmpty(sEmpName) ? sEmpName : sUser;
+
+                if (!android.text.TextUtils.isEmpty(targetName)) {
+                    String eId = item.getEmpId() != null ? item.getEmpId().trim() : "";
+                    String uId = item.getUserId() != null ? item.getUserId().trim() : "";
+                    if ((!myEmpId.isEmpty() && (eId.equalsIgnoreCase(myEmpId) || uId.equalsIgnoreCase(myEmpId)))
+                            || (!myUid.isEmpty() && (eId.equalsIgnoreCase(myUid) || uId.equalsIgnoreCase(myUid)))) {
+                        empName = targetName;
+                    }
+                }
+            }
+        }
         if (empName == null || empName.trim().isEmpty() || "User".equalsIgnoreCase(empName.trim())) {
             empName = (item.getEmpId() != null && !item.getEmpId().trim().isEmpty()) ? "Worker #" + item.getEmpId() : "Worker";
         }
