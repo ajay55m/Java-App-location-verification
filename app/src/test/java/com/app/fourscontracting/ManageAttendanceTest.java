@@ -1,8 +1,10 @@
 package com.app.fourscontracting;
 
 import com.app.fourscontracting.data.AllocatedProjectModel;
+import com.app.fourscontracting.data.ApiConfig;
 import com.app.fourscontracting.data.AttendancePayload;
 import com.app.fourscontracting.data.AttendanceRecordModel;
+import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.MoveRecordModel;
 
 import org.json.JSONArray;
@@ -377,7 +379,7 @@ public class ManageAttendanceTest {
                 "1001", "85", "RST/001", "Standard Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
         );
         String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);
-        String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record);
+        String resolvedActivityId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record);
 
         assertEquals("RST/001", resolvedFragmentId);
         assertEquals("RST/001", resolvedActivityId);
@@ -389,7 +391,7 @@ public class ManageAttendanceTest {
                 "1002", "43", "--", "Standard Worker", "Site A", "09:00:00", "", 0.0, true, false, "", ""
         );
         String resolvedFragmentId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, "85");
-        String resolvedActivityId = com.app.fourscontracting.ManageAttendanceActivity.resolveTargetWorkerId(record, "85");
+        String resolvedActivityId = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(record, "85");
 
         assertEquals("43", resolvedFragmentId);
         assertEquals("43", resolvedActivityId);
@@ -459,5 +461,28 @@ public class ManageAttendanceTest {
         assertEquals("85", selfPayload.empid);
         assertEquals("85", managePayload.uid);
         assertEquals("85", selfPayload.uid);
+    }
+
+    @Test
+    public void testAttendancePhotoUrlResolution_fcmAppEndpoint() {
+        // Attendance record with attend_id = 1489
+        AttendanceRecordModel record = new AttendanceRecordModel(
+                "1489", "141", "31", "gurdeepsinghpiara", "RST",
+                "09:28 AM", "03:02 PM", 0.0, true, true, "", ""
+        );
+
+        String expectedInUrl = ApiConfig.FCM_APP + "/view_attendance_img.php?attendance_id=1489&type=in";
+        String expectedOutUrl = ApiConfig.FCM_APP + "/view_attendance_img.php?attendance_id=1489&type=out";
+
+        assertEquals(expectedInUrl, record.getInPhotoUrl());
+        assertEquals(expectedOutUrl, record.getOutPhotoUrl());
+
+        // Verify ImageLoaderHelper sanitizes it cleanly to the exact fcm_app URL
+        assertEquals(expectedInUrl, ImageLoaderHelper.sanitizeUrl(record.getInPhotoUrl()));
+        assertEquals(expectedOutUrl, ImageLoaderHelper.sanitizeUrl(record.getOutPhotoUrl()));
+
+        // Legacy /subcontractor/ URL rewrites to fcm_app
+        String legacyUrl = "https://www.4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?attendance_id=1489&type=in";
+        assertEquals(expectedInUrl, ImageLoaderHelper.sanitizeUrl(legacyUrl));
     }
 }

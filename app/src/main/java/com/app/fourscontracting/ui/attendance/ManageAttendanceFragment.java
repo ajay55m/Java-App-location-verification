@@ -78,7 +78,8 @@ public class ManageAttendanceFragment extends Fragment
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_manage_attendance, container, false);
     }
 
@@ -87,13 +88,20 @@ public class ManageAttendanceFragment extends Fragment
         super.onViewCreated(view, savedInstanceState);
 
         Context context = getContext();
-        if (context == null) return;
+        if (context == null)
+            return;
 
         userLocalStore = new UserLocalStore(context);
         User user = userLocalStore.getLoggedInUser();
         String val = user != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
         uid = (val_list != null && val_list.length > 0) ? val_list[0] : "";
+        if (TextUtils.isEmpty(uid)) {
+            com.app.fourscontracting.SessionManager session = new com.app.fourscontracting.SessionManager(context);
+            if (session.getUid() > 0) {
+                uid = String.valueOf(session.getUid());
+            }
+        }
 
         initViews(view);
         setupDateSpinners();
@@ -108,12 +116,21 @@ public class ManageAttendanceFragment extends Fragment
         loadData();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (isAdded() && !isInitializingDateSpinners) {
+            loadData();
+        }
+    }
+
     public void refreshList() {
         loadData();
     }
 
     private void initViews(View view) {
-        if (view == null) return;
+        if (view == null)
+            return;
         ImageView imgBack = view.findViewById(R.id.img_back_button);
         TextView tvTitle = view.findViewById(R.id.tv_header_title);
         ImageView btnRefresh = view.findViewById(R.id.btn_refresh_feed);
@@ -126,7 +143,8 @@ public class ManageAttendanceFragment extends Fragment
         }
         if (btnRefresh != null) {
             btnRefresh.setOnClickListener(v -> {
-                if (isAdded()) loadData();
+                if (isAdded())
+                    loadData();
             });
         }
 
@@ -146,11 +164,12 @@ public class ManageAttendanceFragment extends Fragment
 
     private void setupDateSpinners() {
         Context context = getContext();
-        if (context == null || spinnerDay == null || spinnerMonth == null || spinnerYear == null) return;
+        if (context == null || spinnerDay == null || spinnerMonth == null || spinnerYear == null)
+            return;
 
         isInitializingDateSpinners = true;
 
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Dubai"));
         int currentDay = cal.get(Calendar.DAY_OF_MONTH);
         int currentMonth = cal.get(Calendar.MONTH) + 1;
         int currentYear = cal.get(Calendar.YEAR);
@@ -173,12 +192,14 @@ public class ManageAttendanceFragment extends Fragment
         spinnerDay.setAdapter(dayAdapter);
         spinnerDay.setSelection(dayIndexToSelect, false);
 
-        String[] monthNames = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+        String[] monthNames = { "January", "February", "March", "April", "May", "June", "July", "August", "September",
+                "October", "November", "December" };
         List<String> monthsList = new ArrayList<>();
         for (String m : monthNames) {
             monthsList.add(m);
         }
-        ArrayAdapter<String> monthAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, monthsList);
+        ArrayAdapter<String> monthAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item,
+                monthsList);
         monthAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerMonth.setAdapter(monthAdapter);
         spinnerMonth.setSelection(currentMonth - 1, false);
@@ -195,9 +216,11 @@ public class ManageAttendanceFragment extends Fragment
         AdapterView.OnItemSelectedListener dateChangeListener = new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (isInitializingDateSpinners) return;
+                if (isInitializingDateSpinners)
+                    return;
 
-                if (spinnerDay != null && spinnerMonth != null && spinnerYear != null && spinnerYear.getSelectedItem() != null) {
+                if (spinnerDay != null && spinnerMonth != null && spinnerYear != null
+                        && spinnerYear.getSelectedItem() != null) {
                     selDay = String.format(Locale.US, "%02d", spinnerDay.getSelectedItemPosition() + 1);
                     selMonth = String.format(Locale.US, "%02d", spinnerMonth.getSelectedItemPosition() + 1);
                     selYear = spinnerYear.getSelectedItem().toString();
@@ -206,7 +229,8 @@ public class ManageAttendanceFragment extends Fragment
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         };
 
         spinnerDay.setOnItemSelectedListener(dateChangeListener);
@@ -221,7 +245,8 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
-        if (inputRecords == null) return new ArrayList<>();
+        if (inputRecords == null)
+            return new ArrayList<>();
 
         String targetName = "";
         if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
@@ -238,13 +263,15 @@ public class ManageAttendanceFragment extends Fragment
 
         List<AttendanceRecordModel> filtered = new ArrayList<>();
         for (AttendanceRecordModel record : inputRecords) {
-            if (record == null) continue;
+            if (record == null)
+                continue;
 
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
             } else {
                 String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
-                if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+                if (recProjName.contains(targetName) || targetName.contains(recProjName)
+                        || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
                     filtered.add(record);
                 }
             }
@@ -254,10 +281,12 @@ public class ManageAttendanceFragment extends Fragment
 
     private void loadData() {
         Context context = getContext();
-        if (context == null || !isAdded()) return;
+        if (context == null || !isAdded())
+            return;
 
         if (TextUtils.isEmpty(uid)) {
-            if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+            if (swipeRefreshLayout != null)
+                swipeRefreshLayout.setRefreshing(false);
             return;
         }
 
@@ -265,55 +294,64 @@ public class ManageAttendanceFragment extends Fragment
             progressBar.setVisibility(View.VISIBLE);
         }
 
-        api.fetchFeed(context, uid, selectedProjectId, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
-            @Override
-            public void onSuccess(String userName,
-                                  List<AllocatedProjectModel> projects,
-                                  List<AttendanceRecordModel> attendanceRecords,
-                                  List<com.app.fourscontracting.data.MoveRecordModel> moveRecords) {
-                if (!isAdded() || getContext() == null) return;
+        api.fetchFeed(context, uid, selectedProjectId, selDay, selMonth, selYear,
+                new ManageAttendanceApi.FeedCallback() {
+                    @Override
+                    public void onSuccess(String userName,
+                            List<AllocatedProjectModel> projects,
+                            List<AttendanceRecordModel> attendanceRecords,
+                            List<com.app.fourscontracting.data.MoveRecordModel> moveRecords) {
+                        if (!isAdded() || getContext() == null)
+                            return;
 
-                if (progressBar != null) progressBar.setVisibility(View.GONE);
-                if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+                        if (progressBar != null)
+                            progressBar.setVisibility(View.GONE);
+                        if (swipeRefreshLayout != null)
+                            swipeRefreshLayout.setRefreshing(false);
 
-                if (!projectSpinnerInitialized || (projects != null && projects.size() != (allocatedProjects.size() - 1))) {
-                    updateProjectSpinner(projects);
-                }
+                        if (!projectSpinnerInitialized
+                                || (projects != null && projects.size() != (allocatedProjects.size() - 1))) {
+                            updateProjectSpinner(projects);
+                        }
 
-                currentAttendanceList.clear();
-                if (attendanceRecords != null) {
-                    List<AttendanceRecordModel> filtered = filterRecordsBySelectedProject(attendanceRecords);
-                    currentAttendanceList.addAll(filtered);
-                }
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
-                }
+                        currentAttendanceList.clear();
+                        if (attendanceRecords != null) {
+                            List<AttendanceRecordModel> filtered = filterRecordsBySelectedProject(attendanceRecords);
+                            currentAttendanceList.addAll(filtered);
+                        }
+                        if (attendanceAdapter != null) {
+                            attendanceAdapter.setItems(currentAttendanceList);
+                        }
 
-                updateSummaryMetrics();
-                updateEmptyStateView();
-            }
+                        updateSummaryMetrics();
+                        updateEmptyStateView();
+                    }
 
-            @Override
-            public void onError(String message) {
-                if (!isAdded() || getContext() == null) return;
-                if (progressBar != null) progressBar.setVisibility(View.GONE);
-                if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
-                if (message != null) {
-                    Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                }
-                currentAttendanceList.clear();
-                if (attendanceAdapter != null) {
-                    attendanceAdapter.setItems(currentAttendanceList);
-                }
-                updateSummaryMetrics();
-                updateEmptyStateView();
-            }
-        });
+                    @Override
+                    public void onError(String message) {
+                        if (!isAdded() || getContext() == null)
+                            return;
+                        if (progressBar != null)
+                            progressBar.setVisibility(View.GONE);
+                        if (swipeRefreshLayout != null)
+                            swipeRefreshLayout.setRefreshing(false);
+                        if (message != null) {
+                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                        }
+                        currentAttendanceList.clear();
+                        if (attendanceAdapter != null) {
+                            attendanceAdapter.setItems(currentAttendanceList);
+                        }
+                        updateSummaryMetrics();
+                        updateEmptyStateView();
+                    }
+                });
     }
 
     private void updateProjectSpinner(List<AllocatedProjectModel> projects) {
         Context context = getContext();
-        if (context == null || spinnerProjects == null) return;
+        if (context == null || spinnerProjects == null)
+            return;
 
         isUpdatingProjects = true;
         allocatedProjects.clear();
@@ -334,7 +372,8 @@ public class ManageAttendanceFragment extends Fragment
 
         spinnerProjects.setOnItemSelectedListener(null);
 
-        ArrayAdapter<AllocatedProjectModel> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, allocatedProjects);
+        ArrayAdapter<AllocatedProjectModel> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item,
+                allocatedProjects);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProjects.setAdapter(adapter);
         spinnerProjects.setSelection(selectedIndex, false);
@@ -342,7 +381,8 @@ public class ManageAttendanceFragment extends Fragment
         spinnerProjects.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (isUpdatingProjects) return;
+                if (isUpdatingProjects)
+                    return;
                 if (position >= 0 && position < allocatedProjects.size()) {
                     AllocatedProjectModel selected = allocatedProjects.get(position);
                     if (selected != null && !selectedProjectId.equalsIgnoreCase(selected.getId())) {
@@ -353,7 +393,8 @@ public class ManageAttendanceFragment extends Fragment
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
 
         spinnerProjects.post(() -> {
@@ -363,7 +404,8 @@ public class ManageAttendanceFragment extends Fragment
     }
 
     private void updateEmptyStateView() {
-        if (llEmptyState == null || tvEmptyMessage == null) return;
+        if (llEmptyState == null || tvEmptyMessage == null)
+            return;
 
         if (allocatedProjects.size() <= 1 && projectSpinnerInitialized) {
             llEmptyState.setVisibility(View.VISIBLE);
@@ -392,9 +434,12 @@ public class ManageAttendanceFragment extends Fragment
             }
         }
 
-        if (tvStatTotal != null) tvStatTotal.setText(String.valueOf(total));
-        if (tvStatActive != null) tvStatActive.setText(String.valueOf(active));
-        if (tvStatCompleted != null) tvStatCompleted.setText(String.valueOf(completed));
+        if (tvStatTotal != null)
+            tvStatTotal.setText(String.valueOf(total));
+        if (tvStatActive != null)
+            tvStatActive.setText(String.valueOf(active));
+        if (tvStatCompleted != null)
+            tvStatCompleted.setText(String.valueOf(completed));
     }
 
     @Override
@@ -414,20 +459,25 @@ public class ManageAttendanceFragment extends Fragment
 
     /**
      * Resolves target worker employee ID for Manage Attendance Checkout.
-     * Checks record's empId first; if empty or invalid, falls back to userId or attendId,
+     * Checks record's empId first; if empty or invalid, falls back to userId or
+     * attendId,
      * ensuring supervisorUid is never mistakenly identified as the worker ID.
      */
     public static String resolveTargetWorkerId(AttendanceRecordModel record, String supervisorUid) {
-        if (record == null) return "";
+        if (record == null)
+            return "";
 
         String empId = record.getEmpId();
-        if (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim()) && !"null".equalsIgnoreCase(empId.trim())) {
+        if (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())
+                && !"null".equalsIgnoreCase(empId.trim())) {
             return empId.trim();
         }
 
         String userId = record.getUserId();
-        if (userId != null && !userId.trim().isEmpty() && !"--".equals(userId.trim()) && !"null".equalsIgnoreCase(userId.trim())) {
-            if (supervisorUid == null || supervisorUid.trim().isEmpty() || !userId.trim().equalsIgnoreCase(supervisorUid.trim())) {
+        if (userId != null && !userId.trim().isEmpty() && !"--".equals(userId.trim())
+                && !"null".equalsIgnoreCase(userId.trim())) {
+            if (supervisorUid == null || supervisorUid.trim().isEmpty()
+                    || !userId.trim().equalsIgnoreCase(supervisorUid.trim())) {
                 return userId.trim();
             }
         }
@@ -441,7 +491,8 @@ public class ManageAttendanceFragment extends Fragment
 
     public void performManageAttendanceCheckOut(AttendanceRecordModel record) {
         Context context = getContext();
-        if (context == null || record == null || !isAdded()) return;
+        if (context == null || record == null || !isAdded())
+            return;
 
         String targetWorkerId = resolveTargetWorkerId(record, uid);
 
@@ -452,7 +503,9 @@ public class ManageAttendanceFragment extends Fragment
 
         SessionPrefs session = new SessionPrefs(context);
         if (!session.isLocationSessionValid()) {
-            Toast.makeText(context, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
+            if (com.app.fourscontracting.LocationVerifyActivity.isVerificationActive()) return;
+            Toast.makeText(context, "Location verification is required before marking check out.", Toast.LENGTH_LONG)
+                    .show();
             Intent intent = new Intent(context, com.app.fourscontracting.LocationVerifyActivity.class);
             intent.putExtra("IS_INITIAL_VERIFY", false);
             intent.putExtra("IS_CHANGE_SITE", false);
@@ -472,12 +525,14 @@ public class ManageAttendanceFragment extends Fragment
         String freshToken = session.issueFreshVerificationToken();
         String targetLocId = session.getLocationId();
         String pName = session.getProjectName();
-        if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+        if (pName == null || pName.trim().isEmpty())
+            pName = record.getProjName();
         String projectCode = pName;
         if (projectCode != null && projectCode.contains(" - ")) {
             projectCode = projectCode.split(" - ")[0].trim();
         }
-        if (projectCode == null || projectCode.isEmpty() || "Verified Site".equalsIgnoreCase(projectCode) || com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode)) {
+        if (projectCode == null || projectCode.isEmpty() || "Verified Site".equalsIgnoreCase(projectCode)
+                || com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode)) {
             projectCode = "RST";
         }
 
@@ -518,7 +573,8 @@ public class ManageAttendanceFragment extends Fragment
 
     private void showBreakModal(AttendanceRecordModel record) {
         Context context = getContext();
-        if (context == null || record == null || !isAdded()) return;
+        if (context == null || record == null || !isAdded())
+            return;
 
         Dialog dialog = new Dialog(context);
         dialog.setContentView(R.layout.dialog_break_status);
@@ -547,28 +603,32 @@ public class ManageAttendanceFragment extends Fragment
                 }
                 boolean isChecked = cbBreak.isChecked();
                 btnSave.setEnabled(false);
-                api.updateBreakStatus(getContext(), record.getAttendId(), isChecked, new ManageAttendanceApi.BreakUpdateCallback() {
-                    @Override
-                    public void onSuccess(String attendId, double updatedBreakHours) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        dialog.dismiss();
-                        record.setBreakHours(updatedBreakHours);
-                        if (attendanceAdapter != null) {
-                            attendanceAdapter.notifyDataSetChanged();
-                        }
-                        Toast.makeText(getContext(), "Break status updated successfully", Toast.LENGTH_SHORT).show();
-                    }
+                api.updateBreakStatus(getContext(), record.getAttendId(), isChecked,
+                        new ManageAttendanceApi.BreakUpdateCallback() {
+                            @Override
+                            public void onSuccess(String attendId, double updatedBreakHours) {
+                                if (!isAdded() || getContext() == null)
+                                    return;
+                                btnSave.setEnabled(true);
+                                dialog.dismiss();
+                                record.setBreakHours(updatedBreakHours);
+                                if (attendanceAdapter != null) {
+                                    attendanceAdapter.notifyDataSetChanged();
+                                }
+                                Toast.makeText(getContext(), "Break status updated successfully", Toast.LENGTH_SHORT)
+                                        .show();
+                            }
 
-                    @Override
-                    public void onError(String message) {
-                        if (!isAdded() || getContext() == null) return;
-                        btnSave.setEnabled(true);
-                        if (message != null) {
-                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
+                            @Override
+                            public void onError(String message) {
+                                if (!isAdded() || getContext() == null)
+                                    return;
+                                btnSave.setEnabled(true);
+                                if (message != null) {
+                                    Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
             });
         }
 
@@ -577,7 +637,8 @@ public class ManageAttendanceFragment extends Fragment
 
     private void showLightboxDialog(String photoUrl) {
         Context context = getContext();
-        if (context == null) return;
+        if (context == null)
+            return;
 
         Dialog dialog = new Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         dialog.setContentView(R.layout.dialog_image_lightbox);

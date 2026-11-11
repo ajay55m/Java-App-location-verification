@@ -16,5 +16,10 @@ public class LocationModel {
     public String getLocationName() {
         return location_name != null ? location_name : "";
     }
+
+    @Override
+    public String toString() {
+        return getLocationName();
+    }
 }
 

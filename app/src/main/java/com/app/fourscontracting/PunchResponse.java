@@ -1,10 +1,25 @@
 package com.app.fourscontracting;
 
 public class PunchResponse {
-    public String status; // success / error
-    public String action; // IN / OUT
+    public String status;
     public String message;
+    public String action;
+    public String next_action;
+    public String project_code;
+    public String date;
+    public String time;
     public String mobile_session_id;
-    public int attendance_id, shift_id, shift_no, photo_id, total_minutes, department_id, distance;
-}
 
+    public int attendance_id;
+    public int shift_id;
+    public int shift_no;
+    public int total_minutes;
+    public int location_id;
+    public int photo_id;
+    public int department_id;
+    public Integer distance;
+
+    public boolean isSuccess() {
+        return "success".equalsIgnoreCase(status);
+    }
+}

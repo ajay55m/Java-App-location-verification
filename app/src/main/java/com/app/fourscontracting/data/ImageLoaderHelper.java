@@ -257,14 +257,22 @@ public class ImageLoaderHelper {
         if (url.startsWith("data:image/")) {
             return url;
         }
-        if (url.contains("view_attendance_img.php") && !url.contains("source=")) {
-            url = url + (url.contains("?") ? "&source=hrms" : "?source=hrms");
+        if (url.contains("view_attendance_img.php")) {
+            if (url.contains("/subcontractor/view_attendance_img.php")) {
+                url = url.replace("/subcontractor/view_attendance_img.php", "/fcm_app/view_attendance_img.php");
+            }
         }
-        if (url.startsWith("http://")) {
+        if (url.startsWith("https://www.4scontracting.com")) {
+            url = url.replace("https://www.4scontracting.com", ApiConfig.HOST);
+        } else if (url.startsWith("http://www.4scontracting.com")) {
+            url = url.replace("http://www.4scontracting.com", ApiConfig.HOST);
+        } else if (url.startsWith("http://")) {
             url = url.replace("http://", "https://");
         } else if (!url.startsWith("https://")) {
             if (url.startsWith("/")) {
                 url = ApiConfig.HOST + url;
+            } else if (url.startsWith("view_attendance_img.php")) {
+                url = ApiConfig.FCM_APP + "/" + url;
             } else {
                 url = ApiConfig.SUBCONTRACTOR + "/" + url;
             }

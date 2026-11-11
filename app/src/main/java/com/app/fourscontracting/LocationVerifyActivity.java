@@ -1,21 +1,19 @@
 package com.app.fourscontracting;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -42,14 +40,22 @@ public class LocationVerifyActivity extends AppCompatActivity {
     private static final String TAG = "LocationVerifyActivity";
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
+    private static volatile boolean isVerificationActive = false;
+
+    public static boolean isVerificationActive() {
+        return isVerificationActive;
+    }
+
     private ActivityLocationVerifyBinding binding;
     private SessionManager session;
+    private SessionPrefs sessionPrefs;
     private LocationModel targetLocation;
     private Location gpsLocation;
     private String projectCode = "";
-    private String capturedBase64 = "";
     private int locationId = 0;
     private FusedLocationProviderClient fusedLocationClient;
+    private boolean isAutoStartVerify = false;
+    private boolean hasStartedAutoVerify = false;
 
     private final Handler liveClockHandler = new Handler(Looper.getMainLooper());
     private final Runnable liveClockRunnable = new Runnable() {
@@ -63,55 +69,50 @@ public class LocationVerifyActivity extends AppCompatActivity {
         }
     };
 
-    // Camera result launcher
-    private final ActivityResultLauncher<Intent> cameraLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                setButtonsEnabled(true);
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    Bitmap photo = null;
-                    if (result.getData().getExtras() != null) {
-                        photo = (Bitmap) result.getData().getExtras().get("data");
-                    }
-                    if (photo == null && result.getData().getData() != null) {
-                        try {
-                            photo = MediaStore.Images.Media.getBitmap(getContentResolver(), result.getData().getData());
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error decoding camera photo", e);
-                        }
-                    }
-                    if (photo != null) {
-                        capturedBase64 = ImageUtils.bitmapToBase64(photo);
-                        if (binding != null) {
-                            if (binding.imgSelfie != null) {
-                                binding.imgSelfie.setImageBitmap(photo);
-                            }
-                            if (binding.cardSelfiePreview != null) {
-                                binding.cardSelfiePreview.setVisibility(View.VISIBLE);
-                            }
-                        }
-                        callPunchApi(); // Call API only after photo
-                    } else {
-                        showError("Photo capture failed. Please retry.");
-                    }
-                } else {
-                    showError("Selfie photo is required to punch attendance.");
-                }
-            });
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isVerificationActive) {
+            Log.w(TAG, "LocationVerifyActivity already active, dismissing duplicate instance.");
+            finish();
+            return;
+        }
+        isVerificationActive = true;
+
+        session = new SessionManager(this);
+        sessionPrefs = new SessionPrefs(this);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        // Check if location session is already valid for today (prevents showing multiple times)
+        Intent intent = getIntent();
+        boolean isChangeSite = intent != null && intent.getBooleanExtra("IS_CHANGE_SITE", false);
+
+        if (sessionPrefs.isLocationSessionValid() && !isChangeSite) {
+            Log.d(TAG, "Location session already valid for today. Finishing immediately.");
+            Intent resultIntent = new Intent();
+            String savedId = sessionPrefs.getLocationId();
+            String savedName = sessionPrefs.getProjectName();
+            resultIntent.putExtra("location_id", savedId);
+            resultIntent.putExtra("project_id", sessionPrefs.getProjectId());
+            resultIntent.putExtra("projname", savedName);
+            resultIntent.putExtra("project_name", savedName);
+            resultIntent.putExtra("location_name", savedName);
+            resultIntent.putExtra("VERIFIED", "true");
+            resultIntent.putExtra("VERIFICATION_TOKEN", sessionPrefs.getVerificationToken());
+            setResult(RESULT_OK, resultIntent);
+            isVerificationActive = false;
+            finish();
+            return;
+        }
+
         binding = ActivityLocationVerifyBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        session = new SessionManager(this);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
         initHeaderInfo();
 
-        // Read incoming project parameters
-        Intent intent = getIntent();
         if (intent != null) {
+            isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false)
+                    || intent.getBooleanExtra("IS_INITIAL_VERIFY", false);
             projectCode = intent.getStringExtra("project_code");
             if (projectCode == null || projectCode.isEmpty()) {
                 projectCode = intent.getStringExtra("projname");
@@ -131,12 +132,10 @@ public class LocationVerifyActivity extends AppCompatActivity {
             }
         }
 
-        // Initialize button click listeners
-        if (binding.btnPunch != null) {
-            binding.btnPunch.setOnClickListener(v -> onPunchClicked());
-        }
+        // Initialize single button
         if (binding.btnVerify != null) {
-            binding.btnVerify.setOnClickListener(v -> onPunchClicked());
+            binding.btnVerify.setText("VERIFY GPS CHECK");
+            binding.btnVerify.setOnClickListener(v -> onVerifyClicked());
         }
 
         setupProjectSelection();
@@ -147,12 +146,26 @@ public class LocationVerifyActivity extends AppCompatActivity {
 
     private void initHeaderInfo() {
         if (binding.tvVerifyUserName != null) {
-            String u = session.getUsername();
-            if (u == null || u.isEmpty()) {
-                u = new UserLocalStore(this).getLoggedInUser().displayName;
+            String u = session.getEmpName();
+            if (u == null || u.trim().isEmpty()) {
+                u = session.getUsername();
             }
-            if (u == null || u.isEmpty()) u = "User";
-            binding.tvVerifyUserName.setText("USER: " + u);
+            if (u == null || u.trim().isEmpty()) {
+                try {
+                    User user = new UserLocalStore(this).getLoggedInUser();
+                    if (user != null) {
+                        u = user.displayName;
+                        if (u == null || u.trim().isEmpty()) {
+                            String[] parts = UserLocalStore.parseUserInfo(user.username);
+                            if (parts.length > 2 && !parts[2].trim().isEmpty()) {
+                                u = parts[2].trim();
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (u == null || u.trim().isEmpty()) u = "User";
+            binding.tvVerifyUserName.setText(u.trim());
         }
     }
 
@@ -199,9 +212,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         ProjectModel sel = (ProjectModel) parent.getItemAtPosition(position);
                         if (sel != null) {
                             projectCode = sel.getProjectCode();
-                            locationId = sel.id;
                             binding.myProjectSpinner.setText(sel.toString(), false);
-                            loadTargetLocation();
+                            loadLocationsForProject(projectCode);
                         }
                     });
 
@@ -212,9 +224,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         for (ProjectModel p : list) {
                             if (projectCode.equalsIgnoreCase(p.getProjectCode())) {
                                 projectCode = p.getProjectCode();
-                                locationId = p.id;
                                 binding.myProjectSpinner.setText(p.toString(), false);
-                                loadTargetLocation();
+                                loadLocationsForProject(projectCode);
                                 foundPreselected = true;
                                 break;
                             }
@@ -231,9 +242,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
                             }
                         }
                         projectCode = defaultProject.getProjectCode();
-                        locationId = defaultProject.id;
                         binding.myProjectSpinner.setText(defaultProject.toString(), false);
-                        loadTargetLocation();
+                        loadLocationsForProject(projectCode);
                     }
                 } else {
                     showError("No projects available");
@@ -250,41 +260,40 @@ public class LocationVerifyActivity extends AppCompatActivity {
         });
     }
 
-    private void loadTargetLocation() {
-        if (projectCode == null || projectCode.isEmpty()) {
+    private void loadLocationsForProject(String pCode) {
+        if (pCode == null || pCode.isEmpty()) {
             showError("No Project Allocated");
             return;
         }
 
         if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Loading location for " + projectCode + "...");
+            binding.tvStatus.setText("Loading location for " + pCode + "...");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
-        ApiClient.getService().getLocations(projectCode).enqueue(new Callback<List<LocationModel>>() {
+        ApiClient.getService().getLocations(pCode).enqueue(new Callback<List<LocationModel>>() {
             @Override
             public void onResponse(@NonNull Call<List<LocationModel>> c, @NonNull Response<List<LocationModel>> r) {
-                if (r.body() == null || r.body().isEmpty()) {
+                List<LocationModel> locList = r.body();
+                if (locList == null || locList.isEmpty()) {
                     if (binding.tvStatus != null) {
                         binding.tvStatus.setText("No location configured for this project");
                     }
                     setButtonsEnabled(false);
                     return;
                 }
-                targetLocation = r.body().get(0);
-                if (locationId == 0) {
-                    locationId = targetLocation.id;
-                }
 
-                if (binding.tvDetails != null) {
-                    binding.tvDetails.setText("Site: " + targetLocation.location_name + "\nProject: " + projectCode);
-                    binding.tvDetails.setVisibility(View.VISIBLE);
+                // Auto-select location matching locationId or default to first location
+                LocationModel selLoc = locList.get(0);
+                if (locationId > 0) {
+                    for (LocationModel lm : locList) {
+                        if (lm.id == locationId) {
+                            selLoc = lm;
+                            break;
+                        }
+                    }
                 }
-                if (binding.tvVerifyProjectLocation != null) {
-                    binding.tvVerifyProjectLocation.setText(targetLocation.location_name + " (" + projectCode + ")");
-                }
-
-                loadTodayStatus();
+                applySelectedLocation(selLoc);
             }
 
             @Override
@@ -294,86 +303,41 @@ public class LocationVerifyActivity extends AppCompatActivity {
         });
     }
 
-    private void loadTodayStatus() {
-        int deptId = session.getDeptId();
-        if (deptId == 0) deptId = new UserLocalStore(this).getDeptId();
-        int uid = session.getUid();
-        int empId = session.getEmpId();
+    private void applySelectedLocation(LocationModel loc) {
+        if (loc == null) return;
+        targetLocation = loc;
+        locationId = loc.id;
 
-        ApiClient.getService().getTodayStatus(deptId, locationId, uid, empId)
-                .enqueue(new Callback<ManagerResponse>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ManagerResponse> c, @NonNull Response<ManagerResponse> r) {
-                        String next = calculateNextAction(r.body());
-                        setButtonAction(next);
-                        setButtonsEnabled(true);
-                        if (binding.tvStatus != null) {
-                            binding.tvStatus.setText("Ready to " + next);
-                            binding.tvStatus.setVisibility(View.VISIBLE);
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ManagerResponse> c, @NonNull Throwable t) {
-                        setButtonAction("IN");
-                        setButtonsEnabled(true);
-                    }
-                });
-    }
-
-    private String calculateNextAction(ManagerResponse res) {
-        if (res == null) return "IN";
-
-        // Check structured shifts
-        if (res.data != null && !res.data.isEmpty()) {
-            for (ManagerResponse.AttendanceData att : res.data) {
-                if (att.shifts != null && !att.shifts.isEmpty()) {
-                    for (ManagerResponse.ShiftData s : att.shifts) {
-                        if (s.out_at == null || s.out_at.isEmpty() || "-".equals(s.out_at)) {
-                            return "OUT";
-                        }
-                    }
-                }
-            }
-            return "IN";
+        if (binding.tvDetails != null) {
+            binding.tvDetails.setText("Site: " + loc.location_name + "\nProject: " + projectCode);
+            binding.tvDetails.setVisibility(View.VISIBLE);
+        }
+        if (binding.tvVerifyProjectLocation != null) {
+            binding.tvVerifyProjectLocation.setText(loc.location_name + " (" + projectCode + ")");
         }
 
-        // Check labour employees list format
-        if (res.employees != null && !res.employees.isEmpty()) {
-            String myEmpIdStr = String.valueOf(session.getEmpId());
-            for (ManagerResponse.LabourEmployeeItem item : res.employees) {
-                if (item.id != null && item.id.trim().equals(myEmpIdStr)) {
-                    if (item.can_out || "IN_HERE".equalsIgnoreCase(item.status_code)) {
-                        return "OUT";
-                    } else if (item.can_in || "OFF_DUTY".equalsIgnoreCase(item.status_code) || "COMPLETED".equalsIgnoreCase(item.status_code)) {
-                        return "IN";
-                    }
-                }
-            }
+        if (binding.tvStatus != null) {
+            binding.tvStatus.setText("Ready to verify location for " + projectCode);
+            binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
-        return "IN"; // Shift 1 closed, next IN = Shift 2 on server
-    }
-
-    private void setButtonAction(String action) {
-        String label = "PUNCH " + action;
-        if (binding.btnPunch != null) {
-            binding.btnPunch.setText(label);
-            binding.btnPunch.setTag(action);
-            binding.btnPunch.setVisibility(View.VISIBLE);
-        }
         if (binding.btnVerify != null) {
-            binding.btnVerify.setText(label);
-            binding.btnVerify.setTag(action);
+            binding.btnVerify.setText("VERIFY GPS CHECK");
+            binding.btnVerify.setEnabled(true);
+            binding.btnVerify.setVisibility(View.VISIBLE);
+        }
+
+        if (isAutoStartVerify && !hasStartedAutoVerify) {
+            hasStartedAutoVerify = true;
+            onVerifyClicked();
         }
     }
 
     private void setButtonsEnabled(boolean enabled) {
-        if (binding.btnPunch != null) binding.btnPunch.setEnabled(enabled);
         if (binding.btnVerify != null) binding.btnVerify.setEnabled(enabled);
     }
 
-    private void onPunchClicked() {
+    private void onVerifyClicked() {
         if (targetLocation == null) {
             showError("Location not loaded yet");
             return;
@@ -445,8 +409,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
             return;
         }
 
-        if (loc.getAccuracy() > 55.0f) {
-            showError("GPS accuracy is " + (int) loc.getAccuracy() + "m. Please wait for accuracy under 50m.");
+        if (loc.getAccuracy() > 200.0f) {
+            showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
             return;
         }
 
@@ -460,129 +424,88 @@ public class LocationVerifyActivity extends AppCompatActivity {
                 targetLocation.latitude, targetLocation.longitude
         );
 
-        if (distance > 200.0f) {
+        float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+        float maxAllowedDistance = 200.0f + accuracyBuffer;
+
+        if (distance > maxAllowedDistance && loc.getAccuracy() > 350.0f) {
+            showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
+            return;
+        }
+
+        if (distance > maxAllowedDistance) {
             showError("You are " + (int) distance + "m away from site. Maximum allowed distance is 200m.");
             return;
         }
 
-        // Within geofence! Open camera for mandatory selfie photo
+        // Within geofence! Location is verified
+        if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
+        if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
         if (binding.tvStatus != null) {
-            binding.tvStatus.setText("GPS Verified (" + (int) distance + "m). Opening camera for selfie...");
+            binding.tvStatus.setText("Location Verified! (" + (int) distance + "m from site)");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
-        openCamera();
-    }
+        String verifiedSiteName = targetLocation.location_name != null && !targetLocation.location_name.isEmpty()
+                ? targetLocation.location_name
+                : projectCode;
 
-    private void openCamera() {
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        try {
-            cameraLauncher.launch(cameraIntent);
-        } catch (Exception e) {
-            showError("Camera unavailable: " + e.getMessage());
-        }
-    }
+        SessionPrefs sessionPrefs = new SessionPrefs(this);
+        String token = sessionPrefs.issueFreshVerificationToken();
+        sessionPrefs.saveVerifiedLocation(String.valueOf(locationId), verifiedSiteName, token);
+        sessionPrefs.saveProject(projectCode, verifiedSiteName, "");
+        sessionPrefs.saveLocationId(String.valueOf(locationId));
 
-    private void callPunchApi() {
-        if (capturedBase64 == null || capturedBase64.isEmpty()) {
-            showError("Please take selfie photo");
-            return;
-        }
-        if (gpsLocation == null) {
-            showError("GPS not found");
-            return;
-        }
+        session.save("location_id", locationId);
+        session.save("project_code", projectCode);
+        session.save("location_name", verifiedSiteName);
+        session.save("project_name", verifiedSiteName);
 
-        String type = "IN";
-        if (binding.btnPunch != null && binding.btnPunch.getTag() != null) {
-            type = binding.btnPunch.getTag().toString();
-        } else if (binding.btnVerify != null && binding.btnVerify.getTag() != null) {
-            type = binding.btnVerify.getTag().toString();
-        }
+        new UserLocalStore(this).storeUserLocationData(new UserLocation(verifiedSiteName));
+        new UserLocalStore(this).storeUserProjectData(new UserProject(projectCode));
 
-        int isMock = LocationVerifier.isMockLocation(gpsLocation) ? 1 : 0;
-        int deptId = session.getDeptId();
-        if (deptId == 0) deptId = new UserLocalStore(this).getDeptId();
-        if (deptId == 0) deptId = 5;
+        getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("selected_project_name", projectCode)
+                .putString("selected_location_name", verifiedSiteName)
+                .putString("location_id", String.valueOf(locationId))
+                .apply();
 
-        int punchUid = session.getUid();
-        int punchEmpId = session.getEmpId();
+        Toast.makeText(this, "Location verified successfully: " + verifiedSiteName, Toast.LENGTH_SHORT).show();
+
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra("location_id", String.valueOf(locationId));
+        resultIntent.putExtra("project_id", projectCode);
+        resultIntent.putExtra("project_code", projectCode);
+        resultIntent.putExtra("project_name", verifiedSiteName);
+        resultIntent.putExtra("location_name", verifiedSiteName);
+        resultIntent.putExtra("VERIFIED", "true");
+        resultIntent.putExtra("VERIFICATION_TOKEN", token);
+        setResult(RESULT_OK, resultIntent);
 
         Intent inc = getIntent();
-        if (inc != null) {
-            String extraUid = inc.getStringExtra("uid");
-            if (extraUid != null && !extraUid.isEmpty() && com.app.fourscontracting.data.AttendancePayload.isNumeric(extraUid)) {
-                try { punchUid = Integer.parseInt(extraUid.trim()); } catch (Exception ignored) {}
-            }
-            String extraEmp = inc.getStringExtra("empid");
-            if (extraEmp == null || extraEmp.isEmpty()) extraEmp = inc.getStringExtra("pending_eid");
-            if (extraEmp != null && !extraEmp.isEmpty() && com.app.fourscontracting.data.AttendancePayload.isNumeric(extraEmp)) {
-                try { punchEmpId = Integer.parseInt(extraEmp.trim()); } catch (Exception ignored) {}
-            }
+        boolean hasPendingPunch = inc != null && (
+                (inc.hasExtra("pending_eid") && !TextUtils.isEmpty(inc.getStringExtra("pending_eid"))) ||
+                (inc.hasExtra("empid") && !TextUtils.isEmpty(inc.getStringExtra("empid")))
+        );
+
+        if (hasPendingPunch) {
+            Intent punchIntent = new Intent(this, LocationActivity.class);
+            punchIntent.putExtras(inc);
+            punchIntent.putExtra("VERIFIED", "true");
+            punchIntent.putExtra("VERIFICATION_TOKEN", token);
+            punchIntent.putExtra("location_id", String.valueOf(locationId));
+            punchIntent.putExtra("project_id", projectCode);
+            punchIntent.putExtra("project_code", projectCode);
+            punchIntent.putExtra("project_name", verifiedSiteName);
+            punchIntent.putExtra("location_name", verifiedSiteName);
+            punchIntent.putExtra("lat", loc.getLatitude());
+            punchIntent.putExtra("lng", loc.getLongitude());
+            punchIntent.putExtra("gps_accuracy", loc.getAccuracy());
+            startActivity(punchIntent);
         }
-        if (punchEmpId == 0) punchEmpId = punchUid;
 
-        if (binding.progressBar != null) binding.progressBar.setVisibility(View.VISIBLE);
-        setButtonsEnabled(false);
-
-        ApiClient.getService().punchAttendance(
-                punchUid,
-                punchEmpId,
-                deptId,
-                projectCode,
-                type,
-                gpsLocation.getLatitude(),
-                gpsLocation.getLongitude(),
-                isMock,
-                capturedBase64,
-                ""
-        ).enqueue(new Callback<PunchResponse>() {
-            @Override
-            public void onResponse(@NonNull Call<PunchResponse> c, @NonNull Response<PunchResponse> r) {
-                if (binding.progressBar != null) binding.progressBar.setVisibility(View.GONE);
-                setButtonsEnabled(true);
-
-                if (r.body() == null) {
-                    showError("Empty server response");
-                    return;
-                }
-                PunchResponse res = r.body();
-                if ("success".equalsIgnoreCase(res.status)) {
-                    String msg = (res.message != null && !res.message.isEmpty()) ? res.message : "Attendance saved successfully";
-                    if (binding.tvStatus != null) {
-                        binding.tvStatus.setText(msg);
-                        binding.tvStatus.setVisibility(View.VISIBLE);
-                    }
-                    Toast.makeText(LocationVerifyActivity.this, msg, Toast.LENGTH_LONG).show();
-
-                    SessionPrefs sessionPrefs = new SessionPrefs(LocationVerifyActivity.this);
-                    String freshToken = sessionPrefs.issueFreshVerificationToken();
-                    sessionPrefs.saveVerifiedLocation(String.valueOf(locationId), projectCode, freshToken);
-                    sessionPrefs.saveProject(projectCode, projectCode, "");
-
-                    Intent resultData = new Intent();
-                    resultData.putExtra("location_id", String.valueOf(locationId));
-                    resultData.putExtra("project_id", projectCode);
-                    resultData.putExtra("project_code", projectCode);
-                    resultData.putExtra("project_name", projectCode);
-                    resultData.putExtra("VERIFIED", "true");
-                    resultData.putExtra("VERIFICATION_TOKEN", freshToken);
-                    setResult(RESULT_OK, resultData);
-
-                    capturedBase64 = ""; // Clear photo for next shift
-                    loadTodayStatus(); // Auto IN <-> OUT
-                } else {
-                    showError(res.message != null ? res.message : "Punch failed");
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<PunchResponse> c, @NonNull Throwable t) {
-                if (binding.progressBar != null) binding.progressBar.setVisibility(View.GONE);
-                setButtonsEnabled(true);
-                showError("Network failed. Please try again.");
-            }
-        });
+        isVerificationActive = false;
+        finish();
     }
 
     private void updateGpsDisplay(Location loc) {
@@ -617,11 +540,17 @@ public class LocationVerifyActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_LOCATION_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                onPunchClicked();
+                onVerifyClicked();
             } else {
                 showError("Location permission is required to verify GPS");
             }
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        isVerificationActive = false;
+        super.onBackPressed();
     }
 
     @Override
@@ -640,6 +569,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        isVerificationActive = false;
         liveClockHandler.removeCallbacks(liveClockRunnable);
     }
 }

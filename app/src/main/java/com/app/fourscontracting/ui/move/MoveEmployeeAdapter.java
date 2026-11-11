@@ -59,13 +59,17 @@ public class MoveEmployeeAdapter extends RecyclerView.Adapter<MoveEmployeeAdapte
 
         if (emp.onMove) {
             holder.badge.setText("ON MOVE");
-            holder.badge.setTextColor(Color.parseColor("#0077B6"));
-            holder.action.setVisibility(View.GONE);
-            holder.action.setOnClickListener(null);
+            holder.badge.setTextColor(Color.parseColor("#E63946"));
+            holder.action.setText("MOVE OUT");
+            holder.action.setVisibility(View.VISIBLE);
+            holder.action.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#E63946")));
+            holder.action.setOnClickListener(v -> {
+                if (listener != null) listener.onAction(emp);
+            });
         } else {
             holder.badge.setText("READY FOR NEXT SITE");
             holder.badge.setTextColor(Color.parseColor("#0077B6"));
-            holder.action.setText("MOVE");
+            holder.action.setText("MOVE IN");
             holder.action.setVisibility(View.VISIBLE);
             holder.action.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#03045E")));
             holder.action.setOnClickListener(v -> {

@@ -56,7 +56,6 @@ public class DashboardActivity extends AppActivity {
     private AppBarConfiguration mAppBarConfiguration;
     private ValueAnimator glowAnimator;
     UserLocalStore userLocalStore;
-    Spinner spinner;
     private LinearLayout noInternetBar;
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
@@ -560,13 +559,15 @@ public class DashboardActivity extends AppActivity {
 
         if (val_list.length >= 4 && val_list[3] != null && !val_list[3].isEmpty()) {
             String[] project_list = val_list[3].split(",");
-            spinner = findViewById(R.id.spinner);
-            if (spinner != null) {
+            int spinnerResId = getResources().getIdentifier("spinner", "id", getPackageName());
+            if (spinnerResId == 0) return;
+            Spinner projectSpinner = findViewById(spinnerResId);
+            if (projectSpinner != null) {
                 ArrayAdapter<String> adapter = new ArrayAdapter<String>(DashboardActivity.this, android.R.layout.simple_spinner_item, project_list);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinner.setAdapter(adapter);
+                projectSpinner.setAdapter(adapter);
 
-                spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                projectSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                         if (view != null && view instanceof TextView) {
@@ -585,7 +586,6 @@ public class DashboardActivity extends AppActivity {
                                 code = code.split(" - ")[0].trim();
                             }
                             new SessionPrefs(DashboardActivity.this).saveProject(code, value, "");
-                            new SessionPrefs(DashboardActivity.this).saveVerifiedLocation(code, value, java.util.UUID.randomUUID().toString());
                         }
                     }
 
@@ -598,52 +598,49 @@ public class DashboardActivity extends AppActivity {
     }
 
     private void fetchAssignedProjectsFromServer() {
-        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_locations.php";
+        User user = userLocalStore.getLoggedInUser();
+        final String val = user.username != null ? user.username : "";
+        String[] val_list = UserLocalStore.parseUserInfo(val);
+        String uid = val_list.length > 0 ? val_list[0] : "";
 
-        StringRequest request = new StringRequest(Request.Method.POST, url,
+        if (uid.isEmpty()) {
+            return;
+        }
+
+        String url = com.app.fourscontracting.data.ApiConfig.GET_PROJECTS + "?uid=" + uid;
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
             response -> {
                 try {
-                    JSONArray array = new JSONArray(response);
-                    List<String> newProjectsList = new ArrayList<>();
-                    java.util.Set<String> seen = new java.util.HashSet<>();
-                    for (int i = 0; i < array.length(); i++) {
-                        JSONObject projObj = array.optJSONObject(i);
-                        if (projObj == null) continue;
-                        String code = projObj.optString("project_code", projObj.optString("projname", ""));
-                        if (code.isEmpty()) continue;
-                        if (seen.contains(code.toLowerCase())) continue;
-                        seen.add(code.toLowerCase());
-                        String desc = projObj.optString("project_description", "");
-                        String displayName = (!desc.isEmpty() && !desc.equalsIgnoreCase(code))
-                                ? (code + " - " + desc)
-                                : code;
-                        newProjectsList.add(displayName);
+                    String status = response.optString("status", "");
+                    if ("success".equalsIgnoreCase(status)) {
+                        JSONArray array = response.optJSONArray("projects");
+                        if (array == null) return;
+                        List<String> newProjectsList = new ArrayList<>();
+                        java.util.Set<String> seen = new java.util.HashSet<>();
+                        for (int i = 0; i < array.length(); i++) {
+                            JSONObject projObj = array.optJSONObject(i);
+                            if (projObj == null) continue;
+                            String code = projObj.optString("project_code", projObj.optString("projname", ""));
+                            if (code.isEmpty()) continue;
+                            if (seen.contains(code.toLowerCase())) continue;
+                            seen.add(code.toLowerCase());
+                            String desc = projObj.optString("project_description", "");
+                            String displayName = (!desc.isEmpty() && !desc.equalsIgnoreCase(code))
+                                    ? (code + " - " + desc)
+                                    : code;
+                            newProjectsList.add(displayName);
+                        }
+                        
+                        userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
+                        setupProjectSpinner();
                     }
-                    
-                    userLocalStore.updateAssignedProjects(newProjectsList, DashboardActivity.this);
-                    setupProjectSpinner();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             },
             error -> error.printStackTrace()
-        ) {
-            @Override
-            public java.util.Map<String, String> getHeaders() throws AuthFailureError {
-                java.util.Map<String, String> headers = new java.util.HashMap<>();
-                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
-                headers.put("Accept", "application/json, text/plain, */*");
-                headers.put("Cookie", "humans_21909=1");
-                return headers;
-            }
-
-            @Override
-            protected java.util.Map<String, String> getParams() throws AuthFailureError {
-                java.util.Map<String, String> params = new java.util.HashMap<>();
-                params.put("project_id", "");
-                return params;
-            }
-        };
+        );
 
         request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
                 12000, 1, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT

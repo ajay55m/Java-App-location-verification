@@ -63,6 +63,7 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     private String uid = "";
     private String projId = "";
     private String selectedDeptId = "";
+    private boolean isVerifyAutoLaunchInFlight = false;
 
     private final List<MoveEmployeeModel> moveEmployeeList = new ArrayList<>();
 
@@ -103,8 +104,6 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
         if (btnChangeSite != null) {
             btnChangeSite.setOnClickListener(v -> launchLocationVerifyManualChangeSite());
         }
-
-        checkLocationSessionAndInit();
     }
 
     public void refreshList() {
@@ -184,6 +183,10 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     }
 
     private void launchLocationVerifyInitialAuto() {
+        if (isVerifyAutoLaunchInFlight || LocationVerifyActivity.isVerificationActive()) {
+            return;
+        }
+        isVerifyAutoLaunchInFlight = true;
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", true);
         intent.putExtra("IS_CHANGE_SITE", false);
@@ -193,6 +196,9 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     }
 
     private void launchLocationVerifyManualChangeSite() {
+        if (LocationVerifyActivity.isVerificationActive()) {
+            return;
+        }
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", false);
         intent.putExtra("IS_CHANGE_SITE", true);
@@ -353,7 +359,7 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     public void onAction(MoveEmployeeModel employee) {
         if (employee == null) return;
         SessionPrefs session = new SessionPrefs(requireContext());
-        String actionType = employee.onMove ? "OUT" : "MOVE";
+        String actionType = employee.onMove ? "OUT" : "IN";
 
         if (!session.isLocationSessionValid()) {
             Toast.makeText(requireContext(), AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
@@ -436,6 +442,7 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_SUPERVISOR_VERIFY || requestCode == REQUEST_CODE_MOVE_PUNCH) {
+            isVerifyAutoLaunchInFlight = false;
             SessionPrefs session = new SessionPrefs(requireContext());
             if (data != null && resultCode == android.app.Activity.RESULT_OK) {
                 String locId = data.getStringExtra("location_id");

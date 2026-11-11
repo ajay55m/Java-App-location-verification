@@ -84,6 +84,12 @@ public class ManageAttendanceActivity extends AppActivity
         String val = user != null ? user.username : "";
         String[] val_list = UserLocalStore.parseUserInfo(val);
         uid = (val_list != null && val_list.length > 0) ? val_list[0] : "";
+        if (TextUtils.isEmpty(uid)) {
+            SessionManager session = new SessionManager(this);
+            if (session.getUid() > 0) {
+                uid = String.valueOf(session.getUid());
+            }
+        }
 
         if (getIntent() != null && getIntent().hasExtra("uid")) {
             String passedUid = getIntent().getStringExtra("uid");
@@ -140,7 +146,7 @@ public class ManageAttendanceActivity extends AppActivity
 
         isInitializingDateSpinners = true;
 
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Dubai"));
         int currentDay = cal.get(Calendar.DAY_OF_MONTH);
         int currentMonth = cal.get(Calendar.MONTH) + 1;
         int currentYear = cal.get(Calendar.YEAR);
@@ -549,6 +555,7 @@ public class ManageAttendanceActivity extends AppActivity
 
         SessionPrefs session = new SessionPrefs(this);
         if (!session.isLocationSessionValid()) {
+            if (LocationVerifyActivity.isVerificationActive()) return;
             Toast.makeText(this, "Location verification is required before marking check out.", Toast.LENGTH_LONG).show();
             android.content.Intent intent = new android.content.Intent(this, LocationVerifyActivity.class);
             intent.putExtra("IS_INITIAL_VERIFY", false);
@@ -614,6 +621,7 @@ public class ManageAttendanceActivity extends AppActivity
 
         SessionPrefs session = new SessionPrefs(this);
         if (!session.isLocationSessionValid()) {
+            if (LocationVerifyActivity.isVerificationActive()) return;
             Toast.makeText(this, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
             android.content.Intent intent = new android.content.Intent(this, LocationVerifyActivity.class);
             intent.putExtra("IS_INITIAL_VERIFY", false);

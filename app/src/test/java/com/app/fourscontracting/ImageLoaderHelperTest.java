@@ -137,11 +137,11 @@ public class ImageLoaderHelperTest {
     public void testSanitizeUrl_moveInAndMoveOutEndpoint() {
         String rawMoveIn = "view_attendance_img.php?move_id=60&type=in";
         String sanitizedIn = ImageLoaderHelper.sanitizeUrl(rawMoveIn);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=60&type=in&source=hrms", sanitizedIn);
+        assertEquals(com.app.fourscontracting.data.ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=60&type=in", sanitizedIn);
 
         String rawMoveOut = "view_attendance_img.php?move_id=60&type=out";
         String sanitizedOut = ImageLoaderHelper.sanitizeUrl(rawMoveOut);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=60&type=out&source=hrms", sanitizedOut);
+        assertEquals(com.app.fourscontracting.data.ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=60&type=out", sanitizedOut);
     }
 
     @Test
@@ -164,8 +164,8 @@ public class ImageLoaderHelperTest {
         assertEquals("view_attendance_img.php?move_id=75&type=out&source=hrms", fallbackRecord.getOutPhotoUrl());
 
         // Sanitized versions of fallback URLs
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=75&type=in&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getInPhotoUrl()));
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?move_id=75&type=out&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getOutPhotoUrl()));
+        assertEquals(com.app.fourscontracting.data.ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=75&type=in&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getInPhotoUrl()));
+        assertEquals(com.app.fourscontracting.data.ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=75&type=out&source=hrms", ImageLoaderHelper.sanitizeUrl(fallbackRecord.getOutPhotoUrl()));
     }
 
     @Test

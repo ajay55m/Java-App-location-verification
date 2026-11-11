@@ -3,7 +3,7 @@ package com.app.fourscontracting;
 import org.json.JSONObject;
 
 public class LoginResponse {
-    public String status, message, uid, flag, username, email, staffid, userrole, has_project_allocation;
+    public String status, message, uid, flag, username, email, staffid, empid, userrole, has_project_allocation;
     public String department_id, dept_id, employee_department_id;
     public String employee_id, employee_number, employee_name, company_id, work_location_id;
     public String start_lat_lng, end_lat_lng;
@@ -15,6 +15,7 @@ public class LoginResponse {
         this.username = "";
         this.email = "";
         this.staffid = "";
+        this.empid = "";
         this.userrole = "";
         this.has_project_allocation = "0";
         this.message = "";
@@ -24,6 +25,11 @@ public class LoginResponse {
 
     public int getDeptId() {
         String val = department_id != null ? department_id : (dept_id != null ? dept_id : employee_department_id);
+        try { return Integer.parseInt(val); } catch (Exception e) { return 0; }
+    }
+
+    public int getEmpId() {
+        String val = empid != null && !empid.isEmpty() ? empid : (staffid != null && !staffid.isEmpty() ? staffid : employee_id);
         try { return Integer.parseInt(val); } catch (Exception e) { return 0; }
     }
 
@@ -39,7 +45,8 @@ public class LoginResponse {
                 res.flag = obj.optString("flag", "1");
                 res.username = obj.optString("username", obj.optString("displayName", obj.optString("name", "")));
                 res.email = obj.optString("email", "");
-                res.staffid = obj.optString("staffid", obj.optString("staff_id", ""));
+                res.staffid = obj.optString("staffid", obj.optString("staff_id", obj.optString("empid", "")));
+                res.empid = obj.optString("empid", res.staffid);
                 res.userrole = obj.optString("userrole", obj.optString("role", ""));
 
                 res.department_id = obj.optString("department_id", obj.optString("dept_id", obj.optString("employee_department_id", "")));

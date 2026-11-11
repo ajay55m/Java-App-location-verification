@@ -53,6 +53,12 @@ public class AttendanceResult {
                 if (code.isEmpty()) {
                     code = ok ? AttendanceCodes.OK : AttendanceCodes.ERROR;
                 }
+                if (!ok && obj.has("distance")) {
+                    int dist = obj.optInt("distance", 0);
+                    if (dist > 0) {
+                        message = "You are " + dist + "m away from site. Must be within 200m.";
+                    }
+                }
                 if (message.isEmpty()) {
                     message = ok ? "Success" : "Error";
                 }

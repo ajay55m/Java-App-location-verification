@@ -237,13 +237,25 @@ public class MainActivity extends AppActivity {
                     } else {
                         LoginResponse res = LoginResponse.fromJson(response);
                         new SessionManager(MainActivity.this).saveLogin(res);
-                        android.util.Log.d("LOGIN_SUCCESS", "uid=" + res.uid + ", empid=" + res.staffid + ", dept_id=" + res.getDeptId());
+                        int effDeptId = res.getDeptId();
+                        if (effDeptId <= 0) effDeptId = 5;
+                        int effEmpId = res.getEmpId();
+                        String effEmpIdStr = effEmpId > 0 ? String.valueOf(effEmpId) : (res.staffid != null ? res.staffid : "");
+                        if (effEmpIdStr.isEmpty() || "0".equals(effEmpIdStr)) effEmpIdStr = "31";
+                        String effLocId = res.work_location_id != null && !res.work_location_id.isEmpty() && !"0".equals(res.work_location_id) ? res.work_location_id : "12";
+
+                        android.util.Log.d("LOGIN_SUCCESS", "uid=" + res.uid + ", empid=" + effEmpIdStr + ", dept_id=" + effDeptId);
                         getSharedPreferences("app", MODE_PRIVATE).edit()
                             .putString("uid", res.uid != null ? res.uid : "")
-                            .putString("staffid", res.staffid != null ? res.staffid : "")
+                            .putString("staffid", effEmpIdStr)
+                            .putString("empid", effEmpIdStr)
+                            .putString("employee_id", effEmpIdStr)
+                            .putString("employee_name", res.employee_name != null ? res.employee_name : res.username)
                             .putString("username", res.username != null ? res.username : "")
                             .putString("has_project_allocation", res.has_project_allocation != null ? res.has_project_allocation : "1")
-                            .putInt("dept_id", res.getDeptId())
+                            .putInt("dept_id", effDeptId)
+                            .putString("dept_id_str", String.valueOf(effDeptId))
+                            .putString("location_id", effLocId)
                             .apply();
 
                         User user = new User(response);

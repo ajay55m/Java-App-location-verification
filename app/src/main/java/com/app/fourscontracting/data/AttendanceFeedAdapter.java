@@ -113,7 +113,7 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         holder.tvOutTime.setText(formatTime(item.getTimeOut()));
 
         // Base URL for attendance photo endpoint script
-        String baseUrl = (!item.getAttendId().isEmpty()) ? (ApiConfig.SUBCONTRACTOR + "/view_attendance_img.php?source=hrms&attendance_id=" + item.getAttendId() + "&type=") : "";
+        String baseUrl = (!item.getAttendId().isEmpty()) ? (ApiConfig.FCM_APP + "/view_attendance_img.php?attendance_id=" + item.getAttendId() + "&type=") : "";
 
         // IN Photo
         if (item.isHasIn() || !item.getInPhotoUrl().isEmpty()) {
@@ -124,20 +124,24 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
                 holder.llInNoPhoto.setVisibility(View.GONE);
                 ImageLoaderHelper.loadImage(context, fullInUrl, holder.imgInPhoto, holder.llInNoPhoto);
 
-                holder.imgInPhoto.setOnClickListener(v -> {
+                View.OnClickListener inClick = v -> {
                     if (listener != null) {
                         listener.onPhotoClicked(fullInUrl);
                     }
-                });
+                };
+                holder.imgInPhoto.setOnClickListener(inClick);
+                holder.llInNoPhoto.setOnClickListener(inClick);
             } else {
                 holder.imgInPhoto.setVisibility(View.GONE);
                 holder.llInNoPhoto.setVisibility(View.VISIBLE);
                 holder.imgInPhoto.setOnClickListener(null);
+                holder.llInNoPhoto.setOnClickListener(null);
             }
         } else {
             holder.imgInPhoto.setVisibility(View.GONE);
             holder.llInNoPhoto.setVisibility(View.VISIBLE);
             holder.imgInPhoto.setOnClickListener(null);
+            holder.llInNoPhoto.setOnClickListener(null);
         }
 
         // OUT Photo
@@ -149,20 +153,24 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
                 holder.llOutNoPhoto.setVisibility(View.GONE);
                 ImageLoaderHelper.loadImage(context, fullOutUrl, holder.imgOutPhoto, holder.llOutNoPhoto);
 
-                holder.imgOutPhoto.setOnClickListener(v -> {
+                View.OnClickListener outClick = v -> {
                     if (listener != null) {
                         listener.onPhotoClicked(fullOutUrl);
                     }
-                });
+                };
+                holder.imgOutPhoto.setOnClickListener(outClick);
+                holder.llOutNoPhoto.setOnClickListener(outClick);
             } else {
                 holder.imgOutPhoto.setVisibility(View.GONE);
                 holder.llOutNoPhoto.setVisibility(View.VISIBLE);
                 holder.imgOutPhoto.setOnClickListener(null);
+                holder.llOutNoPhoto.setOnClickListener(null);
             }
         } else {
             holder.imgOutPhoto.setVisibility(View.GONE);
             holder.llOutNoPhoto.setVisibility(View.VISIBLE);
             holder.imgOutPhoto.setOnClickListener(null);
+            holder.llOutNoPhoto.setOnClickListener(null);
         }
 
         // Location Tag

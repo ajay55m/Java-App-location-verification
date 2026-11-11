@@ -73,16 +73,64 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
 
         h.tvBadge.setText(displayStatus);
 
-        // 1. IN Button Logic (Labour screen is strictly for Check-In)
-        h.btnTimeIn.setVisibility(worker.isClockedIn() ? View.GONE : View.VISIBLE);
-        h.btnTimeIn.setOnClickListener(v -> {
-            if (listener != null) listener.onTimeInClicked(worker);
-        });
+        // Status-driven Button Logic:
+        // IN_HERE -> only OUT enabled
+        // OFF_DUTY -> only IN enabled
+        // LOCKED_OTHER -> both disabled, show site_name
+        // COMPLETED -> ready for Move Site / Shift 2
+        String statusCode = worker.getStatusCode() != null ? worker.getStatusCode().trim().toUpperCase() : "";
+        boolean canIn = worker.isCanIn();
+        boolean canOut = worker.isCanOut();
 
-        // 2. OUT Button Logic (Moved to Manage Attendance screen)
-        if (h.btnTimeOut != null) {
-            h.btnTimeOut.setVisibility(View.GONE);
-            h.btnTimeOut.setOnClickListener(null);
+        if ("IN_HERE".equalsIgnoreCase(statusCode) || (!canIn && canOut)) {
+            h.btnTimeIn.setVisibility(View.GONE);
+            if (h.btnTimeOut != null) {
+                h.btnTimeOut.setVisibility(View.VISIBLE);
+                h.btnTimeOut.setEnabled(true);
+                h.btnTimeOut.setText("TIME OUT");
+                h.btnTimeOut.setOnClickListener(v -> {
+                    if (listener != null) listener.onTimeOutClicked(worker);
+                });
+            }
+        } else if ("OFF_DUTY".equalsIgnoreCase(statusCode) || (canIn && !canOut)) {
+            h.btnTimeIn.setVisibility(View.VISIBLE);
+            h.btnTimeIn.setEnabled(true);
+            h.btnTimeIn.setText("TIME IN");
+            h.btnTimeIn.setOnClickListener(v -> {
+                if (listener != null) listener.onTimeInClicked(worker);
+            });
+            if (h.btnTimeOut != null) {
+                h.btnTimeOut.setVisibility(View.GONE);
+            }
+        } else if ("COMPLETED".equalsIgnoreCase(statusCode)) {
+            // Shift completed, ready for Move Site or Shift 2
+            h.btnTimeIn.setVisibility(View.VISIBLE);
+            h.btnTimeIn.setEnabled(true);
+            h.btnTimeIn.setText("MOVE / SHIFT 2");
+            h.btnTimeIn.setOnClickListener(v -> {
+                if (listener != null) listener.onTimeInClicked(worker);
+            });
+            if (h.btnTimeOut != null) {
+                h.btnTimeOut.setVisibility(View.GONE);
+            }
+        } else if ("LOCKED_OTHER".equalsIgnoreCase(statusCode)) {
+            h.btnTimeIn.setVisibility(View.GONE);
+            if (h.btnTimeOut != null) {
+                h.btnTimeOut.setVisibility(View.GONE);
+            }
+        } else {
+            h.btnTimeIn.setVisibility(canIn ? View.VISIBLE : View.GONE);
+            h.btnTimeIn.setEnabled(canIn);
+            h.btnTimeIn.setOnClickListener(v -> {
+                if (listener != null) listener.onTimeInClicked(worker);
+            });
+            if (h.btnTimeOut != null) {
+                h.btnTimeOut.setVisibility(canOut ? View.VISIBLE : View.GONE);
+                h.btnTimeOut.setEnabled(canOut);
+                h.btnTimeOut.setOnClickListener(v -> {
+                    if (listener != null) listener.onTimeOutClicked(worker);
+                });
+            }
         }
 
         // Meta Text (e.g. Status: Not Clocked In / Site Name)
@@ -93,7 +141,6 @@ public class LabourEmployeeAdapter extends RecyclerView.Adapter<LabourEmployeeAd
         h.tvMeta.setVisibility(View.VISIBLE);
 
         // 3. UI Feedback for "Locked" and "Status"
-        String statusCode = worker.getStatusCode();
         if ("LOCKED_OTHER".equalsIgnoreCase(statusCode)) {
             h.tvBadge.setTextColor(Color.parseColor("#03045E"));
             setBadgeBackground(h.tvBadge, "#CAF0F8", "#90E0EF");

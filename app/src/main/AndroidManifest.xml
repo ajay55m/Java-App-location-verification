@@ -39,7 +39,7 @@
             android:exported="false" />
         <activity
             android:name=".LocationVerifyActivity"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
             android:windowSoftInputMode="adjustResize"
             android:exported="false" />

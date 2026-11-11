@@ -166,7 +166,11 @@ public class AttendancePayload {
         String effectiveProjectCode = resolveProjectCode(projectId, projname);
         params.put("project_id", effectiveProjectCode);
         params.put("project_code", effectiveProjectCode);
-        params.put("projname", !nullToEmpty(projname).isEmpty() ? projname : effectiveProjectCode);
+        String effProjName = !nullToEmpty(projname).isEmpty() ? projname : effectiveProjectCode;
+        if (effProjName.contains(" - ")) {
+            effProjName = effProjName.split(" - ")[0].trim();
+        }
+        params.put("projname", effProjName);
         params.put("projectname", effectiveProjectCode);
         params.put("departmentid", effectiveProjectCode);
         params.put("projectid", effectiveProjectCode);
@@ -180,6 +184,9 @@ public class AttendancePayload {
         }
 
         String loc = nullToEmpty(locationId);
+        if (loc.isEmpty() || "0".equals(loc)) {
+            loc = "12";
+        }
         params.put("location_id", loc);
         params.put("locationid", loc);
         params.put("loc_id", loc);

@@ -46,22 +46,13 @@
                         app:tint="#03045E" />
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:letterSpacing="0.04"
-                        android:text="USER: "
-                        android:textColor="#03045E"
-                        android:textSize="10sp" />
-
-                    <TextView
                         android:id="@+id/tv_verify_user_name"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:fontFamily="sans-serif-black"
                         android:maxLines="1"
-                        android:text="4S-Contracting"
+                        android:text="User"
                         android:textColor="#03045E"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -438,22 +429,6 @@
                         app:cornerRadius="29dp"
                         app:elevation="6dp" />
 
-                    <!-- Dynamic Punch Action Button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnPunch"
-                        android:layout_width="match_parent"
-                        android:layout_height="58dp"
-                        android:layout_marginTop="8dp"
-                        android:fontFamily="sans-serif-black"
-                        android:letterSpacing="0.05"
-                        android:text="PUNCH IN"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:visibility="gone"
-                        app:backgroundTint="#03045E"
-                        app:cornerRadius="29dp"
-                        app:elevation="6dp" />
 
                     <!-- Selfie photo preview card (shown after capture) -->
                     <com.google.android.material.card.MaterialCardView

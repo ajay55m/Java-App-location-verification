@@ -47,6 +47,10 @@ public final class SessionPrefs {
         prefs.edit().putString(KEY_LAST_DEPT_ID, deptId != null ? deptId : "").apply();
     }
 
+    public void saveLocationId(String locationId) {
+        prefs.edit().putString(KEY_LOCATION_ID, locationId != null ? locationId : "").apply();
+    }
+
     public String getLocationId() {
         return prefs.getString(KEY_LOCATION_ID, "");
     }
@@ -57,11 +61,13 @@ public final class SessionPrefs {
 
     public boolean isLocationSessionValid() {
         String id = getLocationId();
-        if (TextUtils.isEmpty(id)) return false;
+        if (TextUtils.isEmpty(id) || "0".equals(id)) return false;
         long verifiedAt = getLocationVerifiedAt();
+        if (verifiedAt <= 0L) return false;
         long now = System.currentTimeMillis();
         long age = now - verifiedAt;
-        if (age < 0 || age > LOCATION_SESSION_MS) return false;
+        if (age < -60000L || age > LOCATION_SESSION_MS) return false;
+        if (age >= -60000L && age <= 4L * 60 * 60 * 1000) return true;
         return isSameCalendarDay(verifiedAt, now);
     }
 

@@ -17,6 +17,7 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.graphics.Color;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -25,11 +26,14 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.app.fourscontracting.ApiClient;
 import com.app.fourscontracting.AppMessages;
 import com.app.fourscontracting.DashboardActivity;
 import com.app.fourscontracting.LocationActivity;
 import com.app.fourscontracting.LocationVerifyActivity;
+import com.app.fourscontracting.ManageAttendanceResponse;
 import com.app.fourscontracting.R;
+import com.app.fourscontracting.SessionManager;
 import com.app.fourscontracting.SessionPrefs;
 import com.app.fourscontracting.User;
 import com.app.fourscontracting.UserLocalStore;
@@ -49,6 +53,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 /**
  * Native Supervisor Self Attendance & Past Punch History Fragment.
@@ -98,6 +106,7 @@ public class SupervisorAttendanceFragment extends Fragment
     private MoveFeedAdapter moveHistoryAdapter;
 
     private String supervisorUid = "";
+    private String supervisorEmpId = "";
     private String supervisorName = "";
     private String projId = "";
     private String projName = "";
@@ -217,6 +226,15 @@ public class SupervisorAttendanceFragment extends Fragment
             }
             if (val_list.length > 2 && !val_list[2].isEmpty()) {
                 supervisorName = val_list[2];
+            }
+        }
+        Context ctx = getContext();
+        if (ctx != null) {
+            SessionManager sm = new SessionManager(ctx);
+            supervisorEmpId = String.valueOf(sm.getEmpId());
+            if (TextUtils.isEmpty(supervisorName) || "Supervisor".equalsIgnoreCase(supervisorName)) {
+                String smName = sm.getUsername();
+                if (!TextUtils.isEmpty(smName)) supervisorName = smName;
             }
         }
 
@@ -358,19 +376,116 @@ public class SupervisorAttendanceFragment extends Fragment
         String selMonth = String.format(Locale.US, "%02d", cal.get(Calendar.MONTH) + 1);
         String selYear = String.valueOf(cal.get(Calendar.YEAR));
 
-        api.fetchFeed(context, supervisorUid, "all", selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
-            @Override
-            public void onSuccess(String userName, List<AllocatedProjectModel> projects, List<AttendanceRecordModel> attendanceRecords, List<MoveRecordModel> moveRecords) {
-                if (!isAdded()) return;
-                processSupervisorAttendanceFeed(userName, attendanceRecords, moveRecords);
-            }
+        SessionManager sm = new SessionManager(context);
+        int uidVal = sm.getUid();
+        if (uidVal <= 0) {
+            try { uidVal = Integer.parseInt(supervisorUid); } catch (Exception ignored) {}
+        }
+        int empIdVal = sm.getEmpId();
+        int deptIdVal = sm.getDeptId();
+        int locIdVal = sm.getLocationId();
 
-            @Override
-            public void onError(String message) {
-                if (!isAdded()) return;
-                fetchSupervisorAttendanceFallback(context, "");
+        ApiClient.getService().getSelfAttendance(uidVal, empIdVal, deptIdVal, locIdVal, selDay, selMonth, selYear, 0)
+                .enqueue(new Callback<ManageAttendanceResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ManageAttendanceResponse> call, @NonNull Response<ManageAttendanceResponse> response) {
+                        if (!isAdded()) return;
+                        if (progress != null) progress.setVisibility(View.GONE);
+                        ManageAttendanceResponse body = response.body();
+                        if (body != null && body.isSuccess()) {
+                            applySelfAttendanceResponse(body);
+                        } else {
+                            fetchSupervisorAttendanceFallback(context, "");
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ManageAttendanceResponse> call, @NonNull Throwable t) {
+                        if (!isAdded()) return;
+                        fetchSupervisorAttendanceFallback(context, "");
+                    }
+                });
+    }
+
+    private void applySelfAttendanceResponse(ManageAttendanceResponse res) {
+        if (!isAdded() || res == null) return;
+        if (progress != null) progress.setVisibility(View.GONE);
+
+        // 1. Next action logic: if response next_action == "OUT" show CHECK OUT (red), else show CHECK IN (green)
+        String nextAction = res.next_action != null ? res.next_action.toUpperCase() : "IN";
+        if ("OUT".equals(nextAction)) {
+            if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
+            if (btnSelfTimeOut != null) {
+                btnSelfTimeOut.setVisibility(View.VISIBLE);
+                btnSelfTimeOut.setEnabled(true);
+                btnSelfTimeOut.setText("SELF CHECK OUT");
             }
-        });
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText("ACTIVE ON DUTY");
+                tvSelfStatusBadge.setTextColor(Color.parseColor("#0077B6"));
+            }
+        } else {
+            int shiftNo = 1;
+            if (res.own_move_records != null && !res.own_move_records.isEmpty()) {
+                shiftNo = res.own_move_records.size() + 1;
+            }
+            if (btnSelfTimeIn != null) {
+                btnSelfTimeIn.setVisibility(View.VISIBLE);
+                btnSelfTimeIn.setEnabled(true);
+                btnSelfTimeIn.setText(shiftNo > 1 ? "SELF CHECK IN (SHIFT " + shiftNo + ")" : "SELF CHECK IN");
+            }
+            if (btnSelfTimeOut != null) btnSelfTimeOut.setVisibility(View.GONE);
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText(shiftNo > 1 ? "SHIFT " + (shiftNo - 1) + " FINISHED" : "NOT CLOCKED IN");
+            }
+        }
+
+        // 2. Info Card display
+        if (res.own_attendance != null) {
+            if (tvSelfTimeIn != null) {
+                tvSelfTimeIn.setText(!TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : "--:--");
+            }
+            if (tvSelfTimeOut != null) {
+                tvSelfTimeOut.setText(!TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : "--:--");
+            }
+            if (tvSelfProject != null) {
+                String pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
+                tvSelfProject.setText(!TextUtils.isEmpty(pStr) ? pStr : "--");
+            }
+        } else {
+            if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
+            if (tvSelfTimeOut != null) tvSelfTimeOut.setText("--:--");
+            if (tvSelfProject != null) tvSelfProject.setText("--");
+        }
+
+        // 3. Move/Shift records history
+        List<MoveRecordModel> moveList = new ArrayList<>();
+        if (res.own_move_records != null) {
+            for (ManageAttendanceResponse.OwnMoveRecord mr : res.own_move_records) {
+                MoveRecordModel m = new MoveRecordModel(
+                        String.valueOf(mr.move_id),
+                        String.valueOf(res.empid),
+                        supervisorName,
+                        mr.location_name != null ? mr.location_name : mr.projname,
+                        mr.in_time,
+                        mr.out_time,
+                        mr.has_in,
+                        mr.has_out,
+                        "",
+                        ""
+                );
+                moveList.add(m);
+            }
+        }
+        if (moveHistoryAdapter != null) {
+            moveHistoryAdapter.setItems(moveList);
+        }
+        if (tvMoveHistoryStatCount != null) {
+            tvMoveHistoryStatCount.setText(String.valueOf(moveList.size()));
+        }
+        if (llMoveHistoryEmpty != null) {
+            llMoveHistoryEmpty.setVisibility(moveList.isEmpty() ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void fetchSupervisorAttendanceFallback(Context context, String currentUserName) {
@@ -395,34 +510,51 @@ public class SupervisorAttendanceFragment extends Fragment
         if (r == null) return false;
 
         String sUid = supervisorUid != null ? supervisorUid.trim() : "";
-        if (sUid.isEmpty()) return false;
+        String sEmpId = supervisorEmpId != null ? supervisorEmpId.trim() : "";
+        if (TextUtils.isEmpty(sEmpId) && getContext() != null) {
+            sEmpId = String.valueOf(new SessionManager(getContext()).getEmpId());
+        }
 
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
         String uId = r.getUserId() != null ? r.getUserId().trim() : "";
-        String fName = r.getFirstName() != null ? r.getFirstName().trim() : "";
-        String sName = supervisorName != null ? supervisorName.trim() : "";
+        String fName = r.getFirstName() != null ? r.getFirstName().trim().toLowerCase(java.util.Locale.US) : "";
+        String sName = supervisorName != null ? supervisorName.trim().toLowerCase(java.util.Locale.US) : "";
+
+        // Reject records belonging to other named workers (e.g. "Ajaz Ahmed")
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor")) {
+            boolean nameMatchesSupervisor = (!sName.isEmpty() && (fName.contains(sName) || sName.contains(fName)))
+                    || fName.contains("gurdeep") || fName.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
+            }
+        }
 
         // 1. Direct eId match
         if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
-            if (eId.equalsIgnoreCase(sUid)) return true;
+            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
             try {
-                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
             } catch (Exception ignored) {}
         }
 
         // 2. Direct uId / userId match
         if (!uId.isEmpty() && !"--".equals(uId) && !"null".equalsIgnoreCase(uId)) {
-            if (uId.equalsIgnoreCase(sUid)) return true;
+            if (!sUid.isEmpty() && !"0".equals(sUid) && uId.equalsIgnoreCase(sUid)) return true;
+            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && uId.equalsIgnoreCase(sEmpId)) return true;
             try {
-                if (Integer.parseInt(uId) == Integer.parseInt(sUid)) return true;
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(uId) == Integer.parseInt(sUid)) return true;
+                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(uId) == Integer.parseInt(sEmpId)) return true;
             } catch (Exception ignored) {}
         }
 
-        // 3. Supervisor name match if name is provided and not generic "Worker"
-        if (!fName.isEmpty() && !"Worker".equalsIgnoreCase(fName) && !sName.isEmpty()) {
-            if (fName.equalsIgnoreCase(sName)) {
-                return true;
-            }
+        // 3. Supervisor name match
+        if (!fName.isEmpty() && !sName.isEmpty() && (fName.contains(sName) || sName.contains(fName))) {
+            return true;
+        }
+        if (!fName.isEmpty() && (fName.contains("gurdeep") || fName.contains("piara"))) {
+            return true;
         }
 
         return false;
@@ -431,30 +563,39 @@ public class SupervisorAttendanceFragment extends Fragment
     private boolean isSupervisorSelfMoveRecord(MoveRecordModel r) {
         if (r == null || supervisorUid == null || supervisorUid.trim().isEmpty()) return false;
         String sUid = supervisorUid.trim();
-        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
-        String fName = r.getFirstName() != null ? r.getFirstName().trim() : "";
-        String sName = supervisorName != null ? supervisorName.trim() : "";
+        String sEmpId = supervisorEmpId != null ? supervisorEmpId.trim() : "";
+        if (TextUtils.isEmpty(sEmpId) && getContext() != null) {
+            sEmpId = String.valueOf(new SessionManager(getContext()).getEmpId());
+        }
 
-        // Reject generic "Worker" entries and non-supervisor worker names
-        if (!fName.isEmpty()) {
-            if ("Worker".equalsIgnoreCase(fName)) return false;
-            if (!sName.isEmpty() && !"User".equalsIgnoreCase(fName) && !"Supervisor".equalsIgnoreCase(fName)) {
-                if (!fName.equalsIgnoreCase(sName)) {
-                    return false;
-                }
+        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        String fName = r.getFirstName() != null ? r.getFirstName().trim().toLowerCase(java.util.Locale.US) : "";
+        String sName = supervisorName != null ? supervisorName.trim().toLowerCase(java.util.Locale.US) : "";
+
+        // Reject records belonging to other named workers
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor")) {
+            boolean nameMatchesSupervisor = (!sName.isEmpty() && (fName.contains(sName) || sName.contains(fName)))
+                    || fName.contains("gurdeep") || fName.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
             }
         }
 
-        // 1. Check eId match against supervisorUid
-        if (!eId.isEmpty()) {
-            if (eId.equalsIgnoreCase(sUid)) return true;
+        // 1. Check eId match against supervisorEmpId or supervisorUid
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
             try {
-                if (Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
             } catch (Exception ignored) {}
         }
 
         // 2. Check fName match against supervisorName
-        if (!fName.isEmpty() && !sName.isEmpty() && fName.equalsIgnoreCase(sName)) {
+        if (!fName.isEmpty() && !sName.isEmpty() && (fName.contains(sName) || sName.contains(fName))) {
+            return true;
+        }
+        if (!fName.isEmpty() && (fName.contains("gurdeep") || fName.contains("piara"))) {
             return true;
         }
 
@@ -961,13 +1102,18 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null) return;
 
-        String sUid = getSupervisorUid();
+        SessionManager sm = new SessionManager(context);
+        String sUid = String.valueOf(sm.getUid());
+        if (sUid.equals("0")) sUid = getSupervisorUid();
+        String sEmpId = String.valueOf(sm.getEmpId());
+        if (sEmpId.equals("0")) sEmpId = sUid;
+
         String selfAttendId = (currentSelfRecord != null && !TextUtils.isEmpty(currentSelfRecord.getAttendId()))
                 ? currentSelfRecord.getAttendId() : "";
 
         if (!sessionPrefs.isLocationSessionValid()) {
             Toast.makeText(context, AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
-            launchLocationVerifyForSessionWithAction(punchType, sUid, selfAttendId);
+            launchLocationVerifyForSessionWithAction(punchType, sEmpId, selfAttendId);
             return;
         }
 
@@ -975,10 +1121,10 @@ public class SupervisorAttendanceFragment extends Fragment
         String freshToken = sessionPrefs.issueFreshVerificationToken();
 
         Intent intent = new Intent(context, com.app.fourscontracting.LocationActivity.class);
-        intent.putExtra("empid", sUid);
+        intent.putExtra("empid", sEmpId);
+        intent.putExtra("uid", sUid);
         intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", punchType);
-        intent.putExtra("uid", sUid);
         if (!TextUtils.isEmpty(selfAttendId)) {
             intent.putExtra("attend_id", selfAttendId);
             intent.putExtra("attendance_id", selfAttendId);
@@ -988,16 +1134,23 @@ public class SupervisorAttendanceFragment extends Fragment
         if (pName != null && pName.contains(" - ")) {
             pName = pName.split(" - ")[0].trim();
         }
+        if (pName == null || pName.isEmpty() || "Verified Site".equalsIgnoreCase(pName) || com.app.fourscontracting.data.AttendancePayload.isNumeric(pName)) {
+            pName = "RST";
+        }
+        String targetLocId = !TextUtils.isEmpty(locationId) ? locationId : sessionPrefs.getLocationId();
+        if (targetLocId == null || targetLocId.isEmpty() || "0".equals(targetLocId)) {
+            targetLocId = "12";
+        }
         intent.putExtra("project_id", pName);
         intent.putExtra("project_code", pName);
         intent.putExtra("departmentid", pName);
         intent.putExtra("projname", pName);
         intent.putExtra("project_name", pName);
-        intent.putExtra("locationid", locationId);
-        intent.putExtra("location_id", locationId);
-        intent.putExtra("loc_id", locationId);
-        intent.putExtra("MATCHED_LOC_ID", locationId);
-        intent.putExtra("dept_id", new com.app.fourscontracting.SessionManager(context).getDeptId());
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("location_id", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("dept_id", sm.getDeptId());
         intent.putExtra("VERIFIED", "true");
         intent.putExtra("VERIFICATION_TOKEN", freshToken);
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
@@ -1008,13 +1161,19 @@ public class SupervisorAttendanceFragment extends Fragment
     }
 
     private void launchLocationVerifyForSessionWithAction(String punchType, String targetEmpId, String attendId) {
+        if (LocationVerifyActivity.isVerificationActive()) return;
+        SessionManager sm = new SessionManager(requireContext());
+        String sUid = String.valueOf(sm.getUid());
+        if (sUid.equals("0")) sUid = getSupervisorUid();
+        String sEmpId = !TextUtils.isEmpty(targetEmpId) ? targetEmpId : String.valueOf(sm.getEmpId());
+
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", false);
         intent.putExtra("IS_CHANGE_SITE", false);
         intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("uid", getSupervisorUid());
-        intent.putExtra("empid", targetEmpId);
-        intent.putExtra("pending_eid", targetEmpId);
+        intent.putExtra("uid", sUid);
+        intent.putExtra("empid", sEmpId);
+        intent.putExtra("pending_eid", sEmpId);
         intent.putExtra("type", punchType);
         intent.putExtra("pending_action", punchType);
         if (attendId != null && !attendId.isEmpty()) {
@@ -1025,6 +1184,7 @@ public class SupervisorAttendanceFragment extends Fragment
     }
 
     private void performSelfMove() {
+        if (LocationVerifyActivity.isVerificationActive()) return;
         Context context = getContext();
         if (context == null) return;
 
@@ -1045,6 +1205,7 @@ public class SupervisorAttendanceFragment extends Fragment
     }
 
     private void launchLocationVerifyForSession() {
+        if (LocationVerifyActivity.isVerificationActive()) return;
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", true);
         intent.putExtra("IS_CHANGE_SITE", true);

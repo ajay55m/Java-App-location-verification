@@ -35,13 +35,36 @@ public class ManageAttendanceApi {
     public void fetchFeed(Context context, String uid, String projid,
                           String day, String month, String year,
                           FeedCallback callback) {
+        com.app.fourscontracting.SessionManager session = new com.app.fourscontracting.SessionManager(context);
+        String sUid = (uid != null && !uid.isEmpty()) ? uid : String.valueOf(session.getUid());
+        int sEmpId = session.getEmpId();
+        if (sEmpId <= 0) sEmpId = 31;
+        int sDeptId = session.getDeptId();
+        if (sDeptId <= 0) sDeptId = 5;
+        int sLocId = session.getLocationId();
+        if (sLocId <= 0 && context != null) {
+            com.app.fourscontracting.SessionPrefs sp = new com.app.fourscontracting.SessionPrefs(context);
+            try {
+                sLocId = Integer.parseInt(sp.getLocationId());
+            } catch (Exception ignored) {}
+        }
+        if (sLocId <= 0) sLocId = 12;
+
         Uri.Builder builder = Uri.parse(ApiConfig.API_MANAGE_ATTENDANCE).buildUpon();
         builder.appendQueryParameter("action", "get_feed");
-        if (uid != null && !uid.isEmpty()) {
-            builder.appendQueryParameter("uid", uid);
-            builder.appendQueryParameter("subadmin_id", uid);
-            builder.appendQueryParameter("user_id", uid);
-            builder.appendQueryParameter("empid", uid);
+        if (sUid != null && !sUid.isEmpty() && !"0".equals(sUid)) {
+            builder.appendQueryParameter("uid", sUid);
+            builder.appendQueryParameter("subadmin_id", sUid);
+            builder.appendQueryParameter("user_id", sUid);
+        }
+        if (sEmpId > 0) {
+            builder.appendQueryParameter("empid", String.valueOf(sEmpId));
+        }
+        if (sDeptId > 0) {
+            builder.appendQueryParameter("dept_id", String.valueOf(sDeptId));
+        }
+        if (sLocId > 0) {
+            builder.appendQueryParameter("location_id", String.valueOf(sLocId));
         }
         if (projid != null && !projid.isEmpty() && !"all".equalsIgnoreCase(projid)) {
             builder.appendQueryParameter("projname", projid);
@@ -101,54 +124,41 @@ public class ManageAttendanceApi {
                             }
                         }
 
-                        // Parse attendance records
-                        List<AttendanceRecordModel> attendanceRecords = new ArrayList<>();
+                        // Build photo URL map from move_records
+                        Map<String, String> inPhotoMap = new HashMap<>();
+                        Map<String, String> outPhotoMap = new HashMap<>();
+                        JSONArray moveArrForPhotos = response.optJSONArray("move_records");
+                        if (moveArrForPhotos != null) {
+                            for (int m = 0; m < moveArrForPhotos.length(); m++) {
+                                JSONObject mObj = moveArrForPhotos.optJSONObject(m);
+                                if (mObj == null) continue;
+                                String mAttId = optCleanString(mObj, "attendance_id", "attend_id");
+                                String mEmpId = optCleanString(mObj, "employee_id", "empid");
+                                String inPhotoName = optCleanString(mObj, "in_photo_file_name", "in_photo", "photo_in");
+                                String outPhotoName = optCleanString(mObj, "out_photo_file_name", "out_photo", "photo_out");
+                                int moveId = mObj.optInt("move_id", mObj.optInt("shift_id", 0));
 
-                        // Parse supervisor's self attendance ("own_attendance" JSON object) if present
-                        JSONObject ownObj = response.optJSONObject("own_attendance");
-                        if (ownObj != null && ownObj.length() > 0) {
-                            String attendIdVal = optCleanString(ownObj, "attend_id", "attendance_id");
-                            String timeInVal = optCleanString(ownObj, "timein", "time_in", "in_time");
-                            String timeOutVal = optCleanString(ownObj, "timeout", "time_out", "out_time");
-                            String projNameVal = optCleanString(ownObj, "projname", "project_name", "location_name");
-                            String uIdVal = optCleanString(ownObj, "userid", "user_id", "uid");
-                            String eIdVal = optCleanString(ownObj, "empid", "emp_id", "employee_id");
-                            String idVal = optCleanString(ownObj, "id");
-                            
-                            if (attendIdVal.isEmpty()) {
-                                attendIdVal = idVal;
-                            }
-                            if (uIdVal.isEmpty()) {
-                                uIdVal = !uid.isEmpty() ? uid : "";
-                            }
-                            if (eIdVal.isEmpty()) {
-                                eIdVal = !uIdVal.isEmpty() ? uIdVal : uid;
-                            }
-                            if (uIdVal.isEmpty()) {
-                                uIdVal = eIdVal;
-                            }
-                            String nameVal = optCleanString(ownObj, "first_name", "emp_name", "name");
-                            if (nameVal.isEmpty()) nameVal = userName;
-
-                            if (!attendIdVal.isEmpty() || !timeInVal.isEmpty()) {
-                                attendanceRecords.add(new AttendanceRecordModel(
-                                        attendIdVal,
-                                        uIdVal,
-                                        eIdVal,
-                                        nameVal,
-                                        projNameVal,
-                                        timeInVal,
-                                        timeOutVal,
-                                        ownObj.optDouble("break_hours", 0.0),
-                                        ownObj.optBoolean("has_in", !timeInVal.isEmpty() && !"--".equals(timeInVal)),
-                                        ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
-                                        optCleanString(ownObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "photo", "photo_url"),
-                                        optCleanString(ownObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo")
-                                ));
+                                if (!inPhotoName.isEmpty() && moveId > 0) {
+                                    String inUrl = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + moveId + "&type=in&source=hrms";
+                                    if (!mAttId.isEmpty()) inPhotoMap.put(mAttId, inUrl);
+                                    if (!mEmpId.isEmpty()) inPhotoMap.put("emp_" + mEmpId, inUrl);
+                                }
+                                if (!outPhotoName.isEmpty() && moveId > 0) {
+                                    String outUrl = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + moveId + "&type=out&source=hrms";
+                                    if (!mAttId.isEmpty()) outPhotoMap.put(mAttId, outUrl);
+                                    if (!mEmpId.isEmpty()) outPhotoMap.put("emp_" + mEmpId, outUrl);
+                                }
                             }
                         }
 
+                        // Parse attendance records without duplicates
+                        List<AttendanceRecordModel> attendanceRecords = new ArrayList<>();
+                        java.util.Set<String> seenRecordKeys = new java.util.HashSet<>();
+
                         JSONArray recArray = response.optJSONArray("records");
+                        if (recArray == null || recArray.length() == 0) {
+                            recArray = response.optJSONArray("data");
+                        }
                         if (recArray != null) {
                             for (int i = 0; i < recArray.length(); i++) {
                                 JSONObject rObj = recArray.optJSONObject(i);
@@ -164,10 +174,14 @@ public class ManageAttendanceApi {
                                     }
 
                                     if (userIdVal.isEmpty()) {
-                                        userIdVal = !uidVal.isEmpty() ? uidVal : uid;
+                                        userIdVal = !uidVal.isEmpty() ? uidVal : "";
                                     }
 
                                     String firstNameVal = optCleanString(rObj, "first_name", "emp_name", "name", "employee_name", "username");
+                                    String empNum = optCleanString(rObj, "employee_number", "emp_no", "employee_no");
+                                    if (!empNum.isEmpty() && !firstNameVal.isEmpty() && !firstNameVal.contains(empNum)) {
+                                        firstNameVal = firstNameVal + " (" + empNum + ")";
+                                    }
                                     String projNameVal = optCleanString(rObj, "projname", "project_name", "project", "location_name");
                                     String timeInVal = optCleanString(rObj, "timein", "time_in", "in_time");
                                     String timeOutVal = optCleanString(rObj, "timeout", "time_out", "out_time");
@@ -176,6 +190,23 @@ public class ManageAttendanceApi {
                                     boolean hasOut = optCleanBoolean(rObj, "has_out", timeOutVal);
                                     String inPhoto = optCleanString(rObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo");
                                     String outPhoto = optCleanString(rObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo");
+
+                                    if (inPhoto.isEmpty()) {
+                                        if (inPhotoMap.containsKey(attendIdVal)) inPhoto = inPhotoMap.get(attendIdVal);
+                                        else if (inPhotoMap.containsKey("emp_" + empIdVal)) inPhoto = inPhotoMap.get("emp_" + empIdVal);
+                                    }
+                                    if (outPhoto.isEmpty()) {
+                                        if (outPhotoMap.containsKey(attendIdVal)) outPhoto = outPhotoMap.get(attendIdVal);
+                                        else if (outPhotoMap.containsKey("emp_" + empIdVal)) outPhoto = outPhotoMap.get("emp_" + empIdVal);
+                                    }
+
+                                    String dedupKey = (!attendIdVal.isEmpty()) ? ("att_" + attendIdVal) : ("emp_" + empIdVal);
+                                    if (seenRecordKeys.contains(dedupKey)) {
+                                        continue;
+                                    }
+                                    seenRecordKeys.add(dedupKey);
+                                    if (!attendIdVal.isEmpty()) seenRecordKeys.add("att_" + attendIdVal);
+                                    if (!empIdVal.isEmpty()) seenRecordKeys.add("emp_" + empIdVal);
 
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             attendIdVal,
@@ -190,6 +221,105 @@ public class ManageAttendanceApi {
                                             hasOut,
                                             inPhoto,
                                             outPhoto
+                                    ));
+                                }
+                            }
+                        }
+
+                        // Parse supervisor's self attendance ("own_attendance" JSON object) if not already included in records
+                        JSONObject ownObj = response.optJSONObject("own_attendance");
+                        if (ownObj != null && ownObj.length() > 0) {
+                            String attendIdVal = optCleanString(ownObj, "attend_id", "attendance_id");
+                            String timeInVal = optCleanString(ownObj, "timein", "time_in", "in_time");
+                            String timeOutVal = optCleanString(ownObj, "timeout", "time_out", "out_time");
+                            String projNameVal = optCleanString(ownObj, "projname", "project_name", "location_name");
+                            String uIdVal = optCleanString(ownObj, "userid", "user_id", "uid");
+                            String eIdVal = optCleanString(ownObj, "empid", "emp_id", "employee_id");
+                            String idVal = optCleanString(ownObj, "id");
+
+                            if (attendIdVal.isEmpty()) {
+                                attendIdVal = idVal;
+                            }
+                            if (uIdVal.isEmpty()) {
+                                uIdVal = !uid.isEmpty() ? uid : "";
+                            }
+                            if (eIdVal.isEmpty()) {
+                                eIdVal = !uIdVal.isEmpty() ? uIdVal : uid;
+                            }
+                            if (uIdVal.isEmpty()) {
+                                uIdVal = eIdVal;
+                            }
+                            String nameVal = optCleanString(ownObj, "first_name", "emp_name", "name");
+                            if (nameVal.isEmpty()) nameVal = userName;
+
+                            String dedupKey = (!attendIdVal.isEmpty()) ? ("att_" + attendIdVal) : ("emp_" + eIdVal);
+                            if (!seenRecordKeys.contains(dedupKey) && (!attendIdVal.isEmpty() || !timeInVal.isEmpty())) {
+                                seenRecordKeys.add(dedupKey);
+                                String inPhoto = optCleanString(ownObj, "in_photo_url", "in_photo", "photo_in", "in_image", "timein_photo", "time_in_photo", "photo", "photo_url");
+                                String outPhoto = optCleanString(ownObj, "out_photo_url", "out_photo", "photo_out", "out_image", "timeout_photo", "time_out_photo");
+                                if (inPhoto.isEmpty() && inPhotoMap.containsKey(attendIdVal)) {
+                                    inPhoto = inPhotoMap.get(attendIdVal);
+                                }
+                                if (outPhoto.isEmpty() && outPhotoMap.containsKey(attendIdVal)) {
+                                    outPhoto = outPhotoMap.get(attendIdVal);
+                                }
+
+                                attendanceRecords.add(new AttendanceRecordModel(
+                                        attendIdVal,
+                                        uIdVal,
+                                        eIdVal,
+                                        nameVal,
+                                        projNameVal,
+                                        timeInVal,
+                                        timeOutVal,
+                                        ownObj.optDouble("break_hours", 0.0),
+                                        ownObj.optBoolean("has_in", !timeInVal.isEmpty() && !"--".equals(timeInVal)),
+                                        ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
+                                        inPhoto,
+                                        outPhoto
+                                ));
+                            }
+                        }
+
+                        // Integrate punch in records from move_records if not already in attendanceRecords
+                        if (moveArrForPhotos != null) {
+                            for (int m = 0; m < moveArrForPhotos.length(); m++) {
+                                JSONObject mObj = moveArrForPhotos.optJSONObject(m);
+                                if (mObj == null) continue;
+                                String mAttId = optCleanString(mObj, "attendance_id", "attend_id");
+                                String mEmpId = optCleanString(mObj, "employee_id", "empid");
+                                String dedupKey = !mAttId.isEmpty() ? ("att_" + mAttId) : ("emp_" + mEmpId);
+                                if (!seenRecordKeys.contains(dedupKey) && (!mAttId.isEmpty() || !mEmpId.isEmpty())) {
+                                    seenRecordKeys.add(dedupKey);
+                                    if (!mAttId.isEmpty()) seenRecordKeys.add("att_" + mAttId);
+                                    if (!mEmpId.isEmpty()) seenRecordKeys.add("emp_" + mEmpId);
+
+                                    String fName = optCleanString(mObj, "first_name", "emp_name", "name", "employee_name");
+                                    String pName = optCleanString(mObj, "projname", "project_name", "location_name");
+                                    String tIn = optCleanString(mObj, "in_time", "timein", "time_in");
+                                    String tOut = optCleanString(mObj, "out_time", "timeout", "time_out");
+                                    boolean hIn = optCleanBoolean(mObj, "has_in", tIn);
+                                    boolean hOut = optCleanBoolean(mObj, "has_out", tOut);
+                                    int mId = mObj.optInt("move_id", mObj.optInt("shift_id", 0));
+                                    String inP = "";
+                                    String outP = "";
+                                    if (mId > 0) {
+                                        inP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=in&source=hrms";
+                                        outP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=out&source=hrms";
+                                    }
+                                    attendanceRecords.add(new AttendanceRecordModel(
+                                            mAttId,
+                                            uid,
+                                            mEmpId,
+                                            fName,
+                                            pName,
+                                            tIn,
+                                            tOut,
+                                            mObj.optDouble("break_hours", 0.0),
+                                            hIn,
+                                            hOut,
+                                            inP,
+                                            outP
                                     ));
                                 }
                             }

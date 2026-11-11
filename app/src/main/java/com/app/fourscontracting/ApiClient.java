@@ -20,7 +20,8 @@ public class ApiClient {
                         Request.Builder builder = original.newBuilder()
                                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0")
                                 .header("Accept", "application/json, text/plain, */*")
-                                .header("Cookie", "humans_21909=1");
+                                .header("Cookie", "humans_21909=1")
+                                .header("x-api-key", "4S_Secure_Access_Token_2024_#$");
                         return chain.proceed(builder.build());
                     })
                     .build();
@@ -34,4 +35,3 @@ public class ApiClient {
         return retrofit.create(ApiService.class);
     }
 }
-

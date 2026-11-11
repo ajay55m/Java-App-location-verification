@@ -156,7 +156,10 @@ public class LocationActivity extends AppActivity implements LocationListener {
                 if (obj != null) selectedProjectId = String.valueOf(obj);
             }
 
-            if (bundle.containsKey("locationid")) {
+            if (bundle.containsKey("location_id")) {
+                Object obj = bundle.get("location_id");
+                if (obj != null) selectedLocationId = String.valueOf(obj);
+            } else if (bundle.containsKey("locationid")) {
                 Object obj = bundle.get("locationid");
                 if (obj != null) selectedLocationId = String.valueOf(obj);
             } else if (bundle.containsKey("loc_id")) {
@@ -165,6 +168,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
             } else if (bundle.containsKey("MATCHED_LOC_ID")) {
                 Object obj = bundle.get("MATCHED_LOC_ID");
                 if (obj != null) selectedLocationId = String.valueOf(obj);
+            }
+            if ((selectedLocationId == null || selectedLocationId.isEmpty() || "0".equals(selectedLocationId)) && intent.hasExtra("location_id")) {
+                selectedLocationId = intent.getStringExtra("location_id");
             }
 
             if (bundle.containsKey("uid")) {
@@ -397,11 +403,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
             }
         });
         Calendar calender = Calendar.getInstance();
-        calender.setTimeZone(TimeZone.getTimeZone("Asia/Calcutta"));
         LocationActivity.this.hour = calender.get(Calendar.HOUR_OF_DAY);
         LocationActivity.this.minute = calender.get(Calendar.MINUTE);
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("hh:mm a", Locale.getDefault());
-        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Calcutta"));
         this.timeButton.setText(sdf.format(calender.getTime()));
 
         ((Button) findViewById(R.id.saveattendance)).setOnClickListener(new View.OnClickListener() {
@@ -427,6 +431,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
                     LocationActivity.this.loadingManager.showLoading(LocationActivity.this);
                 }
 
+                final View saveBtnView = findViewById(R.id.saveattendance);
+                if (saveBtnView != null) saveBtnView.setEnabled(false);
+
                 final String currentUserId = (employeeId != null && !employeeId.isEmpty()) ? employeeId : ((managerUid != null && !managerUid.isEmpty()) ? managerUid : uid);
                 RuntimeLogger.log(LocationActivity.this, currentUserId, "INFO", "Attendance", "User initiated attendance check-" + attendanceType + " for project: " + projname);
 
@@ -434,14 +441,27 @@ public class LocationActivity extends AppActivity implements LocationListener {
                 new LocationHelper().getCurrentLocation(LocationActivity.this, 8000, new LocationHelper.LocationCallback() {
                     @Override
                     public void onSuccess(Location location) {
-                        punchLat = location.getLatitude();
-                        punchLng = location.getLongitude();
-                        punchAccuracy = location.getAccuracy();
-                        submitAttendanceViaViewModel(uid, projname, currentUserId, location.getTime());
+                        if (location != null && location.getAccuracy() > 200f) {
+                            if (LocationActivity.this.loadingManager != null) {
+                                LocationActivity.this.loadingManager.hideLoading();
+                            }
+                            if (saveBtnView != null) saveBtnView.setEnabled(true);
+                            Toast.makeText(LocationActivity.this, "Move outdoors, GPS weak (" + (int) location.getAccuracy() + "m > 200m)", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        if (location != null) {
+                            punchLat = location.getLatitude();
+                            punchLng = location.getLongitude();
+                            punchAccuracy = location.getAccuracy();
+                            submitAttendanceViaViewModel(uid, projname, currentUserId, location.getTime());
+                        } else {
+                            submitAttendanceViaViewModel(uid, projname, currentUserId, System.currentTimeMillis());
+                        }
                     }
 
                     @Override
                     public void onError(String message) {
+                        if (saveBtnView != null) saveBtnView.setEnabled(true);
                         if (!Double.isNaN(punchLat) && !Double.isNaN(punchLng)) {
                             submitAttendanceViaViewModel(uid, projname, currentUserId, System.currentTimeMillis());
                         } else {
@@ -504,6 +524,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
         }
 
         String resolvedCode = com.app.fourscontracting.data.AttendancePayload.resolveProjectCode(selectedProjectId, projname);
+        if (resolvedCode == null || resolvedCode.isEmpty() || "Verified Site".equalsIgnoreCase(resolvedCode)) {
+            resolvedCode = "RST";
+        }
 
         com.app.fourscontracting.data.AttendancePayload payload = new com.app.fourscontracting.data.AttendancePayload();
         payload.uid = managerUid != null && !managerUid.isEmpty() ? managerUid : uid;
@@ -517,7 +540,20 @@ public class LocationActivity extends AppActivity implements LocationListener {
         payload.projectId = resolvedCode;
         payload.projname = resolvedCode;
         payload.deptId = effDeptId;
-        payload.locationId = selectedLocationId != null ? selectedLocationId : "";
+
+        String locId = selectedLocationId != null ? selectedLocationId : "";
+        if (locId.isEmpty() || "0".equals(locId)) {
+            locId = new SessionPrefs(this).getLocationId();
+        }
+        if (locId.isEmpty() || "0".equals(locId)) {
+            int sessLoc = new SessionManager(this).getLocationId();
+            if (sessLoc > 0) locId = String.valueOf(sessLoc);
+        }
+        if (locId.isEmpty() || "0".equals(locId)) {
+            locId = "12";
+        }
+        payload.locationId = locId;
+        payload.mobileSessionId = "APP-" + currentUserId + "-" + System.currentTimeMillis();
         payload.breakHours = breakHoursVal;
         payload.lat = punchLat;
         payload.lng = punchLng;
@@ -531,6 +567,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
     }
 
     private void onAttendanceResult(com.app.fourscontracting.data.AttendanceResult result) {
+        View saveBtn = findViewById(R.id.saveattendance);
+        if (saveBtn != null) saveBtn.setEnabled(true);
+
         if (result == null || isFinishing()) {
             return;
         }
