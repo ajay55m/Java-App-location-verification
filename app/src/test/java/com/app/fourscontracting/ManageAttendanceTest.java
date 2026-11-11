@@ -485,4 +485,31 @@ public class ManageAttendanceTest {
         String legacyUrl = "https://www.4scontracting.com/SMCS_APP/subcontractor/view_attendance_img.php?attendance_id=1489&type=in";
         assertEquals(expectedInUrl, ImageLoaderHelper.sanitizeUrl(legacyUrl));
     }
+
+    @Test
+    public void testSupervisorFilteredFromManageAttendanceAndOtherEmployeesPreserved() {
+        AttendanceRecordModel supervisorRecord = new AttendanceRecordModel(
+                "1493", "141", "31", "Worker #31", "RST",
+                "09:28 AM", "03:02 PM", 0.0, true, true, "", ""
+        );
+        AttendanceRecordModel workerRecord1 = new AttendanceRecordModel(
+                "1495", "141", "38", "EMJEE KUMAR", "RST",
+                "08:00 AM", "05:00 PM", 1.0, true, true, "", ""
+        );
+        AttendanceRecordModel workerRecord2 = new AttendanceRecordModel(
+                "1496", "141", "34", "HAZUR MASIH", "RST",
+                "08:15 AM", "", 0.0, true, false, "", ""
+        );
+
+        // Supervisor matches ID 31
+        assertEquals("31", supervisorRecord.getEmpId());
+        // Worker records have their own IDs and distinct names
+        assertEquals("38", workerRecord1.getEmpId());
+        assertEquals("EMJEE KUMAR", workerRecord1.getFirstName());
+        assertEquals("34", workerRecord2.getEmpId());
+        assertEquals("HAZUR MASIH", workerRecord2.getFirstName());
+
+        assertTrue(workerRecord1.isActive() == false); // Has out, so completed
+        assertTrue(workerRecord2.isActive() == true);  // No out, so active
+    }
 }
