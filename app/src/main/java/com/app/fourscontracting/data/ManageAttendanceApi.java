@@ -35,59 +35,54 @@ public class ManageAttendanceApi {
     public void fetchFeed(Context context, String uid, String projid,
                           String day, String month, String year,
                           FeedCallback callback) {
+        fetchFeed(context, uid, projid, day, month, year, true, callback);
+    }
+
+    public void fetchFeed(Context context, String uid, String projid,
+                          String day, String month, String year,
+                          boolean isManageMode,
+                          FeedCallback callback) {
         com.app.fourscontracting.SessionManager session = new com.app.fourscontracting.SessionManager(context);
         String sUid = (uid != null && !uid.isEmpty()) ? uid : String.valueOf(session.getUid());
-        int sEmpId = session.getEmpId();
-        if (sEmpId <= 0) sEmpId = 31;
-        int sDeptId = session.getDeptId();
-        if (sDeptId <= 0) sDeptId = 5;
-        int sLocId = session.getLocationId();
-        if (sLocId <= 0 && context != null) {
-            com.app.fourscontracting.SessionPrefs sp = new com.app.fourscontracting.SessionPrefs(context);
-            try {
-                sLocId = Integer.parseInt(sp.getLocationId());
-            } catch (Exception ignored) {}
-        }
-        if (sLocId <= 0) sLocId = 12;
 
         Uri.Builder builder = Uri.parse(ApiConfig.API_MANAGE_ATTENDANCE).buildUpon();
-        builder.appendQueryParameter("action", "get_feed");
         if (sUid != null && !sUid.isEmpty() && !"0".equals(sUid)) {
             builder.appendQueryParameter("uid", sUid);
-            builder.appendQueryParameter("subadmin_id", sUid);
-            builder.appendQueryParameter("user_id", sUid);
         }
-        if (sEmpId > 0) {
-            builder.appendQueryParameter("empid", String.valueOf(sEmpId));
-        }
-        if (sDeptId > 0) {
-            builder.appendQueryParameter("dept_id", String.valueOf(sDeptId));
-        }
-        if (sLocId > 0) {
-            builder.appendQueryParameter("location_id", String.valueOf(sLocId));
-        }
-        if (projid != null && !projid.isEmpty() && !"all".equalsIgnoreCase(projid)) {
-            builder.appendQueryParameter("projname", projid);
-            builder.appendQueryParameter("project_id", projid);
-            builder.appendQueryParameter("projectid", projid);
-        }
+
+        String targetProj = (projid != null && !projid.isEmpty()) ? projid : "all";
+        builder.appendQueryParameter("projname", targetProj);
+
         if (day != null && !day.isEmpty()) {
             builder.appendQueryParameter("f_day", day);
-            builder.appendQueryParameter("day", day);
         }
         if (month != null && !month.isEmpty()) {
             builder.appendQueryParameter("f_month", month);
-            builder.appendQueryParameter("month", month);
         }
         if (year != null && !year.isEmpty()) {
             builder.appendQueryParameter("f_year", year);
-            builder.appendQueryParameter("year", year);
         }
-        if (day != null && !day.isEmpty() && month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
-            String fullDate = year + "-" + month + "-" + day;
-            builder.appendQueryParameter("date", fullDate);
-            builder.appendQueryParameter("attendance_date", fullDate);
-            builder.appendQueryParameter("f_date", fullDate);
+
+        if (isManageMode) {
+            builder.appendQueryParameter("mode", "manage");
+        } else {
+            int sEmpId = session.getEmpId();
+            if (sEmpId <= 0) sEmpId = 31;
+            builder.appendQueryParameter("empid", String.valueOf(sEmpId));
+            int sDeptId = session.getDeptId();
+            if (sDeptId > 0) {
+                builder.appendQueryParameter("dept_id", String.valueOf(sDeptId));
+            }
+            int sLocId = session.getLocationId();
+            if (sLocId <= 0 && context != null) {
+                com.app.fourscontracting.SessionPrefs sp = new com.app.fourscontracting.SessionPrefs(context);
+                try {
+                    sLocId = Integer.parseInt(sp.getLocationId());
+                } catch (Exception ignored) {}
+            }
+            if (sLocId > 0) {
+                builder.appendQueryParameter("location_id", String.valueOf(sLocId));
+            }
         }
 
         String url = builder.build().toString();
@@ -156,9 +151,9 @@ public class ManageAttendanceApi {
                         List<AttendanceRecordModel> attendanceRecords = new ArrayList<>();
                         java.util.Set<String> seenRecordKeys = new java.util.HashSet<>();
 
-                        // 1. FIRST parse supervisor's self attendance ("own_attendance" JSON object) as authoritative Shift 1
+                        // 1. FIRST parse supervisor's self attendance ("own_attendance" JSON object) as authoritative Shift 1 only if not in manage mode
                         JSONObject ownObj = response.optJSONObject("own_attendance");
-                        if (ownObj != null && ownObj.length() > 0) {
+                        if (!isManageMode && ownObj != null && ownObj.length() > 0) {
                             String attendIdVal = optCleanString(ownObj, "attend_id", "attendance_id");
                             String timeInVal = optCleanString(ownObj, "timein", "time_in", "in_time");
                             String timeOutVal = optCleanString(ownObj, "timeout", "time_out", "out_time");
@@ -249,7 +244,15 @@ public class ManageAttendanceApi {
 
                                     String firstNameVal = optCleanString(rObj, "first_name", "emp_name", "name", "employee_name", "username");
                                     String empNum = optCleanString(rObj, "employee_number", "emp_no", "employee_no");
-                                    if (!empNum.isEmpty() && !firstNameVal.isEmpty() && !firstNameVal.contains(empNum)) {
+                                    if (firstNameVal.isEmpty()) {
+                                        if (!empNum.isEmpty()) {
+                                            firstNameVal = "Worker #" + empNum;
+                                        } else if (!empIdVal.isEmpty()) {
+                                            firstNameVal = "Worker #" + empIdVal;
+                                        } else {
+                                            firstNameVal = "Worker";
+                                        }
+                                    } else if (!empNum.isEmpty() && !firstNameVal.contains(empNum)) {
                                         firstNameVal = firstNameVal + " (" + empNum + ")";
                                     }
                                     String projNameVal = optCleanString(rObj, "projname", "project_name", "project", "location_name");

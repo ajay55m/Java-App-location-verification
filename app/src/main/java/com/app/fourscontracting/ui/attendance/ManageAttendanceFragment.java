@@ -320,6 +320,12 @@ public class ManageAttendanceFragment extends Fragment
             if (record == null)
                 continue;
 
+            // Exclude supervisor's self attendance record from Manage Attendance
+            // Supervisor checkout is handled strictly in Self Attendance tab.
+            if (isSupervisorSelfRecord(record)) {
+                continue;
+            }
+
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
             } else {
@@ -348,7 +354,19 @@ public class ManageAttendanceFragment extends Fragment
             progressBar.setVisibility(View.VISIBLE);
         }
 
-        api.fetchFeed(context, uid, selectedProjectId, selDay, selMonth, selYear,
+        String projParam = selectedProjectId;
+        if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
+            for (AllocatedProjectModel p : allocatedProjects) {
+                if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                    if (!TextUtils.isEmpty(p.getProjname())) {
+                        projParam = p.getProjname();
+                    }
+                    break;
+                }
+            }
+        }
+
+        api.fetchFeed(context, uid, projParam, selDay, selMonth, selYear,
                 new ManageAttendanceApi.FeedCallback() {
                     @Override
                     public void onSuccess(String userName,

@@ -364,6 +364,8 @@ public class ManageAttendanceActivity extends AppActivity
         for (AttendanceRecordModel record : inputRecords) {
             if (record == null) continue;
 
+            if (isSupervisorSelfRecord(record)) continue;
+
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
             } else {
@@ -383,7 +385,19 @@ public class ManageAttendanceActivity extends AppActivity
             progressBar.setVisibility(View.VISIBLE);
         }
 
-        api.fetchFeed(this, uid, selectedProjectId, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
+        String projParam = selectedProjectId;
+        if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
+            for (AllocatedProjectModel p : allocatedProjects) {
+                if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                    if (!TextUtils.isEmpty(p.getProjname())) {
+                        projParam = p.getProjname();
+                    }
+                    break;
+                }
+            }
+        }
+
+        api.fetchFeed(this, uid, projParam, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
             @Override
             public void onSuccess(String userName,
                                   List<AllocatedProjectModel> projects,

@@ -512,4 +512,100 @@ public class ManageAttendanceTest {
         assertTrue(workerRecord1.isActive() == false); // Has out, so completed
         assertTrue(workerRecord2.isActive() == true);  // No out, so active
     }
+
+    @Test
+    public void testManageAttendanceRecordsParsing_integratesWorkersForCheckout() throws Exception {
+        String manageApiResponse = "{\n" +
+                "  \"status\": \"success\",\n" +
+                "  \"date\": \"2026-11-11\",\n" +
+                "  \"uid\": 141,\n" +
+                "  \"empid\": 31,\n" +
+                "  \"records\": [\n" +
+                "    {\n" +
+                "      \"attend_id\": 1630,\n" +
+                "      \"empid\": 38,\n" +
+                "      \"first_name\": \"Aksir Miah\",\n" +
+                "      \"employee_number\": \"E038\",\n" +
+                "      \"timein\": \"02:18 PM\",\n" +
+                "      \"timeout\": \"\",\n" +
+                "      \"break_hours\": 30,\n" +
+                "      \"projname\": \"RST\",\n" +
+                "      \"has_in\": true,\n" +
+                "      \"has_out\": false,\n" +
+                "      \"in_photo_url\": \"https://www.4scontracting.com/SMCS_APP/fcm_app/view_attendance_img.php?attendance_id=1630&shift_no=1&type=in\"\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"attend_id\": 1631,\n" +
+                "      \"empid\": 34,\n" +
+                "      \"first_name\": \"HAZUR MASIH\",\n" +
+                "      \"employee_number\": \"E034\",\n" +
+                "      \"timein\": \"08:15 AM\",\n" +
+                "      \"timeout\": \"05:00 PM\",\n" +
+                "      \"break_hours\": 60,\n" +
+                "      \"projname\": \"RST\",\n" +
+                "      \"has_in\": true,\n" +
+                "      \"has_out\": true,\n" +
+                "      \"in_photo_url\": \"https://www.4scontracting.com/SMCS_APP/fcm_app/view_attendance_img.php?attendance_id=1631&shift_no=1&type=in\"\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"attend_id\": 1632,\n" +
+                "      \"empid\": 31,\n" +
+                "      \"first_name\": \"GURDEEP SINGH PIARA\",\n" +
+                "      \"employee_number\": \"E031\",\n" +
+                "      \"timein\": \"09:34 AM\",\n" +
+                "      \"timeout\": \"\",\n" +
+                "      \"break_hours\": 0,\n" +
+                "      \"projname\": \"RST\",\n" +
+                "      \"has_in\": true,\n" +
+                "      \"has_out\": false\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}";
+
+        JSONObject root = new JSONObject(manageApiResponse);
+        assertEquals("success", root.optString("status"));
+        JSONArray recordsArray = root.getJSONArray("records");
+        assertEquals(3, recordsArray.length());
+
+        List<AttendanceRecordModel> parsedList = new ArrayList<>();
+        for (int i = 0; i < recordsArray.length(); i++) {
+            JSONObject rObj = recordsArray.getJSONObject(i);
+            String attendIdVal = rObj.optString("attend_id", "");
+            String empIdVal = com.app.fourscontracting.data.ManageAttendanceApi.resolveWorkerId(rObj, "141");
+            String firstNameVal = rObj.optString("first_name", "");
+            String projNameVal = rObj.optString("projname", "");
+            String timeInVal = rObj.optString("timein", "");
+            String timeOutVal = rObj.optString("timeout", "");
+            boolean hasIn = rObj.optBoolean("has_in", false);
+            boolean hasOut = rObj.optBoolean("has_out", false);
+            String inPhoto = rObj.optString("in_photo_url", "");
+
+            parsedList.add(new AttendanceRecordModel(
+                    attendIdVal, "141", empIdVal, firstNameVal, projNameVal,
+                    timeInVal, timeOutVal, rObj.optDouble("break_hours", 0.0),
+                    hasIn, hasOut, inPhoto, "", 1
+            ));
+        }
+
+        assertEquals(3, parsedList.size());
+
+        // First worker: Aksir Miah (Active, ready for check out)
+        AttendanceRecordModel worker1 = parsedList.get(0);
+        assertEquals("1630", worker1.getAttendId());
+        assertEquals("38", worker1.getEmpId());
+        assertEquals("Aksir Miah", worker1.getFirstName());
+        assertTrue(worker1.isActive());
+        assertEquals("38", com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(worker1, "141"));
+
+        // Second worker: HAZUR MASIH (Completed)
+        AttendanceRecordModel worker2 = parsedList.get(1);
+        assertEquals("1631", worker2.getAttendId());
+        assertEquals("34", worker2.getEmpId());
+        assertFalse(worker2.isActive());
+
+        // Third record: Supervisor GURDEEP SINGH PIARA
+        AttendanceRecordModel supervisor = parsedList.get(2);
+        assertEquals("31", supervisor.getEmpId());
+        assertTrue(supervisor.getFirstName().toLowerCase().contains("gurdeep"));
+    }
 }

@@ -284,6 +284,8 @@ public class ManageMoveSiteFragment extends Fragment
         for (MoveRecordModel record : inputRecords) {
             if (record == null) continue;
 
+            if (isSupervisorSelfMoveRecord(record)) continue;
+
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
             } else {
@@ -309,7 +311,19 @@ public class ManageMoveSiteFragment extends Fragment
             progressBar.setVisibility(View.VISIBLE);
         }
 
-        api.fetchFeed(context, uid, selectedProjectId, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
+        String projParam = selectedProjectId;
+        if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
+            for (AllocatedProjectModel p : allocatedProjects) {
+                if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                    if (!TextUtils.isEmpty(p.getProjname())) {
+                        projParam = p.getProjname();
+                    }
+                    break;
+                }
+            }
+        }
+
+        api.fetchFeed(context, uid, projParam, selDay, selMonth, selYear, new ManageAttendanceApi.FeedCallback() {
             @Override
             public void onSuccess(String userName,
                                   List<AllocatedProjectModel> projects,
