@@ -488,12 +488,14 @@ public class SupervisorAttendanceFragment extends Fragment
                 );
                 currentSelfRecord = shift1Record;
 
-                List<AttendanceRecordModel> selfShift1List = new ArrayList<>();
-                selfShift1List.add(shift1Record);
-                if (historyAdapter != null) {
-                    historyAdapter.setItems(selfShift1List);
+                if (isHistoryDateToday()) {
+                    List<AttendanceRecordModel> selfShift1List = new ArrayList<>();
+                    selfShift1List.add(shift1Record);
+                    if (historyAdapter != null) {
+                        historyAdapter.setItems(selfShift1List);
+                    }
+                    updateHistoryUiStats(selfShift1List);
                 }
-                updateHistoryUiStats(selfShift1List);
             }
         } else {
             if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
@@ -527,14 +529,11 @@ public class SupervisorAttendanceFragment extends Fragment
                 moveList.add(m);
             }
         }
-        if (moveHistoryAdapter != null) {
-            moveHistoryAdapter.setItems(moveList);
-        }
-        if (tvMoveHistoryStatCount != null) {
-            tvMoveHistoryStatCount.setText(String.valueOf(moveList.size()));
-        }
-        if (llMoveHistoryEmpty != null) {
-            llMoveHistoryEmpty.setVisibility(moveList.isEmpty() ? View.VISIBLE : View.GONE);
+        if (isHistoryDateToday()) {
+            if (moveHistoryAdapter != null) {
+                moveHistoryAdapter.setItems(moveList);
+            }
+            updateMoveHistoryUiStats(moveList);
         }
     }
 
@@ -556,6 +555,17 @@ public class SupervisorAttendanceFragment extends Fragment
         });
     }
 
+    private boolean isHistoryDateToday() {
+        Calendar cal = Calendar.getInstance();
+        String curDay = String.format(Locale.US, "%02d", cal.get(Calendar.DAY_OF_MONTH));
+        String curMonth = String.format(Locale.US, "%02d", cal.get(Calendar.MONTH) + 1);
+        String curYear = String.valueOf(cal.get(Calendar.YEAR));
+
+        return (TextUtils.isEmpty(selHistoryDay) || curDay.equals(selHistoryDay))
+                && (TextUtils.isEmpty(selHistoryMonth) || curMonth.equals(selHistoryMonth))
+                && (TextUtils.isEmpty(selHistoryYear) || curYear.equals(selHistoryYear));
+    }
+
     private boolean isSupervisorSelfRecord(AttendanceRecordModel r) {
         if (r == null) return false;
 
@@ -566,12 +576,11 @@ public class SupervisorAttendanceFragment extends Fragment
         }
 
         String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
-        String uId = r.getUserId() != null ? r.getUserId().trim() : "";
         String fName = r.getFirstName() != null ? r.getFirstName().trim().toLowerCase(java.util.Locale.US) : "";
         String sName = supervisorName != null ? supervisorName.trim().toLowerCase(java.util.Locale.US) : "";
 
-        // Reject records belonging to other named workers (e.g. "Ajaz Ahmed")
-        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor")) {
+        // Reject records belonging to other named workers (e.g. "Ajaz Ahmed", "Worker #38")
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor") && !fName.startsWith("worker #")) {
             boolean nameMatchesSupervisor = (!sName.isEmpty() && (fName.contains(sName) || sName.contains(fName)))
                     || fName.contains("gurdeep") || fName.contains("piara");
             if (!nameMatchesSupervisor) {
@@ -579,32 +588,26 @@ public class SupervisorAttendanceFragment extends Fragment
             }
         }
 
-        // 1. Direct eId match
+        // 1. Direct eId match against supervisor empId (e.g. 31)
         if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
             if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
-            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
             try {
                 if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Supervisor name match
+        if (!fName.isEmpty()) {
+            if (!sName.isEmpty() && (fName.contains(sName) || sName.contains(fName))) return true;
+            if (fName.contains("gurdeep") || fName.contains("piara")) return true;
+        }
+
+        // 3. Fallback: eId match against supervisor uid (e.g. 141)
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
+            try {
                 if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
             } catch (Exception ignored) {}
-        }
-
-        // 2. Direct uId / userId match
-        if (!uId.isEmpty() && !"--".equals(uId) && !"null".equalsIgnoreCase(uId)) {
-            if (!sUid.isEmpty() && !"0".equals(sUid) && uId.equalsIgnoreCase(sUid)) return true;
-            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && uId.equalsIgnoreCase(sEmpId)) return true;
-            try {
-                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(uId) == Integer.parseInt(sUid)) return true;
-                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(uId) == Integer.parseInt(sEmpId)) return true;
-            } catch (Exception ignored) {}
-        }
-
-        // 3. Supervisor name match
-        if (!fName.isEmpty() && !sName.isEmpty() && (fName.contains(sName) || sName.contains(fName))) {
-            return true;
-        }
-        if (!fName.isEmpty() && (fName.contains("gurdeep") || fName.contains("piara"))) {
-            return true;
         }
 
         return false;
@@ -623,7 +626,7 @@ public class SupervisorAttendanceFragment extends Fragment
         String sName = supervisorName != null ? supervisorName.trim().toLowerCase(java.util.Locale.US) : "";
 
         // Reject records belonging to other named workers
-        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor")) {
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor") && !fName.startsWith("worker #")) {
             boolean nameMatchesSupervisor = (!sName.isEmpty() && (fName.contains(sName) || sName.contains(fName)))
                     || fName.contains("gurdeep") || fName.contains("piara");
             if (!nameMatchesSupervisor) {
@@ -631,13 +634,11 @@ public class SupervisorAttendanceFragment extends Fragment
             }
         }
 
-        // 1. Check eId match against supervisorEmpId or supervisorUid
+        // 1. Check eId match against supervisorEmpId
         if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
             if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
-            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
             try {
                 if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
-                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
             } catch (Exception ignored) {}
         }
 
@@ -647,6 +648,14 @@ public class SupervisorAttendanceFragment extends Fragment
         }
         if (!fName.isEmpty() && (fName.contains("gurdeep") || fName.contains("piara"))) {
             return true;
+        }
+
+        // 3. Fallback: Check eId match against supervisorUid
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
         }
 
         return false;
@@ -920,6 +929,121 @@ public class SupervisorAttendanceFragment extends Fragment
 
         if (progressHistory != null) progressHistory.setVisibility(View.VISIBLE);
 
+        SessionManager sm = new SessionManager(context);
+        int uidVal = sm.getUid();
+        if (uidVal <= 0) {
+            try { uidVal = Integer.parseInt(supervisorUid); } catch (Exception ignored) {}
+        }
+        int empIdVal = sm.getEmpId();
+        int deptIdVal = sm.getDeptId();
+        int locIdVal = sm.getLocationId();
+
+        String day = !TextUtils.isEmpty(selHistoryDay) ? selHistoryDay : "";
+        String month = !TextUtils.isEmpty(selHistoryMonth) ? selHistoryMonth : "";
+        String year = !TextUtils.isEmpty(selHistoryYear) ? selHistoryYear : "";
+
+        ApiClient.getService().getSelfAttendance(uidVal, empIdVal, deptIdVal, locIdVal, day, month, year, 0)
+                .enqueue(new Callback<ManageAttendanceResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ManageAttendanceResponse> call, @NonNull Response<ManageAttendanceResponse> response) {
+                        if (!isAdded()) return;
+                        if (progressHistory != null) progressHistory.setVisibility(View.GONE);
+
+                        ManageAttendanceResponse res = response.body();
+                        if (res != null && res.isSuccess()) {
+                            populateSelfHistoryFromResponse(res);
+                        } else {
+                            loadSupervisorHistoryFallback();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ManageAttendanceResponse> call, @NonNull Throwable t) {
+                        if (!isAdded()) return;
+                        loadSupervisorHistoryFallback();
+                    }
+                });
+    }
+
+    private void populateSelfHistoryFromResponse(ManageAttendanceResponse res) {
+        if (!isAdded() || res == null) return;
+
+        List<AttendanceRecordModel> historyList = new ArrayList<>();
+        if (res.own_attendance != null) {
+            String inTimeStr = !TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : res.own_attendance.in_time;
+            String outTimeStr = !TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : res.own_attendance.out_time;
+            boolean hasIn = res.own_attendance.has_in || (!TextUtils.isEmpty(inTimeStr) && !"--".equals(inTimeStr));
+            boolean hasOut = res.own_attendance.has_out || (!TextUtils.isEmpty(outTimeStr) && !"--".equals(outTimeStr));
+
+            if (hasIn || !TextUtils.isEmpty(inTimeStr)) {
+                String aId = (res.own_attendance.attend_id > 0) ? String.valueOf(res.own_attendance.attend_id) : "";
+                String uId = String.valueOf(res.uid);
+                String eId = String.valueOf(res.empid);
+                String pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
+                if (TextUtils.isEmpty(pStr)) pStr = projName;
+                String inPhoto = !TextUtils.isEmpty(res.own_attendance.in_photo_url) ? res.own_attendance.in_photo_url : "";
+                String outPhoto = !TextUtils.isEmpty(res.own_attendance.out_photo_url) ? res.own_attendance.out_photo_url : "";
+
+                AttendanceRecordModel shift1Record = new AttendanceRecordModel(
+                        aId,
+                        uId,
+                        eId,
+                        !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid,
+                        pStr,
+                        inTimeStr,
+                        outTimeStr,
+                        res.own_attendance.break_hours,
+                        hasIn,
+                        hasOut,
+                        inPhoto,
+                        outPhoto,
+                        1
+                );
+                historyList.add(shift1Record);
+            }
+        }
+
+        List<MoveRecordModel> moveHistoryList = new ArrayList<>();
+        if (res.own_move_records != null) {
+            String parentAttId = (res.own_attendance != null && res.own_attendance.attend_id > 0)
+                    ? String.valueOf(res.own_attendance.attend_id)
+                    : "";
+            for (ManageAttendanceResponse.OwnMoveRecord mr : res.own_move_records) {
+                String mAttId = (mr.attendance_id > 0) ? String.valueOf(mr.attendance_id) : parentAttId;
+                int sNo = mr.shift_no > 0 ? mr.shift_no : (moveHistoryList.size() + 2);
+                moveHistoryList.add(new MoveRecordModel(
+                        String.valueOf(mr.move_id),
+                        mAttId,
+                        String.valueOf(res.empid),
+                        supervisorName,
+                        mr.location_name != null ? mr.location_name : mr.projname,
+                        mr.in_time,
+                        mr.out_time,
+                        mr.has_in,
+                        mr.has_out,
+                        mr.in_photo_url,
+                        mr.out_photo_url,
+                        sNo
+                ));
+            }
+        }
+
+        if (historyAdapter != null) {
+            historyAdapter.setItems(historyList);
+        }
+        if (moveHistoryAdapter != null) {
+            moveHistoryAdapter.setItems(moveHistoryList);
+        }
+
+        updateHistoryUiStats(historyList);
+        updateMoveHistoryUiStats(moveHistoryList);
+    }
+
+    private void loadSupervisorHistoryFallback() {
+        Context context = getContext();
+        if (context == null || !isAdded()) return;
+        if (progressHistory != null) progressHistory.setVisibility(View.VISIBLE);
+
         api.fetchFeed(context, supervisorUid, "all", selHistoryDay, selHistoryMonth, selHistoryYear, new ManageAttendanceApi.FeedCallback() {
             @Override
             public void onSuccess(String userName, List<AllocatedProjectModel> projects, List<AttendanceRecordModel> attendanceRecords, List<MoveRecordModel> moveRecords) {
@@ -935,7 +1059,7 @@ public class SupervisorAttendanceFragment extends Fragment
                                 continue;
                             }
                             String displayName = r.getFirstName();
-                            if (TextUtils.isEmpty(displayName) || "User".equalsIgnoreCase(displayName.trim())) {
+                            if (TextUtils.isEmpty(displayName) || "User".equalsIgnoreCase(displayName.trim()) || "Worker".equalsIgnoreCase(displayName.trim())) {
                                 displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
                             }
                             historyList.add(new AttendanceRecordModel(
@@ -950,7 +1074,8 @@ public class SupervisorAttendanceFragment extends Fragment
                                     r.isHasIn(),
                                     r.isHasOut(),
                                     r.getInPhotoUrl(),
-                                    r.getOutPhotoUrl()
+                                    r.getOutPhotoUrl(),
+                                    1
                             ));
                         }
                     }
@@ -970,6 +1095,7 @@ public class SupervisorAttendanceFragment extends Fragment
                             }
                             moveHistoryList.add(new MoveRecordModel(
                                     m.getMoveId(),
+                                    m.getAttendanceId(),
                                     m.getEmpId(),
                                     displayName,
                                     m.getProjName(),
@@ -978,7 +1104,8 @@ public class SupervisorAttendanceFragment extends Fragment
                                     m.isHasIn(),
                                     m.isHasOut(),
                                     m.getInPhotoUrl(),
-                                    m.getOutPhotoUrl()
+                                    m.getOutPhotoUrl(),
+                                    m.getShiftNo() > 0 ? m.getShiftNo() : (moveHistoryList.size() + 2)
                             ));
                         }
                     }

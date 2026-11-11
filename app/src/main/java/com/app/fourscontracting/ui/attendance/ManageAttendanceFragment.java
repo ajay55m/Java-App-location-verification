@@ -244,6 +244,60 @@ public class ManageAttendanceFragment extends Fragment
         }
     }
 
+    private boolean isSupervisorSelfRecord(AttendanceRecordModel r) {
+        if (r == null) return false;
+
+        Context context = getContext();
+        com.app.fourscontracting.SessionManager sm = (context != null) ? new com.app.fourscontracting.SessionManager(context) : null;
+        String sUid = uid != null ? uid.trim() : "";
+        if (sUid.isEmpty() && sm != null && sm.getUid() > 0) {
+            sUid = String.valueOf(sm.getUid());
+        }
+
+        String sEmpId = (sm != null && sm.getEmpId() > 0) ? String.valueOf(sm.getEmpId()) : "";
+        String sUsername = (sm != null && sm.getUsername() != null) ? sm.getUsername().trim().toLowerCase(java.util.Locale.US) : "";
+        String sEmpName = (sm != null && sm.getEmpName() != null) ? sm.getEmpName().trim().toLowerCase(java.util.Locale.US) : "";
+
+        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        String fName = r.getFirstName() != null ? r.getFirstName().trim().toLowerCase(java.util.Locale.US) : "";
+
+        // If the record has a distinct name that belongs to another worker (e.g. "Ajaz Ahmed", "Worker #38"),
+        // it is definitely an employee, NOT the supervisor!
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor") && !fName.startsWith("worker #")) {
+            boolean nameMatchesSupervisor = (!sUsername.isEmpty() && (fName.contains(sUsername) || sUsername.contains(fName)))
+                    || (!sEmpName.isEmpty() && (fName.contains(sEmpName) || sEmpName.contains(fName)))
+                    || fName.contains("gurdeep") || fName.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
+            }
+        }
+
+        // 1. Direct eId match against supervisor empId (e.g. 31)
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
+            try {
+                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Supervisor name match
+        if (!fName.isEmpty()) {
+            if (!sUsername.isEmpty() && (fName.contains(sUsername) || sUsername.contains(fName))) return true;
+            if (!sEmpName.isEmpty() && (fName.contains(sEmpName) || sEmpName.contains(fName))) return true;
+            if (fName.contains("gurdeep") || fName.contains("piara")) return true;
+        }
+
+        // 3. Fallback: eId match against supervisor uid (e.g. 141)
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        return false;
+    }
+
     private List<AttendanceRecordModel> filterRecordsBySelectedProject(List<AttendanceRecordModel> inputRecords) {
         if (inputRecords == null)
             return new ArrayList<>();
@@ -265,6 +319,11 @@ public class ManageAttendanceFragment extends Fragment
         for (AttendanceRecordModel record : inputRecords) {
             if (record == null)
                 continue;
+
+            // Exclude logged-in supervisor's own attendance (supervisor belongs in Self Attendance)
+            if (isSupervisorSelfRecord(record)) {
+                continue;
+            }
 
             if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);

@@ -1,5 +1,6 @@
 package com.app.fourscontracting.ui.move;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -310,21 +311,29 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
                 if (!isAdded()) return;
                 if (progress != null) progress.setVisibility(View.GONE);
 
-                if (tvReadyCount != null) tvReadyCount.setText(String.valueOf(readyCount));
-                if (tvMovingCount != null) tvMovingCount.setText(String.valueOf(movingCount));
-                if (!TextUtils.isEmpty(locationName) && !isNumeric(locationName)) {
-                    if (tvLocation != null) tvLocation.setText(locationName);
-                }
-
                 moveEmployeeList.clear();
+                int filteredReady = 0;
+                int filteredMoving = 0;
                 if (employees != null) {
                     for (MoveEmployeeModel emp : employees) {
-                        // Filter out employees who are already on move (managed in Manage Move Site)
-                        if (emp != null && emp.onMove) {
+                        if (emp == null) continue;
+                        // Exclude logged-in supervisor from labour move list (supervisor moves in Self Attendance)
+                        if (isSupervisorEmployeeMatch(emp.id, emp.firstName)) {
                             continue;
                         }
+                        if (emp.onMove) {
+                            filteredMoving++;
+                            continue; // Managed in Manage Move Site
+                        }
+                        filteredReady++;
                         moveEmployeeList.add(emp);
                     }
+                }
+
+                if (tvReadyCount != null) tvReadyCount.setText(String.valueOf(filteredReady));
+                if (tvMovingCount != null) tvMovingCount.setText(String.valueOf(filteredMoving));
+                if (!TextUtils.isEmpty(locationName) && !isNumeric(locationName)) {
+                    if (tvLocation != null) tvLocation.setText(locationName);
                 }
 
                 if (adapter != null) adapter.submit(moveEmployeeList);
@@ -462,5 +471,49 @@ public class MoveSiteFragment extends Fragment implements MoveEmployeeAdapter.Li
                 Toast.makeText(requireContext(), AppMessages.SUPERVISOR_LOCATION_REQUIRED, Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private boolean isSupervisorEmployeeMatch(String empId, String empName) {
+        Context context = getContext();
+        if (context == null) return false;
+        com.app.fourscontracting.SessionManager sm = new com.app.fourscontracting.SessionManager(context);
+        String myEmpId = (sm.getEmpId() > 0) ? String.valueOf(sm.getEmpId()) : "";
+        String myUid = (uid != null && !uid.trim().isEmpty()) ? uid.trim() : (sm.getUid() > 0 ? String.valueOf(sm.getUid()) : "");
+        String myUsername = sm.getUsername() != null ? sm.getUsername().trim().toLowerCase(java.util.Locale.US) : "";
+        String myEmpName = sm.getEmpName() != null ? sm.getEmpName().trim().toLowerCase(java.util.Locale.US) : "";
+
+        String eId = empId != null ? empId.trim() : "";
+        String name = empName != null ? empName.trim().toLowerCase(java.util.Locale.US) : "";
+
+        if (!name.isEmpty() && !name.equals("worker") && !name.equals("user") && !name.equals("supervisor") && !name.startsWith("worker #")) {
+            boolean nameMatchesSupervisor = (!myUsername.isEmpty() && (name.contains(myUsername) || myUsername.contains(name)))
+                    || (!myEmpName.isEmpty() && (name.contains(myEmpName) || myEmpName.contains(name)))
+                    || name.contains("gurdeep") || name.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
+            }
+        }
+
+        if (!eId.isEmpty()) {
+            if (!myEmpId.isEmpty() && !"0".equals(myEmpId) && eId.equalsIgnoreCase(myEmpId)) return true;
+            try {
+                if (!myEmpId.isEmpty() && !"0".equals(myEmpId) && Integer.parseInt(eId) == Integer.parseInt(myEmpId)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        if (!name.isEmpty()) {
+            if (!myUsername.isEmpty() && (name.contains(myUsername) || myUsername.contains(name))) return true;
+            if (!myEmpName.isEmpty() && (name.contains(myEmpName) || myEmpName.contains(name))) return true;
+            if (name.contains("gurdeep") || name.contains("piara")) return true;
+        }
+
+        if (!eId.isEmpty()) {
+            if (!myUid.isEmpty() && !"0".equals(myUid) && eId.equalsIgnoreCase(myUid)) return true;
+            try {
+                if (!myUid.isEmpty() && !"0".equals(myUid) && Integer.parseInt(eId) == Integer.parseInt(myUid)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        return false;
     }
 }

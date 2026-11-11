@@ -220,29 +220,81 @@ public class ManageMoveSiteFragment extends Fragment
         }
     }
 
-    private List<MoveRecordModel> filterRecordsBySelectedProject(List<MoveRecordModel> inputRecords) {
-        if (inputRecords == null) return new ArrayList<>();
-        if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
-            return inputRecords;
-        }
+    private boolean isSupervisorSelfMoveRecord(MoveRecordModel r) {
+        if (r == null) return false;
+        Context context = getContext();
+        com.app.fourscontracting.SessionManager sm = (context != null) ? new com.app.fourscontracting.SessionManager(context) : null;
+        String sUid = uid != null ? uid.trim() : "";
+        if (sUid.isEmpty() && sm != null && sm.getUid() > 0) sUid = String.valueOf(sm.getUid());
+        String sEmpId = (sm != null && sm.getEmpId() > 0) ? String.valueOf(sm.getEmpId()) : "";
+        String sUsername = (sm != null && sm.getUsername() != null) ? sm.getUsername().trim().toLowerCase(java.util.Locale.US) : "";
+        String sEmpName = (sm != null && sm.getEmpName() != null) ? sm.getEmpName().trim().toLowerCase(java.util.Locale.US) : "";
 
-        String targetName = "";
-        for (AllocatedProjectModel p : allocatedProjects) {
-            if (selectedProjectId.equalsIgnoreCase(p.getId())) {
-                targetName = p.getProjname() != null ? p.getProjname().trim().toLowerCase() : "";
-                break;
+        String eId = r.getEmpId() != null ? r.getEmpId().trim() : "";
+        String fName = r.getFirstName() != null ? r.getFirstName().trim().toLowerCase(java.util.Locale.US) : "";
+
+        // If the record has a distinct name that belongs to another worker, it's NOT the supervisor
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor") && !fName.startsWith("worker #")) {
+            boolean nameMatchesSupervisor = (!sUsername.isEmpty() && (fName.contains(sUsername) || sUsername.contains(fName)))
+                    || (!sEmpName.isEmpty() && (fName.contains(sEmpName) || sEmpName.contains(fName)))
+                    || fName.contains("gurdeep") || fName.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
             }
         }
-        if (targetName.isEmpty()) {
-            targetName = selectedProjectId.trim().toLowerCase();
+
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sEmpId.isEmpty() && eId.equalsIgnoreCase(sEmpId)) return true;
+            try {
+                if (!sEmpId.isEmpty() && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        if (!fName.isEmpty() && !sUsername.isEmpty() && (fName.contains(sUsername) || sUsername.contains(fName))) return true;
+        if (!fName.isEmpty() && !sEmpName.isEmpty() && (fName.contains(sEmpName) || sEmpName.contains(fName))) return true;
+        if (!fName.isEmpty() && (fName.contains("gurdeep") || fName.contains("piara"))) return true;
+
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sUid.isEmpty() && eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (!sUid.isEmpty() && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        return false;
+    }
+
+    private List<MoveRecordModel> filterRecordsBySelectedProject(List<MoveRecordModel> inputRecords) {
+        if (inputRecords == null) return new ArrayList<>();
+
+        String targetName = "";
+        if (!"all".equalsIgnoreCase(selectedProjectId) && !TextUtils.isEmpty(selectedProjectId)) {
+            for (AllocatedProjectModel p : allocatedProjects) {
+                if (selectedProjectId.equalsIgnoreCase(p.getId())) {
+                    targetName = p.getProjname() != null ? p.getProjname().trim().toLowerCase() : "";
+                    break;
+                }
+            }
+            if (targetName.isEmpty()) {
+                targetName = selectedProjectId.trim().toLowerCase();
+            }
         }
 
         List<MoveRecordModel> filtered = new ArrayList<>();
         for (MoveRecordModel record : inputRecords) {
             if (record == null) continue;
-            String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
-            if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+            // Exclude logged-in supervisor's own moves (supervisor moves belong in Self Attendance)
+            if (isSupervisorSelfMoveRecord(record)) {
+                continue;
+            }
+
+            if ("all".equalsIgnoreCase(selectedProjectId) || TextUtils.isEmpty(selectedProjectId)) {
                 filtered.add(record);
+            } else {
+                String recProjName = record.getProjName() != null ? record.getProjName().trim().toLowerCase() : "";
+                if (recProjName.contains(targetName) || targetName.contains(recProjName) || selectedProjectId.equalsIgnoreCase(record.getProjName())) {
+                    filtered.add(record);
+                }
             }
         }
         return filtered;
