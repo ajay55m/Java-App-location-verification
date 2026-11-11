@@ -371,6 +371,11 @@ public class SupervisorAttendanceFragment extends Fragment
 
         if (progress != null) progress.setVisibility(View.VISIBLE);
 
+        // Clear previous state on refresh to avoid duplicate or stale items
+        if (moveHistoryAdapter != null) {
+            moveHistoryAdapter.setItems(new ArrayList<>());
+        }
+
         Calendar cal = Calendar.getInstance();
         String selDay = String.format(Locale.US, "%02d", cal.get(Calendar.DAY_OF_MONTH));
         String selMonth = String.format(Locale.US, "%02d", cal.get(Calendar.MONTH) + 1);
