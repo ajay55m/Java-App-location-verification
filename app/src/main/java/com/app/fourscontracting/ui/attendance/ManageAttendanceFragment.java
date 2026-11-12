@@ -526,6 +526,18 @@ public class ManageAttendanceFragment extends Fragment
 
     @Override
     public void onTimeOutClicked(AttendanceRecordModel record) {
+        if (record != null && (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear))) {
+            Context context = getContext();
+            if (context != null) {
+                String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+                new androidx.appcompat.app.AlertDialog.Builder(context)
+                        .setTitle("Check-Out Restricted")
+                        .setMessage("Cannot check out an attendance from a previous date (" + d + "). Check-out must be completed on the same date as check-in.")
+                        .setPositiveButton("OK", null)
+                        .show();
+            }
+            return;
+        }
         performManageAttendanceCheckOut(record);
     }
 
@@ -566,6 +578,12 @@ public class ManageAttendanceFragment extends Fragment
         if (context == null || record == null || !isAdded())
             return;
 
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            Toast.makeText(context, "Check-out restricted: Cannot check out past attendance from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
+
         String targetWorkerId = resolveTargetWorkerId(record, uid);
 
         if (TextUtils.isEmpty(targetWorkerId)) {
@@ -588,6 +606,7 @@ public class ManageAttendanceFragment extends Fragment
             intent.putExtra("attend_id", record.getAttendId());
             intent.putExtra("attendance_id", record.getAttendId());
             intent.putExtra("id", record.getAttendId());
+            intent.putExtra("attend_date", (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selYear + "-" + selMonth + "-" + selDay));
             intent.putExtra("type", "OUT");
             intent.putExtra("pending_action", "OUT");
             startActivityForResult(intent, 1005);
@@ -614,6 +633,7 @@ public class ManageAttendanceFragment extends Fragment
         intent.putExtra("attend_id", record.getAttendId());
         intent.putExtra("attendance_id", record.getAttendId());
         intent.putExtra("id", record.getAttendId());
+        intent.putExtra("attend_date", (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selYear + "-" + selMonth + "-" + selDay));
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");

@@ -470,6 +470,7 @@ public class SupervisorAttendanceFragment extends Fragment
             String outPhoto = !TextUtils.isEmpty(res.own_attendance.out_photo_url) ? res.own_attendance.out_photo_url : "";
 
             if (hasIn || !TextUtils.isEmpty(inTimeStr)) {
+                String recordDate = (res != null && !TextUtils.isEmpty(res.date)) ? res.date : "";
                 AttendanceRecordModel shift1Record = new AttendanceRecordModel(
                         aId,
                         uId,
@@ -483,7 +484,8 @@ public class SupervisorAttendanceFragment extends Fragment
                         hasOut,
                         inPhoto,
                         outPhoto,
-                        1
+                        1,
+                        recordDate
                 );
                 currentSelfRecord = shift1Record;
 
@@ -500,8 +502,9 @@ public class SupervisorAttendanceFragment extends Fragment
             currentSelfRecord = null;
         }
 
+        boolean isResponsePastDate = (res != null && !TextUtils.isEmpty(res.date) && AttendanceRecordModel.isDateBeforeToday(res.date));
         boolean isShift1Completed = hasIn && hasOut;
-        boolean isShift1Active = hasIn && !hasOut;
+        boolean isShift1Active = hasIn && !hasOut && !isResponsePastDate;
 
         // 3. UI and Button logic: Move to Another site shows ONLY after Shift 1 is completed and no active move
         if (activeMove != null && activeMove.isActive()) {
@@ -929,6 +932,12 @@ public class SupervisorAttendanceFragment extends Fragment
     private void performSupervisorMoveOut(MoveRecordModel record) {
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
+
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selHistoryDay, selHistoryMonth, selHistoryYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selHistoryDay + "/" + selHistoryMonth + "/" + selHistoryYear);
+            Toast.makeText(context, "Check-out restricted: Cannot check out a past site move from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
 
         SessionManager sm = new SessionManager(context);
         String sUid = String.valueOf(sm.getUid());
@@ -1368,6 +1377,14 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null) return;
 
+        if ("OUT".equalsIgnoreCase(punchType)) {
+            if (currentSelfRecord != null && currentSelfRecord.isPastDate()) {
+                String d = !TextUtils.isEmpty(currentSelfRecord.getDate()) ? currentSelfRecord.getDate() : "previous date";
+                Toast.makeText(context, "Check-out restricted: Cannot check out an attendance from a previous date (" + d + "). Check-out must be completed on the same date as check-in.", Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+
         SessionManager sm = new SessionManager(context);
         String sUid = String.valueOf(sm.getUid());
         if (sUid.equals("0")) sUid = getSupervisorUid();
@@ -1391,6 +1408,9 @@ public class SupervisorAttendanceFragment extends Fragment
         intent.putExtra("uid", sUid);
         intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", punchType);
+        if (currentSelfRecord != null && !TextUtils.isEmpty(currentSelfRecord.getDate())) {
+            intent.putExtra("attend_date", currentSelfRecord.getDate());
+        }
         if (!TextUtils.isEmpty(selfAttendId)) {
             intent.putExtra("attend_id", selfAttendId);
             intent.putExtra("attendance_id", selfAttendId);
@@ -1506,6 +1526,11 @@ public class SupervisorAttendanceFragment extends Fragment
     @Override
     public void onMoveOutClicked(MoveRecordModel record) {
         if (record != null && record.isActive()) {
+            if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selHistoryDay, selHistoryMonth, selHistoryYear)) {
+                String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selHistoryDay + "/" + selHistoryMonth + "/" + selHistoryYear);
+                Toast.makeText(getContext(), "Check-out restricted: Cannot check out a past site move from " + d, Toast.LENGTH_LONG).show();
+                return;
+            }
             performSupervisorMoveOut(record);
         }
     }
@@ -1514,6 +1539,12 @@ public class SupervisorAttendanceFragment extends Fragment
     public void onTimeOutClicked(AttendanceRecordModel record) {
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
+
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selHistoryDay, selHistoryMonth, selHistoryYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selHistoryDay + "/" + selHistoryMonth + "/" + selHistoryYear);
+            Toast.makeText(context, "Check-out restricted: Cannot check out an attendance from a previous date (" + d + "). Check-out must be completed on the same date as check-in.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         String sUid = getSupervisorUid();
         String targetWorkerId = "";
@@ -1555,6 +1586,7 @@ public class SupervisorAttendanceFragment extends Fragment
             intent.putExtra("attendance_id", record.getAttendId());
             intent.putExtra("id", record.getAttendId());
         }
+        intent.putExtra("attend_date", (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selHistoryYear + "-" + selHistoryMonth + "-" + selHistoryDay));
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");

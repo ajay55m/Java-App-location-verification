@@ -85,7 +85,7 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         String resolvedTarget = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(item);
         boolean hasValidWorkerTarget = !resolvedTarget.isEmpty() && !"--".equals(resolvedTarget);
 
-        if (item.isActive() && hasValidWorkerTarget) {
+        if (item.isActive() && hasValidWorkerTarget && item.canCheckOut()) {
             holder.tvStatusPill.setText("ACTIVE");
             holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
             holder.tvStatusPill.setTextColor(0xFFFFFFFF);
@@ -96,6 +96,15 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
                         listener.onTimeOutClicked(item);
                     }
                 });
+            }
+        } else if (item.isActive() && item.isPastDate()) {
+            // Worker timed in on a previous date, but forgot to check out - checkout restricted on subsequent dates!
+            holder.tvStatusPill.setText("MISSED OUT");
+            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);
+            holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+            if (holder.btnCheckOut != null) {
+                holder.btnCheckOut.setVisibility(View.GONE);
+                holder.btnCheckOut.setOnClickListener(null);
             }
         } else {
             holder.tvStatusPill.setText(item.isActive() ? "ACTIVE" : "COMPLETED");

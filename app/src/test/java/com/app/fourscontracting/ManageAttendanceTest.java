@@ -608,4 +608,54 @@ public class ManageAttendanceTest {
         assertEquals("31", supervisor.getEmpId());
         assertTrue(supervisor.getFirstName().toLowerCase().contains("gurdeep"));
     }
+
+    @Test
+    public void testCheckoutRestriction_pastDateCannotCheckOut() {
+        // Employee timed in on 11-11-2026 but forgot to check out
+        AttendanceRecordModel pastRecord = new AttendanceRecordModel(
+                "1588", "141", "38", "Worker 38", "Site A",
+                "09:34 AM", "", 0.0, true, false, "in.jpg", "", 1, "2026-11-11"
+        );
+
+        assertTrue("Past record with no timeout is marked active", pastRecord.isActive());
+        assertTrue("Past record date must be recognized as past", pastRecord.isPastDate());
+        assertFalse("Worker who forgot to check out on 11-11-2026 cannot check out on next date", pastRecord.canCheckOut());
+    }
+
+    @Test
+    public void testCheckoutRestriction_todayCanCheckOut() {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        String todayStr = String.format(java.util.Locale.US, "%04d-%02d-%02d",
+                cal.get(java.util.Calendar.YEAR),
+                cal.get(java.util.Calendar.MONTH) + 1,
+                cal.get(java.util.Calendar.DAY_OF_MONTH));
+
+        AttendanceRecordModel todayRecord = new AttendanceRecordModel(
+                "1589", "141", "38", "Worker 38", "Site A",
+                "09:34 AM", "", 0.0, true, false, "in.jpg", "", 1, todayStr
+        );
+
+        assertTrue("Today active record is active", todayRecord.isActive());
+        assertFalse("Today is not past date", todayRecord.isPastDate());
+        assertTrue("Today active record can check out", todayRecord.canCheckOut());
+    }
+
+    @Test
+    public void testCheckoutRestriction_moveRecordPastDate() {
+        MoveRecordModel pastMove = new MoveRecordModel(
+                "501", "1588", "38", "Worker 38", "Site B",
+                "10:00 AM", "", true, false, "in.jpg", "", 2, "2026-11-11"
+        );
+
+        assertTrue("Past move with no timeout is marked active", pastMove.isActive());
+        assertTrue("Past move date must be recognized as past", pastMove.isPastDate());
+        assertFalse("Move record from past date cannot check out", pastMove.canCheckOut());
+    }
+
+    @Test
+    public void testDateComparisonHelpers() {
+        assertTrue(AttendanceRecordModel.isDateBeforeToday("2020-01-01"));
+        assertTrue(AttendanceRecordModel.isDateBeforeToday("01-01-2020"));
+        assertFalse(AttendanceRecordModel.isDateBeforeToday("2099-12-31"));
+    }
 }

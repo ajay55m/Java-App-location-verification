@@ -31,6 +31,7 @@ import com.app.fourscontracting.SessionPrefs;
 import com.app.fourscontracting.User;
 import com.app.fourscontracting.UserLocalStore;
 import com.app.fourscontracting.data.AllocatedProjectModel;
+import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
 import com.app.fourscontracting.data.MoveFeedAdapter;
@@ -464,6 +465,12 @@ public class ManageMoveSiteFragment extends Fragment
     public void onMoveOutClicked(MoveRecordModel record) {
         Context context = getContext();
         if (context == null || record == null || !isAdded()) return;
+
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            Toast.makeText(context, "Check-out restricted: Cannot check out a past site move from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
 
         SessionPrefs session = new SessionPrefs(context);
         if (!session.isLocationSessionValid()) {

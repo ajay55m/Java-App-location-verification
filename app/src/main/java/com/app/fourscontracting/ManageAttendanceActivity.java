@@ -569,6 +569,15 @@ public class ManageAttendanceActivity extends AppActivity
 
     @Override
     public void onTimeOutClicked(AttendanceRecordModel record) {
+        if (record != null && (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear))) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Check-Out Restricted")
+                    .setMessage("Cannot check out an attendance from a previous date (" + d + "). Check-out must be completed on the same date as check-in.")
+                    .setPositiveButton("OK", null)
+                    .show();
+            return;
+        }
         performManageAttendanceCheckOut(record);
     }
 
@@ -612,6 +621,12 @@ public class ManageAttendanceActivity extends AppActivity
     public void performManageAttendanceCheckOut(AttendanceRecordModel record) {
         if (isFinishing() || isDestroyed() || record == null) return;
 
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            Toast.makeText(this, "Check-out restricted: Cannot check out past attendance from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
+
         String targetEmpId = resolveTargetWorkerId(record, uid);
         if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {
             Toast.makeText(this, "Employee ID is missing for this worker record.", Toast.LENGTH_SHORT).show();
@@ -631,6 +646,7 @@ public class ManageAttendanceActivity extends AppActivity
             intent.putExtra("pending_eid", targetEmpId);
             intent.putExtra("attend_id", record.getAttendId());
             intent.putExtra("attendance_id", record.getAttendId());
+            intent.putExtra("attend_date", (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selYear + "-" + selMonth + "-" + selDay));
             intent.putExtra("type", "OUT");
             intent.putExtra("pending_action", "OUT");
             startActivityForResult(intent, 1005);
@@ -655,6 +671,7 @@ public class ManageAttendanceActivity extends AppActivity
         intent.putExtra("attend_id", record.getAttendId());
         intent.putExtra("attendance_id", record.getAttendId());
         intent.putExtra("id", record.getAttendId());
+        intent.putExtra("attend_date", (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selYear + "-" + selMonth + "-" + selDay));
         intent.putExtra("emp_name", record.getFirstName());
         intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
@@ -677,6 +694,12 @@ public class ManageAttendanceActivity extends AppActivity
     @Override
     public void onMoveOutClicked(MoveRecordModel record) {
         if (isFinishing() || isDestroyed() || record == null) return;
+
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            Toast.makeText(this, "Check-out restricted: Cannot check out a past site move from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
 
         String targetEmpId = record.getEmpId();
         if (targetEmpId == null || targetEmpId.trim().isEmpty() || "--".equals(targetEmpId.trim()) || "null".equalsIgnoreCase(targetEmpId.trim())) {

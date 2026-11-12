@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class ManageAttendanceApi {
@@ -147,6 +148,12 @@ public class ManageAttendanceApi {
                         }
 
                         // Parse attendance records without duplicates
+                        // Extract query / response date for date-based restriction
+                        String apiDate = optCleanString(response, "date", "attendance_date");
+                        if (apiDate.isEmpty() && year != null && month != null && day != null && !year.trim().isEmpty() && !month.trim().isEmpty() && !day.trim().isEmpty()) {
+                            apiDate = String.format(Locale.US, "%s-%s-%s", year.trim(), month.trim(), day.trim());
+                        }
+
                         // Parse attendance records without duplicates
                         List<AttendanceRecordModel> attendanceRecords = new ArrayList<>();
                         java.util.Set<String> seenRecordKeys = new java.util.HashSet<>();
@@ -200,6 +207,8 @@ public class ManageAttendanceApi {
                                     outPhoto = outPhotoMap.get(attendIdVal);
                                 }
                                 int ownShiftNo = ownObj.optInt("shift_no", 1);
+                                String ownDate = optCleanString(ownObj, "date", "attendance_date", "punch_date", "created_date");
+                                if (ownDate.isEmpty()) ownDate = apiDate;
 
                                 attendanceRecords.add(new AttendanceRecordModel(
                                         attendIdVal,
@@ -214,7 +223,8 @@ public class ManageAttendanceApi {
                                         ownObj.optBoolean("has_out", !timeOutVal.isEmpty() && !"--".equals(timeOutVal)),
                                         inPhoto,
                                         outPhoto,
-                                        ownShiftNo
+                                        ownShiftNo,
+                                        ownDate
                                 ));
                             }
                         }
@@ -288,6 +298,9 @@ public class ManageAttendanceApi {
                                     if (!empIdVal.isEmpty()) seenRecordKeys.add("emp_" + empIdVal);
 
                                     int shiftNoVal = rObj.optInt("shift_no", rObj.optInt("shift", 1));
+                                    String recordDate = optCleanString(rObj, "date", "attendance_date", "punch_date", "created_date");
+                                    if (recordDate.isEmpty()) recordDate = apiDate;
+
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             attendIdVal,
                                             userIdVal,
@@ -301,7 +314,8 @@ public class ManageAttendanceApi {
                                             hasOut,
                                             inPhoto,
                                             outPhoto,
-                                            shiftNoVal
+                                            shiftNoVal,
+                                            recordDate
                                     ));
                                 }
                             }
@@ -337,6 +351,9 @@ public class ManageAttendanceApi {
                                         inP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=in&source=hrms";
                                         outP = ApiConfig.FCM_APP + "/view_attendance_img.php?move_id=" + mId + "&type=out&source=hrms";
                                     }
+                                    String moveDate = optCleanString(mObj, "attendance_date", "date", "punch_date", "created_date");
+                                    if (moveDate.isEmpty()) moveDate = apiDate;
+
                                     attendanceRecords.add(new AttendanceRecordModel(
                                             mAttId,
                                             uid,
@@ -350,7 +367,8 @@ public class ManageAttendanceApi {
                                             hOut,
                                             inP,
                                             outP,
-                                            mShiftNo
+                                            mShiftNo,
+                                            moveDate
                                     ));
                                 }
                             }
@@ -559,6 +577,7 @@ public class ManageAttendanceApi {
 
                 String mAttId = optCleanString(mObj, "attendance_id", "attend_id");
                 int sNo = mObj.optInt("shift_no", mObj.optInt("shift_id", mObj.optInt("shift", outList.size() + 2)));
+                String mDate = optCleanString(mObj, "attendance_date", "date", "punch_date", "created_date");
                 outList.add(new MoveRecordModel(
                         mId,
                         mAttId,
@@ -571,7 +590,8 @@ public class ManageAttendanceApi {
                         hasOut,
                         inPhoto,
                         outPhoto,
-                        sNo
+                        sNo,
+                        mDate
                 ));
             }
         }

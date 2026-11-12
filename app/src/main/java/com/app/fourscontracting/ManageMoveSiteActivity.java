@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.app.fourscontracting.data.AllocatedProjectModel;
+import com.app.fourscontracting.data.AttendanceRecordModel;
 import com.app.fourscontracting.data.ImageLoaderHelper;
 import com.app.fourscontracting.data.ManageAttendanceApi;
 import com.app.fourscontracting.data.MoveFeedAdapter;
@@ -381,6 +382,12 @@ public class ManageMoveSiteActivity extends AppActivity
     @Override
     public void onMoveOutClicked(MoveRecordModel record) {
         if (isFinishing() || isDestroyed() || record == null) return;
+
+        if (record.isPastDate() || AttendanceRecordModel.isDateBeforeToday(selDay, selMonth, selYear)) {
+            String d = (record.getDate() != null && !record.getDate().isEmpty()) ? record.getDate() : (selDay + "/" + selMonth + "/" + selYear);
+            Toast.makeText(this, "Check-out restricted: Cannot check out a past site move from " + d, Toast.LENGTH_LONG).show();
+            return;
+        }
 
         SessionPrefs session = new SessionPrefs(this);
         if (!session.isLocationSessionValid()) {

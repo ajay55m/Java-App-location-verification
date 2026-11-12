@@ -63,16 +63,27 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
 
         // Status Pill: AT NEXT SITE vs MOVE COMPLETED
         if (item.isActive()) {
-            holder.tvStatusPill.setText("AT NEXT SITE");
-            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_movement);
-            holder.tvStatusPill.setTextColor(0xFF6366F1);
-            if (holder.btnMoveOut != null) {
-                holder.btnMoveOut.setVisibility(View.VISIBLE);
-                holder.btnMoveOut.setOnClickListener(v -> {
-                    if (listener != null) {
-                        listener.onMoveOutClicked(item);
-                    }
-                });
+            if (item.canCheckOut()) {
+                holder.tvStatusPill.setText("AT NEXT SITE");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_movement);
+                holder.tvStatusPill.setTextColor(0xFF6366F1);
+                if (holder.btnMoveOut != null) {
+                    holder.btnMoveOut.setVisibility(View.VISIBLE);
+                    holder.btnMoveOut.setOnClickListener(v -> {
+                        if (listener != null) {
+                            listener.onMoveOutClicked(item);
+                        }
+                    });
+                }
+            } else {
+                // Moved on a previous date, but forgot to check out - checkout restricted on subsequent dates!
+                holder.tvStatusPill.setText("MISSED OUT");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_completed);
+                holder.tvStatusPill.setTextColor(0xFFEF4444);
+                if (holder.btnMoveOut != null) {
+                    holder.btnMoveOut.setVisibility(View.GONE);
+                    holder.btnMoveOut.setOnClickListener(null);
+                }
             }
         } else {
             holder.tvStatusPill.setText("MOVE COMPLETED");

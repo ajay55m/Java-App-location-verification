@@ -1,5 +1,7 @@
 package com.app.fourscontracting.data;
 
+import java.util.Calendar;
+
 public class AttendanceRecordModel {
     private final String attendId;
     private final String userId;
@@ -14,6 +16,7 @@ public class AttendanceRecordModel {
     private final String inPhotoUrl;
     private final String outPhotoUrl;
     private int shiftNo = 1;
+    private String date = "";
 
     public AttendanceRecordModel(String attendId, String firstName, String projName, String timeIn,
                                  String timeOut, double breakHours, boolean hasIn, boolean hasOut,
@@ -36,6 +39,12 @@ public class AttendanceRecordModel {
     public AttendanceRecordModel(String attendId, String userId, String empId, String firstName, String projName, String timeIn,
                                  String timeOut, double breakHours, boolean hasIn, boolean hasOut,
                                  String inPhotoUrl, String outPhotoUrl, int shiftNo) {
+        this(attendId, userId, empId, firstName, projName, timeIn, timeOut, breakHours, hasIn, hasOut, inPhotoUrl, outPhotoUrl, shiftNo, "");
+    }
+
+    public AttendanceRecordModel(String attendId, String userId, String empId, String firstName, String projName, String timeIn,
+                                 String timeOut, double breakHours, boolean hasIn, boolean hasOut,
+                                 String inPhotoUrl, String outPhotoUrl, int shiftNo, String date) {
         this.attendId = attendId != null ? attendId : "";
         this.userId = userId != null ? userId : "";
         this.empId = empId != null ? empId : "";
@@ -49,6 +58,7 @@ public class AttendanceRecordModel {
         this.inPhotoUrl = inPhotoUrl != null ? inPhotoUrl : "";
         this.outPhotoUrl = outPhotoUrl != null ? outPhotoUrl : "";
         this.shiftNo = shiftNo > 0 ? shiftNo : 1;
+        this.date = date != null ? date.trim() : "";
     }
 
     public int getShiftNo() {
@@ -160,5 +170,98 @@ public class AttendanceRecordModel {
         }
         String t = timeOut.trim();
         return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "null".equalsIgnoreCase(t);
+    }
+
+    public String getDate() {
+        return date != null ? date : "";
+    }
+
+    public void setDate(String date) {
+        this.date = date != null ? date.trim() : "";
+    }
+
+    public boolean isPastDate() {
+        if (date == null || date.trim().isEmpty()) {
+            return false;
+        }
+        return isDateBeforeToday(date);
+    }
+
+    public boolean canCheckOut() {
+        if (!isActive()) return false;
+        if (isPastDate()) return false;
+        return true;
+    }
+
+    public static boolean isDateBeforeToday(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return false;
+        }
+        String clean = dateStr.trim();
+        int y = 0, m = 0, d = 0;
+        try {
+            if (clean.contains("-")) {
+                String[] parts = clean.split("-");
+                if (parts.length >= 3) {
+                    if (parts[0].length() == 4) { // yyyy-MM-dd
+                        y = Integer.parseInt(parts[0]);
+                        m = Integer.parseInt(parts[1]);
+                        d = Integer.parseInt(parts[2].split(" ")[0].split("T")[0]);
+                    } else if (parts[2].length() >= 4) { // dd-MM-yyyy
+                        d = Integer.parseInt(parts[0]);
+                        m = Integer.parseInt(parts[1]);
+                        y = Integer.parseInt(parts[2].split(" ")[0].split("T")[0]);
+                    }
+                }
+            } else if (clean.contains("/")) {
+                String[] parts = clean.split("/");
+                if (parts.length >= 3) {
+                    if (parts[0].length() == 4) { // yyyy/MM/dd
+                        y = Integer.parseInt(parts[0]);
+                        m = Integer.parseInt(parts[1]);
+                        d = Integer.parseInt(parts[2].split(" ")[0]);
+                    } else if (parts[2].length() >= 4) { // dd/MM/yyyy
+                        d = Integer.parseInt(parts[0]);
+                        m = Integer.parseInt(parts[1]);
+                        y = Integer.parseInt(parts[2].split(" ")[0]);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+
+        if (y <= 0 || m <= 0 || d <= 0) return false;
+
+        Calendar today = Calendar.getInstance();
+        int curY = today.get(Calendar.YEAR);
+        int curM = today.get(Calendar.MONTH) + 1;
+        int curD = today.get(Calendar.DAY_OF_MONTH);
+
+        if (y < curY) return true;
+        if (y == curY && m < curM) return true;
+        if (y == curY && m == curM && d < curD) return true;
+
+        return false;
+    }
+
+    public static boolean isDateBeforeToday(String day, String month, String year) {
+        if (day == null || month == null || year == null) return false;
+        try {
+            int d = Integer.parseInt(day.trim());
+            int m = Integer.parseInt(month.trim());
+            int y = Integer.parseInt(year.trim());
+            Calendar today = Calendar.getInstance();
+            int curY = today.get(Calendar.YEAR);
+            int curM = today.get(Calendar.MONTH) + 1;
+            int curD = today.get(Calendar.DAY_OF_MONTH);
+
+            if (y < curY) return true;
+            if (y == curY && m < curM) return true;
+            if (y == curY && m == curM && d < curD) return true;
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

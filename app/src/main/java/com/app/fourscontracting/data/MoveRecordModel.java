@@ -13,6 +13,7 @@ public class MoveRecordModel {
     private final String inPhotoUrl;
     private final String outPhotoUrl;
     private int shiftNo = 2;
+    private String date = "";
 
     public MoveRecordModel(String moveId, String firstName, String projName, String inTime,
                            String outTime, boolean hasIn, boolean hasOut,
@@ -29,6 +30,12 @@ public class MoveRecordModel {
     public MoveRecordModel(String moveId, String attendanceId, String empId, String firstName, String projName, String inTime,
                            String outTime, boolean hasIn, boolean hasOut,
                            String inPhotoUrl, String outPhotoUrl, int shiftNo) {
+        this(moveId, attendanceId, empId, firstName, projName, inTime, outTime, hasIn, hasOut, inPhotoUrl, outPhotoUrl, shiftNo, "");
+    }
+
+    public MoveRecordModel(String moveId, String attendanceId, String empId, String firstName, String projName, String inTime,
+                           String outTime, boolean hasIn, boolean hasOut,
+                           String inPhotoUrl, String outPhotoUrl, int shiftNo, String date) {
         this.moveId = moveId != null ? moveId : "";
         this.attendanceId = attendanceId != null ? attendanceId : "";
         this.empId = empId != null ? empId : "";
@@ -41,6 +48,7 @@ public class MoveRecordModel {
         this.inPhotoUrl = inPhotoUrl != null ? inPhotoUrl : "";
         this.outPhotoUrl = outPhotoUrl != null ? outPhotoUrl : "";
         this.shiftNo = shiftNo > 0 ? shiftNo : 2;
+        this.date = date != null ? date.trim() : "";
     }
 
     public String getMoveId() {
@@ -130,5 +138,26 @@ public class MoveRecordModel {
         }
         String t = outTime.trim();
         return "00:00:00".equals(t) || "00.00.00".equals(t) || "00:00".equals(t) || "12:00 AM".equalsIgnoreCase(t) || "12.00 AM".equalsIgnoreCase(t) || "null".equalsIgnoreCase(t);
+    }
+
+    public String getDate() {
+        return date != null ? date : "";
+    }
+
+    public void setDate(String date) {
+        this.date = date != null ? date.trim() : "";
+    }
+
+    public boolean isPastDate() {
+        if (date == null || date.trim().isEmpty()) {
+            return false;
+        }
+        return AttendanceRecordModel.isDateBeforeToday(date);
+    }
+
+    public boolean canCheckOut() {
+        if (!isActive()) return false;
+        if (isPastDate()) return false;
+        return true;
     }
 }

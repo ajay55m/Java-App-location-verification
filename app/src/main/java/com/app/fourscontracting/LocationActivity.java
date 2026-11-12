@@ -79,6 +79,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
     private String attendId = "";
     private float punchAccuracy = -1f;
     private int incomingDeptId = 0;
+    private String attendDate = "";
     private com.app.fourscontracting.ui.attendance.AttendanceViewModel attendanceViewModel;
 
     @Override
@@ -97,6 +98,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
         outState.putDouble("saved_punch_lat", punchLat);
         outState.putDouble("saved_punch_lng", punchLng);
         outState.putFloat("saved_punch_accuracy", punchAccuracy);
+        outState.putString("saved_attend_date", attendDate);
     }
 
     private void getIncomingData() {
@@ -236,6 +238,14 @@ public class LocationActivity extends AppActivity implements LocationListener {
                 punchAccuracy = intent.getFloatExtra("gps_accuracy",
                         bundle.containsKey("gps_accuracy") ? bundle.getFloat("gps_accuracy", -1f) : -1f);
             }
+
+            if (bundle.containsKey("attend_date")) {
+                Object obj = bundle.get("attend_date");
+                if (obj != null) attendDate = String.valueOf(obj);
+            } else if (bundle.containsKey("date")) {
+                Object obj = bundle.get("date");
+                if (obj != null) attendDate = String.valueOf(obj);
+            }
         } catch (Exception e) {
             e.printStackTrace();
             isVerified = "false";
@@ -264,8 +274,16 @@ public class LocationActivity extends AppActivity implements LocationListener {
             punchLat = savedInstanceState.getDouble("saved_punch_lat", Double.NaN);
             punchLng = savedInstanceState.getDouble("saved_punch_lng", Double.NaN);
             punchAccuracy = savedInstanceState.getFloat("saved_punch_accuracy", -1f);
+            attendDate = savedInstanceState.getString("saved_attend_date", "");
         } else {
             getIncomingData();
+        }
+
+        if ("OUT".equalsIgnoreCase(attendanceType) && !android.text.TextUtils.isEmpty(attendDate)
+                && com.app.fourscontracting.data.AttendanceRecordModel.isDateBeforeToday(attendDate)) {
+            Toast.makeText(this, "Check-out restricted: Cannot check out an attendance from a previous date (" + attendDate + "). Check-out must be completed on the same date as check-in.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
         }
 
         if (employeeId == null || employeeId.trim().isEmpty() || "--".equals(employeeId.trim())) {
@@ -418,6 +436,13 @@ public class LocationActivity extends AppActivity implements LocationListener {
 
                 if (autoTime == 0) {
                     Toast.makeText(LocationActivity.this, AppMessages.AUTO_TIME_REQUIRED, Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                if ("OUT".equalsIgnoreCase(attendanceType) && !android.text.TextUtils.isEmpty(attendDate)
+                        && com.app.fourscontracting.data.AttendanceRecordModel.isDateBeforeToday(attendDate)) {
+                    Toast.makeText(LocationActivity.this, "Check-out restricted: Cannot check out an attendance from a previous date (" + attendDate + "). Check-out must be completed on the same date as check-in.", Toast.LENGTH_LONG).show();
+                    finish();
                     return;
                 }
 
