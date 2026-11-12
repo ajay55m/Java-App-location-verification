@@ -83,7 +83,7 @@ public class CookieHurlStack extends HurlStack {
             headers.putAll(additionalHeaders);
         }
         if (!headers.containsKey("User-Agent") && !headers.containsKey("user-agent")) {
-            headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36");
+            headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
         }
         if (!headers.containsKey(ApiConfig.HEADER_X_API_KEY) && !headers.containsKey("X-API-KEY")) {
             headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
@@ -122,7 +122,7 @@ public class CookieHurlStack extends HurlStack {
             retryHeaders.putAll(additionalHeaders);
         }
         if (!retryHeaders.containsKey("User-Agent") && !retryHeaders.containsKey("user-agent")) {
-            retryHeaders.put("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36");
+            retryHeaders.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
         }
         retryHeaders.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
         // Also set common casing some servers expect

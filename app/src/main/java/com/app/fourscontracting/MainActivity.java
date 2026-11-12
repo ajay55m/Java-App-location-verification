@@ -301,7 +301,7 @@ public class MainActivity extends AppActivity {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
-                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
                 headers.put("Accept", "*/*");
                 headers.put("Cookie", "humans_21909=1");
                 return headers;

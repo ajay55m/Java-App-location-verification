@@ -11,7 +11,7 @@ public final class Constants {
     public static final String API_KEY_HEADER = "x-api-key";
     public static final String API_KEY_VALUE = "4S_Secure_Access_Token_2024_#$";
     public static final String BYPASS_COOKIE = "humans_21909=1";
-    public static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0";
+    public static final String USER_AGENT = "PostmanRuntime/7.39.0 (Linux; Android 14; 4S-Contracting-App/1.0)";
 
     public static final String PREF_NAME = "app";
     public static final String KEY_UID = "uid";

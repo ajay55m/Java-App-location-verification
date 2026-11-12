@@ -122,9 +122,11 @@ public class AttendanceRepository {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
-                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
                 headers.put("Accept", "*/*");
-                headers.put("Cookie", "humans_21909=1");
+                headers.put("Cookie", com.app.fourscontracting.CookieHurlStack.getBypassCookie(appContext));
+                headers.put("x-api-key", ApiConfig.X_API_KEY);
+                headers.put("X-API-KEY", ApiConfig.X_API_KEY);
                 return headers;
             }
 

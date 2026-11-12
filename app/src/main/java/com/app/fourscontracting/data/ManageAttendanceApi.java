@@ -384,7 +384,7 @@ public class ManageAttendanceApi {
             @Override
             public Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
-                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
                 headers.put("Accept", "application/json, text/plain, */*");
                 headers.put("Cookie", "humans_21909=1");
                 headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
@@ -421,7 +421,7 @@ public class ManageAttendanceApi {
             @Override
             public Map<String, String> getHeaders() throws com.android.volley.AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
-                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14) 4S-Contracting-App/1.0");
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
                 headers.put("Accept", "application/json, text/plain, */*");
                 headers.put("Cookie", "humans_21909=1");
                 headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);

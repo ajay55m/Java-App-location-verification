@@ -740,7 +740,7 @@ public class LocationActivity extends AppActivity implements LocationListener {
             resizedBitmap.recycle();
         }
         
-        return Base64.encodeToString(imageBytes, Base64.DEFAULT);
+        return Base64.encodeToString(imageBytes, Base64.NO_WRAP);
     }
 
     // Helper to keep image size small
