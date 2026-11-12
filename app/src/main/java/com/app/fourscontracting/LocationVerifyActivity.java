@@ -351,6 +351,25 @@ public class LocationVerifyActivity extends AppCompatActivity {
             return;
         }
 
+        if (!LocationHelper.isGpsEnabled(this)) {
+            LocationHelper.checkAndPromptLocationSettings(this, new LocationHelper.LocationSettingsCallback() {
+                @Override
+                public void onLocationSettingsEnabled() {
+                    startGpsVerification();
+                }
+
+                @Override
+                public void onLocationSettingsFailed(String reason) {
+                    showError("Please enable device location / GPS to verify location.");
+                }
+            });
+            return;
+        }
+
+        startGpsVerification();
+    }
+
+    private void startGpsVerification() {
         setButtonsEnabled(false);
         if (binding.tvStatus != null) {
             binding.tvStatus.setText("Acquiring GPS fix...");
@@ -543,6 +562,18 @@ public class LocationVerifyActivity extends AppCompatActivity {
                 onVerifyClicked();
             } else {
                 showError("Location permission is required to verify GPS");
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LocationHelper.REQUEST_CHECK_LOCATION_SETTINGS) {
+            if (resultCode == RESULT_OK) {
+                onVerifyClicked();
+            } else {
+                showError("Please enable device location / GPS to continue.");
             }
         }
     }

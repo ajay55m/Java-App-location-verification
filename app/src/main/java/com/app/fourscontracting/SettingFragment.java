@@ -311,6 +311,75 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         });
     }
 
+    private boolean isSupervisorSelfEmployee(LabourEmployeeModel m) {
+        if (m == null)
+            return false;
+        Context context = getContext();
+        if (context == null)
+            return false;
+
+        SessionManager sm = new SessionManager(context);
+        String sEmpId = sm.getEmpId() > 0 ? String.valueOf(sm.getEmpId()) : "";
+        String sUid = sm.getUid() > 0 ? String.valueOf(sm.getUid()) : (uid != null ? uid.trim() : "");
+        String sName = sm.getUsername();
+        String sEmpName = sm.getEmpName() != null ? sm.getEmpName().trim() : "";
+        if (TextUtils.isEmpty(sName) || "Supervisor".equalsIgnoreCase(sName)) {
+            if (userLocalStore != null) {
+                User user = userLocalStore.getLoggedInUser();
+                String val = user != null ? user.username : "";
+                String[] val_list = UserLocalStore.parseUserInfo(val);
+                if (val_list.length > 2 && !val_list[2].isEmpty()) {
+                    sName = val_list[2];
+                }
+            }
+        }
+
+        String eId = m.getId() != null ? m.getId().trim() : "";
+        String fName = m.getName() != null ? m.getName().trim().toLowerCase(java.util.Locale.US) : "";
+        String sNameLower = sName != null ? sName.trim().toLowerCase(java.util.Locale.US) : "";
+        String sEmpNameLower = sEmpName.toLowerCase(java.util.Locale.US);
+
+        String fNameClean = fName.replace(" ", "");
+        String sNameClean = sNameLower.replace(" ", "");
+        String sEmpNameClean = sEmpNameLower.replace(" ", "");
+
+        // If the record has a distinct name that belongs to another worker (e.g. "Worker #38"),
+        // it is definitely an employee, NOT the supervisor!
+        if (!fName.isEmpty() && !fName.equals("worker") && !fName.equals("user") && !fName.equals("supervisor") && !fName.startsWith("worker #")) {
+            boolean nameMatchesSupervisor = (!sNameClean.isEmpty() && (fNameClean.contains(sNameClean) || sNameClean.contains(fNameClean)))
+                    || (!sEmpNameClean.isEmpty() && (fNameClean.contains(sEmpNameClean) || sEmpNameClean.contains(fNameClean)))
+                    || fName.contains("gurdeep") || fName.contains("piara");
+            if (!nameMatchesSupervisor) {
+                return false;
+            }
+        }
+
+        // 1. Direct eId match against supervisor empId (e.g. 31)
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && eId.equalsIgnoreCase(sEmpId)) return true;
+            try {
+                if (!sEmpId.isEmpty() && !"0".equals(sEmpId) && Integer.parseInt(eId) == Integer.parseInt(sEmpId)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Direct eId match against supervisor uid (e.g. 141)
+        if (!eId.isEmpty() && !"--".equals(eId) && !"null".equalsIgnoreCase(eId)) {
+            if (!sUid.isEmpty() && !"0".equals(sUid) && eId.equalsIgnoreCase(sUid)) return true;
+            try {
+                if (!sUid.isEmpty() && !"0".equals(sUid) && Integer.parseInt(eId) == Integer.parseInt(sUid)) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Supervisor name match
+        if (!fName.isEmpty()) {
+            if (!sNameClean.isEmpty() && (fNameClean.contains(sNameClean) || sNameClean.contains(fNameClean))) return true;
+            if (!sEmpNameClean.isEmpty() && (fNameClean.contains(sEmpNameClean) || sEmpNameClean.contains(fNameClean))) return true;
+            if (fName.contains("gurdeep") || fName.contains("piara")) return true;
+        }
+
+        return false;
+    }
+
     private boolean isLockedOtherSite(LabourEmployeeModel item) {
         if (item == null)
             return false;
@@ -376,6 +445,11 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
 
                         if (employees != null) {
                             for (LabourEmployeeModel m : employees) {
+                                // Exclude supervisor's self attendance from Labour screen (managed in Self Attendance)
+                                if (isSupervisorSelfEmployee(m)) {
+                                    continue;
+                                }
+
                                 // Completely hide employees checked-in at another location
                                 if (isLockedOtherSite(m)) {
                                     continue;

@@ -425,6 +425,21 @@ public class LocationActivity extends AppActivity implements LocationListener {
                     return;
                 }
 
+                if (!LocationHelper.isGpsEnabled(LocationActivity.this)) {
+                    LocationHelper.checkAndPromptLocationSettings(LocationActivity.this, new LocationHelper.LocationSettingsCallback() {
+                        @Override
+                        public void onLocationSettingsEnabled() {
+                            findViewById(R.id.saveattendance).performClick();
+                        }
+
+                        @Override
+                        public void onLocationSettingsFailed(String reason) {
+                            Toast.makeText(LocationActivity.this, AppMessages.GPS_REQUIRED_SAVE, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    return;
+                }
+
                 if (LocationActivity.this.loadingManager != null) {
                     LocationActivity.this.loadingManager.showLoading(LocationActivity.this);
                 }
@@ -687,6 +702,18 @@ public class LocationActivity extends AppActivity implements LocationListener {
     /* access modifiers changed from: protected */
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LocationHelper.REQUEST_CHECK_LOCATION_SETTINGS) {
+            if (resultCode == RESULT_OK) {
+                if (imagepath != null && !imagepath.isEmpty()) {
+                    findViewById(R.id.saveattendance).performClick();
+                } else {
+                    Toast.makeText(this, "Location enabled. Please capture photo to continue.", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, AppMessages.GPS_REQUIRED_SAVE, Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         Button savebtn = (Button) findViewById(R.id.saveattendance);
         if (requestCode == CAMERA_REQUEST && resultCode == -1) {
             if (data != null && data.getExtras() != null) {

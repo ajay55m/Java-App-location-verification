@@ -1,7 +1,8 @@
 package com.app.fourscontracting.core.utils;
 
 public final class Constants {
-    private Constants() {}
+    private Constants() {
+    }
 
     public static final String HOST = "https://4scontracting.com";
     public static final String BASE_URL = "https://www.4scontracting.com/SMCS_APP/fcm_app/";
@@ -22,4 +23,3 @@ public final class Constants {
     public static final String KEY_DEPT_ID = "dept_id";
     public static final String KEY_PROJECT_ALLOCATION = "has_project_allocation";
 }
-

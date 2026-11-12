@@ -20,6 +20,57 @@ public class LocationHelper {
         void onError(String message);
     }
 
+    public static final int REQUEST_CHECK_LOCATION_SETTINGS = 9102;
+
+    public interface LocationSettingsCallback {
+        void onLocationSettingsEnabled();
+        void onLocationSettingsFailed(String reason);
+    }
+
+    public static boolean isGpsEnabled(android.content.Context context) {
+        if (context == null) return false;
+        android.location.LocationManager lm = (android.location.LocationManager) context.getSystemService(android.content.Context.LOCATION_SERVICE);
+        if (lm == null) return false;
+        return lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+    }
+
+    public static void checkAndPromptLocationSettings(Activity activity, LocationSettingsCallback callback) {
+        if (activity == null) return;
+
+        com.google.android.gms.location.LocationRequest locationRequest = new com.google.android.gms.location.LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMinUpdateIntervalMillis(500)
+                .build();
+
+        com.google.android.gms.location.LocationSettingsRequest.Builder builder = new com.google.android.gms.location.LocationSettingsRequest.Builder()
+                .addLocationRequest(locationRequest)
+                .setAlwaysShow(true);
+
+        com.google.android.gms.location.SettingsClient client = LocationServices.getSettingsClient(activity);
+        client.checkLocationSettings(builder.build())
+                .addOnSuccessListener(activity, locationSettingsResponse -> {
+                    if (callback != null) {
+                        callback.onLocationSettingsEnabled();
+                    }
+                })
+                .addOnFailureListener(activity, e -> {
+                    if (e instanceof com.google.android.gms.common.api.ResolvableApiException) {
+                        try {
+                            com.google.android.gms.common.api.ResolvableApiException resolvable = (com.google.android.gms.common.api.ResolvableApiException) e;
+                            resolvable.startResolutionForResult(activity, REQUEST_CHECK_LOCATION_SETTINGS);
+                        } catch (android.content.IntentSender.SendIntentException sendEx) {
+                            if (callback != null) {
+                                callback.onLocationSettingsFailed("Unable to prompt location settings");
+                            }
+                        }
+                    } else {
+                        if (callback != null) {
+                            callback.onLocationSettingsFailed("Location settings not resolvable");
+                        }
+                    }
+                });
+    }
+
     public void getCurrentLocation(final Activity activity, final long timeoutMs, final LocationCallback callback) {
         if (activity == null || callback == null) {
             return;

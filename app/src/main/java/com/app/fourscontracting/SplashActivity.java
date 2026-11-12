@@ -113,35 +113,46 @@ public class SplashActivity extends AppActivity {
 
 
     private void askPermissionsThenContinue() {
-
         boolean showingSystemDialog = AppPermissions.requestOnceIfNeeded(this);
-
         if (!showingSystemDialog) {
-
-            proceedToNextScreen();
-
+            checkGpsThenProceed();
         }
-
         // else wait for onRequestPermissionsResult
-
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == AppPermissions.REQUEST_CORE) {
+            checkGpsThenProceed();
+        }
+    }
 
+    private void checkGpsThenProceed() {
+        if (AppPermissions.hasLocation(this) && !LocationHelper.isGpsEnabled(this)) {
+            LocationHelper.checkAndPromptLocationSettings(this, new LocationHelper.LocationSettingsCallback() {
+                @Override
+                public void onLocationSettingsEnabled() {
+                    proceedToNextScreen();
+                }
+
+                @Override
+                public void onLocationSettingsFailed(String reason) {
+                    proceedToNextScreen();
+                }
+            });
+        } else {
+            proceedToNextScreen();
+        }
+    }
 
     @Override
-
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-
-                                           @NonNull int[] grantResults) {
-
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == AppPermissions.REQUEST_CORE) {
-
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LocationHelper.REQUEST_CHECK_LOCATION_SETTINGS) {
             proceedToNextScreen();
-
         }
-
     }
 
 
