@@ -54,11 +54,9 @@ public class LocationActivity extends AppActivity implements LocationListener {
     private static final int CAMERA_REQUEST = 1888;
     private static final int MY_CAMERA_REQUEST_CODE = 100;
     private static final int REQUEST_LOCATION = 101; 
-    AlertDialog alertDialog;
     private android.app.AlertDialog timeDialog;
     String app_server_url = com.app.fourscontracting.data.ApiConfig.MULTI_SAVE_TIME_IN;
     String userid, projectid;
-    AlertDialog.Builder builderDialog;
     int hour;
     private ImageView imageView1;
     /* access modifiers changed from: private */
@@ -803,20 +801,6 @@ public class LocationActivity extends AppActivity implements LocationListener {
     }
 
     public void onLocationChanged(Location location) {
-    }
-
-    private void showAlertDialog(int myLayout) {
-        this.builderDialog = new AlertDialog.Builder(this);
-        View layoutView = getLayoutInflater().inflate(myLayout, (ViewGroup) null);
-        this.builderDialog.setView(layoutView);
-        android.app.AlertDialog create = this.builderDialog.create();
-        this.alertDialog = create;
-        create.show();
-        ((AppCompatButton) layoutView.findViewById(R.id.buttonOk)).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                LocationActivity.this.alertDialog.dismiss();
-            }
-        });
     }
 
     @Override
