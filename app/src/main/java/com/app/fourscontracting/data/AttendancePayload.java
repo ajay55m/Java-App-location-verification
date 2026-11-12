@@ -32,6 +32,27 @@ public class AttendancePayload {
     public double lng = Double.NaN;
     public float accuracy = -1f;
     public long gpsTimeMs = 0L;
+    public transient boolean isRetryAttempt = false;
+
+    public void downscaleImageForWafBypass() {
+        if (imagepath == null || imagepath.trim().isEmpty()) return;
+        try {
+            byte[] decoded = android.util.Base64.decode(imagepath, android.util.Base64.DEFAULT);
+            if (decoded != null && decoded.length > 0) {
+                android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                opts.inSampleSize = 2;
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.length, opts);
+                if (bmp != null) {
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 45, baos);
+                    byte[] smallerBytes = baos.toByteArray();
+                    bmp.recycle();
+                    imagepath = android.util.Base64.encodeToString(smallerBytes, android.util.Base64.NO_WRAP);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
 
     public static boolean isNumeric(String str) {
         if (str == null || str.trim().isEmpty()) return false;

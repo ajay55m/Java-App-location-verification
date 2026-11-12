@@ -106,9 +106,20 @@ public class AttendanceRepository {
                         callback.onResult(AttendanceResult.fail(AttendanceCodes.NETWORK_ERROR,
                                 "Network error while saving attendance"));
                     } else {
+                        int statusCode = error.networkResponse.statusCode;
                         String body = error.networkResponse.data != null
                                 ? new String(error.networkResponse.data)
                                 : "Server error";
+
+                        // If 406 Not Acceptable (Mod_Security WAF filter triggered), attempt automatic retry with downscaled image
+                        if ((statusCode == 406 || (body != null && (body.contains("406") || body.contains("Mod_Security"))))
+                                && payload.imagepath != null && payload.imagepath.length() > 500 && !payload.isRetryAttempt) {
+                            payload.isRetryAttempt = true;
+                            payload.downscaleImageForWafBypass();
+                            post(payload, callback);
+                            return;
+                        }
+
                         AttendanceResult parsed = AttendanceResult.parse(body);
                         if (parsed.success) {
                             callback.onResult(parsed);
@@ -123,7 +134,8 @@ public class AttendanceRepository {
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
-                headers.put("Accept", "*/*");
+                headers.put("Accept", "application/json, text/plain, */*");
+                headers.put("Accept-Language", "en-US,en;q=0.9");
                 headers.put("Cookie", com.app.fourscontracting.CookieHurlStack.getBypassCookie(appContext));
                 headers.put("x-api-key", ApiConfig.X_API_KEY);
                 headers.put("X-API-KEY", ApiConfig.X_API_KEY);
