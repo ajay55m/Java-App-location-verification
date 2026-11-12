@@ -416,95 +416,9 @@ public class SupervisorAttendanceFragment extends Fragment
         if (!isAdded() || res == null) return;
         if (progress != null) progress.setVisibility(View.GONE);
 
-        // 1. Next action logic: if response next_action == "OUT" show CHECK OUT (red), else show CHECK IN (green)
-        String nextAction = res.next_action != null ? res.next_action.toUpperCase() : "IN";
-        if ("OUT".equals(nextAction)) {
-            if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
-            if (btnSelfTimeOut != null) {
-                btnSelfTimeOut.setVisibility(View.VISIBLE);
-                btnSelfTimeOut.setEnabled(true);
-                btnSelfTimeOut.setText("SELF CHECK OUT");
-            }
-            if (tvSelfStatusBadge != null) {
-                tvSelfStatusBadge.setText("ACTIVE ON DUTY");
-                tvSelfStatusBadge.setTextColor(Color.parseColor("#0077B6"));
-            }
-        } else {
-            int shiftNo = 1;
-            if (res.own_move_records != null && !res.own_move_records.isEmpty()) {
-                shiftNo = res.own_move_records.size() + 1;
-            }
-            if (btnSelfTimeIn != null) {
-                btnSelfTimeIn.setVisibility(View.VISIBLE);
-                btnSelfTimeIn.setEnabled(true);
-                btnSelfTimeIn.setText(shiftNo > 1 ? "SELF CHECK IN (SHIFT " + shiftNo + ")" : "SELF CHECK IN");
-            }
-            if (btnSelfTimeOut != null) btnSelfTimeOut.setVisibility(View.GONE);
-            if (tvSelfStatusBadge != null) {
-                tvSelfStatusBadge.setText(shiftNo > 1 ? "SHIFT " + (shiftNo - 1) + " FINISHED" : "NOT CLOCKED IN");
-            }
-        }
-
-        // 2. Info Card display
-        if (res.own_attendance != null) {
-            String inTimeStr = !TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : res.own_attendance.in_time;
-            String outTimeStr = !TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : res.own_attendance.out_time;
-            if (tvSelfTimeIn != null) {
-                tvSelfTimeIn.setText(!TextUtils.isEmpty(inTimeStr) ? inTimeStr : "--:--");
-            }
-            if (tvSelfTimeOut != null) {
-                tvSelfTimeOut.setText(!TextUtils.isEmpty(outTimeStr) ? outTimeStr : "--:--");
-            }
-            String pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
-            if (TextUtils.isEmpty(pStr)) pStr = projName;
-            if (tvSelfProject != null) {
-                tvSelfProject.setText(!TextUtils.isEmpty(pStr) ? pStr : "--");
-            }
-
-            // Also populate Shift 1 card in historyAdapter so it does not stay blank
-            String aId = (res.own_attendance.attend_id > 0) ? String.valueOf(res.own_attendance.attend_id) : "";
-            String uId = String.valueOf(res.uid);
-            String eId = String.valueOf(res.empid);
-            boolean hasIn = res.own_attendance.has_in || (!TextUtils.isEmpty(inTimeStr) && !"--".equals(inTimeStr));
-            boolean hasOut = res.own_attendance.has_out || (!TextUtils.isEmpty(outTimeStr) && !"--".equals(outTimeStr));
-            String inPhoto = !TextUtils.isEmpty(res.own_attendance.in_photo_url) ? res.own_attendance.in_photo_url : "";
-            String outPhoto = !TextUtils.isEmpty(res.own_attendance.out_photo_url) ? res.own_attendance.out_photo_url : "";
-
-            if (hasIn || !TextUtils.isEmpty(inTimeStr)) {
-                AttendanceRecordModel shift1Record = new AttendanceRecordModel(
-                        aId,
-                        uId,
-                        eId,
-                        !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid,
-                        pStr,
-                        inTimeStr,
-                        outTimeStr,
-                        0.0,
-                        hasIn,
-                        hasOut,
-                        inPhoto,
-                        outPhoto,
-                        1
-                );
-                currentSelfRecord = shift1Record;
-
-                if (isHistoryDateToday()) {
-                    List<AttendanceRecordModel> selfShift1List = new ArrayList<>();
-                    selfShift1List.add(shift1Record);
-                    if (historyAdapter != null) {
-                        historyAdapter.setItems(selfShift1List);
-                    }
-                    updateHistoryUiStats(selfShift1List);
-                }
-            }
-        } else {
-            if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
-            if (tvSelfTimeOut != null) tvSelfTimeOut.setText("--:--");
-            if (tvSelfProject != null) tvSelfProject.setText("--");
-        }
-
-        // 3. Move/Shift records history
+        // 1. Move/Shift records history & active move detection
         List<MoveRecordModel> moveList = new ArrayList<>();
+        MoveRecordModel activeMove = null;
         if (res.own_move_records != null) {
             String parentAttId = (res.own_attendance != null && res.own_attendance.attend_id > 0)
                     ? String.valueOf(res.own_attendance.attend_id)
@@ -527,8 +441,155 @@ public class SupervisorAttendanceFragment extends Fragment
                         sNo
                 );
                 moveList.add(m);
+                if (m.isActive() && activeMove == null) {
+                    activeMove = m;
+                }
             }
         }
+        currentActiveMoveRecord = activeMove;
+
+        // 2. Parse Shift 1 attendance
+        String inTimeStr = "";
+        String outTimeStr = "";
+        boolean hasIn = false;
+        boolean hasOut = false;
+        String pStr = "";
+
+        if (res.own_attendance != null) {
+            inTimeStr = !TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : res.own_attendance.in_time;
+            outTimeStr = !TextUtils.isEmpty(res.own_attendance.timeout) ? res.own_attendance.timeout : res.own_attendance.out_time;
+            hasIn = res.own_attendance.has_in || (!TextUtils.isEmpty(inTimeStr) && !"--".equals(inTimeStr) && !"--:--".equals(inTimeStr));
+            hasOut = res.own_attendance.has_out || (!TextUtils.isEmpty(outTimeStr) && !"--".equals(outTimeStr) && !"--:--".equals(outTimeStr));
+            pStr = !TextUtils.isEmpty(res.own_attendance.location_name) ? res.own_attendance.location_name : res.own_attendance.projname;
+            if (TextUtils.isEmpty(pStr)) pStr = projName;
+
+            String aId = (res.own_attendance.attend_id > 0) ? String.valueOf(res.own_attendance.attend_id) : "";
+            String uId = String.valueOf(res.uid);
+            String eId = String.valueOf(res.empid);
+            String inPhoto = !TextUtils.isEmpty(res.own_attendance.in_photo_url) ? res.own_attendance.in_photo_url : "";
+            String outPhoto = !TextUtils.isEmpty(res.own_attendance.out_photo_url) ? res.own_attendance.out_photo_url : "";
+
+            if (hasIn || !TextUtils.isEmpty(inTimeStr)) {
+                AttendanceRecordModel shift1Record = new AttendanceRecordModel(
+                        aId,
+                        uId,
+                        eId,
+                        !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid,
+                        pStr,
+                        inTimeStr,
+                        outTimeStr,
+                        res.own_attendance.break_hours,
+                        hasIn,
+                        hasOut,
+                        inPhoto,
+                        outPhoto,
+                        1
+                );
+                currentSelfRecord = shift1Record;
+
+                if (isHistoryDateToday()) {
+                    List<AttendanceRecordModel> selfShift1List = new ArrayList<>();
+                    selfShift1List.add(shift1Record);
+                    if (historyAdapter != null) {
+                        historyAdapter.setItems(selfShift1List);
+                    }
+                    updateHistoryUiStats(selfShift1List);
+                }
+            }
+        } else {
+            currentSelfRecord = null;
+        }
+
+        boolean isShift1Completed = hasIn && hasOut;
+        boolean isShift1Active = hasIn && !hasOut;
+
+        // 3. UI and Button logic: Move to Another site shows ONLY after Shift 1 is completed and no active move
+        if (activeMove != null && activeMove.isActive()) {
+            // Shift 2 (or later) move is ACTIVE
+            if (tvSelfTimeIn != null) tvSelfTimeIn.setText(formatTime(activeMove.getInTime()));
+            if (tvSelfTimeOut != null) tvSelfTimeOut.setText(formatTime(activeMove.getOutTime()));
+            String siteName = activeMove.getProjName();
+            if (TextUtils.isEmpty(siteName)) siteName = "Moved Site";
+            if (tvSelfProject != null) {
+                tvSelfProject.setText("Project: " + siteName + " (Moved Site)");
+            }
+
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText("ACTIVE (MOVED SITE)");
+                tvSelfStatusBadge.setTextColor(Color.parseColor("#0077B6"));
+            }
+
+            if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
+            if (btnSelfTimeOut != null) {
+                btnSelfTimeOut.setVisibility(View.VISIBLE);
+                btnSelfTimeOut.setEnabled(true);
+                btnSelfTimeOut.setText("SELF MOVE OUT");
+            }
+            if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(View.GONE);
+
+        } else if (isShift1Active) {
+            // Shift 1 is ACTIVE on main duty
+            if (tvSelfTimeIn != null) tvSelfTimeIn.setText(formatTime(inTimeStr));
+            if (tvSelfTimeOut != null) tvSelfTimeOut.setText("--:--");
+            if (tvSelfProject != null) tvSelfProject.setText(!TextUtils.isEmpty(pStr) ? pStr : "--");
+
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText("ACTIVE ON DUTY");
+                tvSelfStatusBadge.setTextColor(Color.parseColor("#0077B6"));
+            }
+
+            if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
+            if (btnSelfTimeOut != null) {
+                btnSelfTimeOut.setVisibility(View.VISIBLE);
+                btnSelfTimeOut.setEnabled(true);
+                btnSelfTimeOut.setText("SELF CHECK OUT");
+            }
+            // Move site button MUST BE GONE until shift 1 completed
+            if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(View.GONE);
+
+        } else if (isShift1Completed) {
+            // Shift 1 is COMPLETED! Now supervisor can move to another site for Shift 2
+            if (tvSelfTimeIn != null) tvSelfTimeIn.setText(formatTime(inTimeStr));
+            if (tvSelfTimeOut != null) tvSelfTimeOut.setText(formatTime(outTimeStr));
+            if (tvSelfProject != null) tvSelfProject.setText(!TextUtils.isEmpty(pStr) ? pStr : "--");
+
+            int completedShiftNo = moveList.isEmpty() ? 1 : (moveList.size() + 1);
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText("SHIFT " + completedShiftNo + " COMPLETED");
+                tvSelfStatusBadge.setTextColor(Color.parseColor("#059669"));
+            }
+
+            if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
+            if (btnSelfTimeOut != null) btnSelfTimeOut.setVisibility(View.GONE);
+            // ONLY after Shift 1 is completed does the Move to Another Site button show!
+            if (btnSelfMoveSite != null) {
+                btnSelfMoveSite.setVisibility(View.VISIBLE);
+                btnSelfMoveSite.setEnabled(true);
+            }
+
+        } else {
+            // Shift 1 NOT CLOCKED IN yet
+            if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
+            if (tvSelfTimeOut != null) tvSelfTimeOut.setText("--:--");
+            String currentSite = !TextUtils.isEmpty(projName) ? projName : "--";
+            if (tvSelfProject != null) tvSelfProject.setText(currentSite);
+
+            if (tvSelfStatusBadge != null) {
+                tvSelfStatusBadge.setText("NOT CLOCKED IN");
+                tvSelfStatusBadge.setTextColor(Color.parseColor("#64748B"));
+            }
+
+            if (btnSelfTimeIn != null) {
+                btnSelfTimeIn.setVisibility(View.VISIBLE);
+                btnSelfTimeIn.setEnabled(true);
+                btnSelfTimeIn.setText("SELF CHECK IN");
+            }
+            if (btnSelfTimeOut != null) btnSelfTimeOut.setVisibility(View.GONE);
+            // Move site button MUST BE GONE by default!
+            if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(View.GONE);
+        }
+
+        // 4. Update Move History list
         if (isHistoryDateToday()) {
             if (moveHistoryAdapter != null) {
                 moveHistoryAdapter.setItems(moveList);
@@ -833,6 +894,7 @@ public class SupervisorAttendanceFragment extends Fragment
 
    private void updateSelfUiWithMovement(AttendanceRecordModel attendanceRecord, MoveRecordModel activeMove) {
     if (activeMove != null && activeMove.isActive()) {
+        currentActiveMoveRecord = activeMove;
         if (tvSelfTimeIn != null) tvSelfTimeIn.setText(formatTime(activeMove.getInTime()));
         if (tvSelfTimeOut != null) tvSelfTimeOut.setText(formatTime(activeMove.getOutTime()));
 
@@ -857,71 +919,89 @@ public class SupervisorAttendanceFragment extends Fragment
         return;
     }
 
+    currentActiveMoveRecord = null;
     if (btnSelfTimeOut != null) {
-        btnSelfTimeOut.setText("SELF TIME OUT");
+        btnSelfTimeOut.setText("SELF CHECK OUT");
     }
     updateSelfUi(attendanceRecord);
 }
 
-
-
     private void performSupervisorMoveOut(MoveRecordModel record) {
-    Context context = getContext();
-    if (context == null || record == null || !isAdded()) return;
+        Context context = getContext();
+        if (context == null || record == null || !isAdded()) return;
 
-    String targetEmpId = !TextUtils.isEmpty(record.getEmpId()) ? record.getEmpId() : supervisorUid;
+        SessionManager sm = new SessionManager(context);
+        String sUid = String.valueOf(sm.getUid());
+        if (sUid.equals("0")) sUid = getSupervisorUid();
+        String sEmpId = String.valueOf(sm.getEmpId());
+        if (sEmpId.equals("0")) sEmpId = sUid;
 
-    SessionPrefs session = new SessionPrefs(context);
-    if (!session.isLocationSessionValid()) {
-        Toast.makeText(context, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
-        Intent intent = new Intent(context, LocationVerifyActivity.class);
-        intent.putExtra("IS_INITIAL_VERIFY", false);
-        intent.putExtra("IS_CHANGE_SITE", false);
-        intent.putExtra("AUTO_START_VERIFY", true);
-        intent.putExtra("uid", supervisorUid);
+        String targetEmpId = !TextUtils.isEmpty(record.getEmpId()) ? record.getEmpId() : sEmpId;
+
+        SessionPrefs session = new SessionPrefs(context);
+        if (!session.isLocationSessionValid()) {
+            Toast.makeText(context, "Location verification is required before marking move out.", Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(context, LocationVerifyActivity.class);
+            intent.putExtra("IS_INITIAL_VERIFY", false);
+            intent.putExtra("IS_CHANGE_SITE", false);
+            intent.putExtra("AUTO_START_VERIFY", true);
+            intent.putExtra("uid", sUid);
+            intent.putExtra("empid", targetEmpId);
+            intent.putExtra("pending_eid", targetEmpId);
+            intent.putExtra("move_id", record.getMoveId());
+            intent.putExtra("moveid", record.getMoveId());
+            if (!TextUtils.isEmpty(record.getAttendanceId())) {
+                intent.putExtra("attend_id", record.getAttendanceId());
+                intent.putExtra("attendance_id", record.getAttendanceId());
+            }
+            intent.putExtra("type", "OUT");
+            intent.putExtra("pending_action", "OUT");
+            intent.putExtra("is_movement", true);
+            startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
+            return;
+        }
+
+        String freshToken = session.issueFreshVerificationToken();
+        String targetLocId = session.getLocationId();
+        String pName = session.getProjectName();
+        if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
+
+        Intent intent = new Intent(context, LocationActivity.class);
         intent.putExtra("empid", targetEmpId);
         intent.putExtra("pending_eid", targetEmpId);
         intent.putExtra("move_id", record.getMoveId());
         intent.putExtra("moveid", record.getMoveId());
+        if (!TextUtils.isEmpty(record.getAttendanceId())) {
+            intent.putExtra("attend_id", record.getAttendanceId());
+            intent.putExtra("attendance_id", record.getAttendanceId());
+        }
+        intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : record.getFirstName());
+        intent.putExtra("photo_url", record.getInPhotoUrl());
         intent.putExtra("type", "OUT");
-        intent.putExtra("pending_action", "OUT");
         intent.putExtra("is_movement", true);
-        startActivityForResult(intent, 1005);
-        return;
+        intent.putExtra("uid", sUid);
+
+        String projectCode = pName;
+        if (projectCode != null && projectCode.contains(" - ")) {
+            projectCode = projectCode.split(" - ")[0].trim();
+        }
+        if (projectCode == null || projectCode.isEmpty() || "Verified Site".equalsIgnoreCase(projectCode) || com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode)) {
+            projectCode = "RST";
+        }
+        intent.putExtra("project_id", projectCode);
+        intent.putExtra("project_code", projectCode);
+        intent.putExtra("departmentid", projectCode);
+        intent.putExtra("projname", projectCode);
+        intent.putExtra("project_name", projectCode);
+        intent.putExtra("locationid", targetLocId);
+        intent.putExtra("location_id", targetLocId);
+        intent.putExtra("loc_id", targetLocId);
+        intent.putExtra("MATCHED_LOC_ID", targetLocId);
+        intent.putExtra("dept_id", sm.getDeptId());
+        intent.putExtra("VERIFIED", "true");
+        intent.putExtra("VERIFICATION_TOKEN", freshToken);
+        startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
     }
-
-    String freshToken = session.issueFreshVerificationToken();
-    String targetLocId = session.getLocationId();
-    String pName = session.getProjectName();
-    if (pName == null || pName.trim().isEmpty()) pName = record.getProjName();
-
-    Intent intent = new Intent(context, LocationActivity.class);
-    intent.putExtra("empid", targetEmpId);
-    intent.putExtra("move_id", record.getMoveId());
-    intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : record.getFirstName());
-    intent.putExtra("photo_url", record.getInPhotoUrl());
-    intent.putExtra("type", "OUT");
-    intent.putExtra("is_movement", true);
-    intent.putExtra("uid", supervisorUid);
-
-    String projectCode = pName;
-    if (projectCode != null && projectCode.contains(" - ")) {
-        projectCode = projectCode.split(" - ")[0].trim();
-    }
-    intent.putExtra("project_id", projectCode);
-    intent.putExtra("project_code", projectCode);
-    intent.putExtra("departmentid", projectCode);
-    intent.putExtra("projname", projectCode);
-    intent.putExtra("project_name", projectCode);
-    intent.putExtra("locationid", targetLocId);
-    intent.putExtra("location_id", targetLocId);
-    intent.putExtra("loc_id", targetLocId);
-    intent.putExtra("MATCHED_LOC_ID", targetLocId);
-    intent.putExtra("dept_id", new com.app.fourscontracting.SessionManager(context).getDeptId());
-    intent.putExtra("VERIFIED", "true");
-    intent.putExtra("VERIFICATION_TOKEN", freshToken);
-    startActivityForResult(intent, 1005);
-}
 
     private void loadSupervisorHistoryData() {
         Context context = getContext();
@@ -1184,7 +1264,7 @@ public class SupervisorAttendanceFragment extends Fragment
     }
 
     private void updateSelfUi(AttendanceRecordModel record) {
-        if (record != null) {
+        if (record != null && (record.isHasIn() || (!TextUtils.isEmpty(record.getTimeIn()) && !"--".equals(record.getTimeIn())))) {
             String formattedIn = formatTime(record.getTimeIn());
             String formattedOut = formatTime(record.getTimeOut());
 
@@ -1202,13 +1282,14 @@ public class SupervisorAttendanceFragment extends Fragment
                 tvSelfProject.setText("Project: " + (TextUtils.isEmpty(currentSite) ? "Main Location" : currentSite));
             }
 
+            boolean isCompleted = !record.isActive();
             if (tvSelfStatusBadge != null) {
                 if (record.isActive()) {
-                    tvSelfStatusBadge.setText("ACTIVE");
+                    tvSelfStatusBadge.setText("ACTIVE ON DUTY");
                     tvSelfStatusBadge.setBackgroundResource(R.drawable.bg_luxury_status_active);
                     tvSelfStatusBadge.setTextColor(0xFFFFFFFF);
                 } else {
-                    tvSelfStatusBadge.setText("COMPLETED");
+                    tvSelfStatusBadge.setText("SHIFT 1 COMPLETED");
                     tvSelfStatusBadge.setBackgroundResource(R.drawable.bg_luxury_status_completed);
                     tvSelfStatusBadge.setTextColor(0xFFFFFFFF);
                 }
@@ -1216,7 +1297,7 @@ public class SupervisorAttendanceFragment extends Fragment
 
             if (btnSelfTimeIn != null) btnSelfTimeIn.setVisibility(View.GONE);
             if (btnSelfTimeOut != null) btnSelfTimeOut.setVisibility(record.isActive() ? View.VISIBLE : View.GONE);
-            if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(record.isActive() ? View.GONE : View.VISIBLE);
+            if (btnSelfMoveSite != null) btnSelfMoveSite.setVisibility(isCompleted ? View.VISIBLE : View.GONE);
         } else {
             if (tvSelfTimeIn != null) tvSelfTimeIn.setText("--:--");
             if (tvSelfTimeOut != null) tvSelfTimeOut.setText("--:--");
@@ -1228,7 +1309,7 @@ public class SupervisorAttendanceFragment extends Fragment
                 tvSelfProject.setText("Project: " + (TextUtils.isEmpty(currentSite) ? "Main Location" : currentSite));
             }
             if (tvSelfStatusBadge != null) {
-                tvSelfStatusBadge.setText("NOT PUNCHED");
+                tvSelfStatusBadge.setText("NOT CLOCKED IN");
                 tvSelfStatusBadge.setBackgroundResource(R.drawable.bg_top_header_pill);
                 tvSelfStatusBadge.setTextColor(0xFF0284C7);
             }
@@ -1373,17 +1454,30 @@ public class SupervisorAttendanceFragment extends Fragment
         Context context = getContext();
         if (context == null) return;
 
-        String sUid = getSupervisorUid();
+        SessionManager sm = new SessionManager(context);
+        String sUid = String.valueOf(sm.getUid());
+        if (sUid.equals("0")) sUid = getSupervisorUid();
+        String sEmpId = String.valueOf(sm.getEmpId());
+        if (sEmpId.equals("0")) sEmpId = sUid;
+
+        String selfAttendId = (currentSelfRecord != null && !TextUtils.isEmpty(currentSelfRecord.getAttendId()))
+                ? currentSelfRecord.getAttendId() : "";
 
         Intent intent = new Intent(context, LocationVerifyActivity.class);
-        intent.putExtra("empid", sUid);
+        intent.putExtra("uid", sUid);
+        intent.putExtra("empid", sEmpId);
+        intent.putExtra("pending_eid", sEmpId);
         intent.putExtra("emp_name", !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor");
         intent.putExtra("type", "MOVE");
-        intent.putExtra("uid", sUid);
+        intent.putExtra("pending_action", "MOVE");
         intent.putExtra("is_movement", true);
+        if (!TextUtils.isEmpty(selfAttendId)) {
+            intent.putExtra("attend_id", selfAttendId);
+            intent.putExtra("attendance_id", selfAttendId);
+            intent.putExtra("id", selfAttendId);
+        }
         intent.putExtra("selected_project_id", projId);
         intent.putExtra("projname", projName);
-        intent.putExtra("FROM_MOVE_MENU", true);
         intent.putExtra("AUTO_START_VERIFY", false);
         intent.putExtra("IS_INITIAL_VERIFY", false);
         startActivityForResult(intent, REQUEST_CODE_SELF_PUNCH);
@@ -1562,7 +1656,7 @@ public class SupervisorAttendanceFragment extends Fragment
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_SELF_PUNCH) {
+        if (requestCode == REQUEST_CODE_SELF_PUNCH || requestCode == 1005) {
             bindHeaderData();
             loadSupervisorAttendanceData();
             loadSupervisorHistoryData();

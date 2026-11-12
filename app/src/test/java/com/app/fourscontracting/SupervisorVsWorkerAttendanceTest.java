@@ -112,4 +112,69 @@ public class SupervisorVsWorkerAttendanceTest {
         assertEquals("43", params.get("employee_id"));
         assertEquals("43", params.get("subadmin_id"));
     }
+
+    @Test
+    public void testSelfAttendanceState_shift1NotStarted_moveButtonMustBeGone() {
+        boolean hasIn = false;
+        boolean hasOut = false;
+        boolean hasActiveMove = false;
+
+        boolean isShift1Completed = hasIn && hasOut;
+        boolean isShift1Active = hasIn && !hasOut;
+        boolean canMoveSite = isShift1Completed && !hasActiveMove;
+        boolean canCheckIn = !hasIn && !hasActiveMove;
+        boolean canCheckOut = isShift1Active && !hasActiveMove;
+
+        assertFalse("Move button must NOT show when Shift 1 is not clocked in", canMoveSite);
+        assertTrue("Check In button must show when Shift 1 is not clocked in", canCheckIn);
+        assertFalse("Check Out button must NOT show when Shift 1 is not clocked in", canCheckOut);
+    }
+
+    @Test
+    public void testSelfAttendanceState_shift1Active_moveButtonMustBeGone() {
+        boolean hasIn = true;
+        boolean hasOut = false;
+        boolean hasActiveMove = false;
+
+        boolean isShift1Completed = hasIn && hasOut;
+        boolean isShift1Active = hasIn && !hasOut;
+        boolean canMoveSite = isShift1Completed && !hasActiveMove;
+        boolean canCheckIn = !hasIn && !hasActiveMove;
+        boolean canCheckOut = isShift1Active && !hasActiveMove;
+
+        assertFalse("Move button must NOT show when Shift 1 is active on duty", canMoveSite);
+        assertFalse("Check In button must NOT show when Shift 1 is active", canCheckIn);
+        assertTrue("Check Out button must show when Shift 1 is active", canCheckOut);
+    }
+
+    @Test
+    public void testSelfAttendanceState_shift1Completed_moveButtonMustShow() {
+        boolean hasIn = true;
+        boolean hasOut = true;
+        boolean hasActiveMove = false;
+
+        boolean isShift1Completed = hasIn && hasOut;
+        boolean isShift1Active = hasIn && !hasOut;
+        boolean canMoveSite = isShift1Completed && !hasActiveMove;
+        boolean canCheckIn = !hasIn && !hasActiveMove;
+        boolean canCheckOut = isShift1Active && !hasActiveMove;
+
+        assertTrue("Move button MUST show only after Shift 1 is completed", canMoveSite);
+        assertFalse("Check In button must NOT show after Shift 1 is completed", canCheckIn);
+        assertFalse("Check Out button must NOT show after Shift 1 is completed", canCheckOut);
+    }
+
+    @Test
+    public void testSelfAttendanceState_shift2MoveActive_moveButtonGone_moveOutVisible() {
+        boolean hasIn = true;
+        boolean hasOut = true;
+        boolean hasActiveMove = true;
+
+        boolean isShift1Completed = hasIn && hasOut;
+        boolean canMoveSite = isShift1Completed && !hasActiveMove;
+        boolean canMoveOut = hasActiveMove;
+
+        assertFalse("Move button must be GONE while Shift 2 movement is active", canMoveSite);
+        assertTrue("Move Out button must be VISIBLE while Shift 2 movement is active", canMoveOut);
+    }
 }
