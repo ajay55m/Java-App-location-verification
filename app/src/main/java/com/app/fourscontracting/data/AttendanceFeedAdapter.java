@@ -31,9 +31,20 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
 
     private final List<AttendanceRecordModel> list = new ArrayList<>();
     private final Listener listener;
+    private boolean checkOutActionEnabled = true;
 
     public AttendanceFeedAdapter(Listener listener) {
+        this(listener, true);
+    }
+
+    public AttendanceFeedAdapter(Listener listener, boolean checkOutActionEnabled) {
         this.listener = listener;
+        this.checkOutActionEnabled = checkOutActionEnabled;
+    }
+
+    public void setCheckOutActionEnabled(boolean checkOutActionEnabled) {
+        this.checkOutActionEnabled = checkOutActionEnabled;
+        notifyDataSetChanged();
     }
 
     public void setItems(List<AttendanceRecordModel> newItems) {
@@ -85,30 +96,42 @@ public class AttendanceFeedAdapter extends RecyclerView.Adapter<AttendanceFeedAd
         String resolvedTarget = com.app.fourscontracting.ui.attendance.ManageAttendanceFragment.resolveTargetWorkerId(item);
         boolean hasValidWorkerTarget = !resolvedTarget.isEmpty() && !"--".equals(resolvedTarget);
 
-        if (item.isActive() && hasValidWorkerTarget && item.canCheckOut()) {
-            holder.tvStatusPill.setText("ACTIVE");
-            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
-            holder.tvStatusPill.setTextColor(0xFFFFFFFF);
-            if (holder.btnCheckOut != null) {
-                holder.btnCheckOut.setVisibility(View.VISIBLE);
-                holder.btnCheckOut.setOnClickListener(v -> {
-                    if (listener != null) {
-                        listener.onTimeOutClicked(item);
-                    }
-                });
-            }
-        } else if (item.isActive() && item.isPastDate()) {
-            // Worker timed in on a previous date, but forgot to check out - checkout restricted on subsequent dates!
-            holder.tvStatusPill.setText("MISSED OUT");
-            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);
-            holder.tvStatusPill.setTextColor(0xFFFFFFFF);
-            if (holder.btnCheckOut != null) {
-                holder.btnCheckOut.setVisibility(View.GONE);
-                holder.btnCheckOut.setOnClickListener(null);
+        if (item.isActive()) {
+            if (item.isPastDate()) {
+                // Worker timed in on a previous date, but forgot to check out - checkout restricted on subsequent dates!
+                holder.tvStatusPill.setText("MISSED OUT");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_missed_out);
+                holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+                if (holder.btnCheckOut != null) {
+                    holder.btnCheckOut.setVisibility(View.GONE);
+                    holder.btnCheckOut.setOnClickListener(null);
+                }
+            } else if (checkOutActionEnabled && hasValidWorkerTarget && item.canCheckOut()) {
+                // Today active punch with action enabled (e.g. Manage Attendance workers)
+                holder.tvStatusPill.setText("ACTIVE");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
+                holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+                if (holder.btnCheckOut != null) {
+                    holder.btnCheckOut.setVisibility(View.VISIBLE);
+                    holder.btnCheckOut.setOnClickListener(v -> {
+                        if (listener != null) {
+                            listener.onTimeOutClicked(item);
+                        }
+                    });
+                }
+            } else {
+                // Today active punch but checkout action disabled (e.g. Self Attendance history)
+                holder.tvStatusPill.setText("ACTIVE");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_active);
+                holder.tvStatusPill.setTextColor(0xFFFFFFFF);
+                if (holder.btnCheckOut != null) {
+                    holder.btnCheckOut.setVisibility(View.GONE);
+                    holder.btnCheckOut.setOnClickListener(null);
+                }
             }
         } else {
-            holder.tvStatusPill.setText(item.isActive() ? "ACTIVE" : "COMPLETED");
-            holder.tvStatusPill.setBackgroundResource(item.isActive() ? R.drawable.bg_luxury_status_active : R.drawable.bg_luxury_status_completed);
+            holder.tvStatusPill.setText("COMPLETED");
+            holder.tvStatusPill.setBackgroundResource(R.drawable.bg_luxury_status_completed);
             holder.tvStatusPill.setTextColor(0xFFFFFFFF);
             if (holder.btnCheckOut != null) {
                 holder.btnCheckOut.setVisibility(View.GONE);

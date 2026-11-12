@@ -378,11 +378,11 @@ public class ManageAttendanceApi {
                         List<MoveRecordModel> moveRecords = new ArrayList<>();
                         JSONArray moveArray = response.optJSONArray("move_records");
                         if (moveArray != null) {
-                            parseMoveRecordsJsonArray(moveArray, uid, moveRecords, false);
+                            parseMoveRecordsJsonArray(moveArray, uid, moveRecords, false, apiDate);
                         }
                         JSONArray ownMoveArray = response.optJSONArray("own_move_records");
                         if (ownMoveArray != null) {
-                            parseMoveRecordsJsonArray(ownMoveArray, uid, moveRecords, true);
+                            parseMoveRecordsJsonArray(ownMoveArray, uid, moveRecords, true, apiDate);
                         }
 
                         callback.onSuccess(userName, projects, attendanceRecords, moveRecords);
@@ -546,7 +546,7 @@ public class ManageAttendanceApi {
         return "";
     }
 
-    private static void parseMoveRecordsJsonArray(JSONArray moveArray, String uid, List<MoveRecordModel> outList, boolean isOwnRecords) {
+    private static void parseMoveRecordsJsonArray(JSONArray moveArray, String uid, List<MoveRecordModel> outList, boolean isOwnRecords, String fallbackDate) {
         if (moveArray == null || outList == null) return;
         for (int i = 0; i < moveArray.length(); i++) {
             JSONObject mObj = moveArray.optJSONObject(i);
@@ -578,6 +578,9 @@ public class ManageAttendanceApi {
                 String mAttId = optCleanString(mObj, "attendance_id", "attend_id");
                 int sNo = mObj.optInt("shift_no", mObj.optInt("shift_id", mObj.optInt("shift", outList.size() + 2)));
                 String mDate = optCleanString(mObj, "attendance_date", "date", "punch_date", "created_date");
+                if (mDate.isEmpty() && fallbackDate != null && !fallbackDate.trim().isEmpty()) {
+                    mDate = fallbackDate.trim();
+                }
                 outList.add(new MoveRecordModel(
                         mId,
                         mAttId,

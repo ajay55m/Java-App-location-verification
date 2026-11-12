@@ -30,9 +30,20 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
 
     private final List<MoveRecordModel> list = new ArrayList<>();
     private final Listener listener;
+    private boolean moveOutActionEnabled = true;
 
     public MoveFeedAdapter(Listener listener) {
+        this(listener, true);
+    }
+
+    public MoveFeedAdapter(Listener listener, boolean moveOutActionEnabled) {
         this.listener = listener;
+        this.moveOutActionEnabled = moveOutActionEnabled;
+    }
+
+    public void setMoveOutActionEnabled(boolean moveOutActionEnabled) {
+        this.moveOutActionEnabled = moveOutActionEnabled;
+        notifyDataSetChanged();
     }
 
     public void setItems(List<MoveRecordModel> newItems) {
@@ -61,9 +72,18 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
         }
         holder.tvEmpName.setText(empName);
 
-        // Status Pill: AT NEXT SITE vs MOVE COMPLETED
+        // Status Pill: AT NEXT SITE vs MISSED OUT vs MOVE COMPLETED
         if (item.isActive()) {
-            if (item.canCheckOut()) {
+            if (item.isPastDate()) {
+                // Moved on a previous date, but forgot to check out - checkout restricted on subsequent dates!
+                holder.tvStatusPill.setText("MISSED OUT");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_missed_out);
+                holder.tvStatusPill.setTextColor(0xFF64748B);
+                if (holder.btnMoveOut != null) {
+                    holder.btnMoveOut.setVisibility(View.GONE);
+                    holder.btnMoveOut.setOnClickListener(null);
+                }
+            } else if (moveOutActionEnabled && item.canCheckOut()) {
                 holder.tvStatusPill.setText("AT NEXT SITE");
                 holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_movement);
                 holder.tvStatusPill.setTextColor(0xFF6366F1);
@@ -76,10 +96,9 @@ public class MoveFeedAdapter extends RecyclerView.Adapter<MoveFeedAdapter.ViewHo
                     });
                 }
             } else {
-                // Moved on a previous date, but forgot to check out - checkout restricted on subsequent dates!
-                holder.tvStatusPill.setText("MISSED OUT");
-                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_completed);
-                holder.tvStatusPill.setTextColor(0xFFEF4444);
+                holder.tvStatusPill.setText("AT NEXT SITE");
+                holder.tvStatusPill.setBackgroundResource(R.drawable.bg_status_movement);
+                holder.tvStatusPill.setTextColor(0xFF6366F1);
                 if (holder.btnMoveOut != null) {
                     holder.btnMoveOut.setVisibility(View.GONE);
                     holder.btnMoveOut.setOnClickListener(null);

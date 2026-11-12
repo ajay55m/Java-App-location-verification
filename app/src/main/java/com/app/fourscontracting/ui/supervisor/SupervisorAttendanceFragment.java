@@ -156,11 +156,11 @@ public class SupervisorAttendanceFragment extends Fragment
 });
         btnSelfMoveSite.setOnClickListener(v -> performSelfMove());
 
-        historyAdapter = new AttendanceFeedAdapter(this);
+        historyAdapter = new AttendanceFeedAdapter(this, false);
         rvPastHistory.setLayoutManager(new LinearLayoutManager(context));
         rvPastHistory.setAdapter(historyAdapter);
 
-        moveHistoryAdapter = new MoveFeedAdapter(this);
+        moveHistoryAdapter = new MoveFeedAdapter(this, false);
         if (rvSupervisorMoveHistory != null) {
             rvSupervisorMoveHistory.setLayoutManager(new LinearLayoutManager(context));
             rvSupervisorMoveHistory.setAdapter(moveHistoryAdapter);
@@ -621,13 +621,23 @@ public class SupervisorAttendanceFragment extends Fragment
 
     private boolean isHistoryDateToday() {
         Calendar cal = Calendar.getInstance();
-        String curDay = String.format(Locale.US, "%02d", cal.get(Calendar.DAY_OF_MONTH));
-        String curMonth = String.format(Locale.US, "%02d", cal.get(Calendar.MONTH) + 1);
-        String curYear = String.valueOf(cal.get(Calendar.YEAR));
+        int curDay = cal.get(Calendar.DAY_OF_MONTH);
+        int curMonth = cal.get(Calendar.MONTH) + 1;
+        int curYear = cal.get(Calendar.YEAR);
 
-        return (TextUtils.isEmpty(selHistoryDay) || curDay.equals(selHistoryDay))
-                && (TextUtils.isEmpty(selHistoryMonth) || curMonth.equals(selHistoryMonth))
-                && (TextUtils.isEmpty(selHistoryYear) || curYear.equals(selHistoryYear));
+        try {
+            int selD = Integer.parseInt(selHistoryDay.trim());
+            int selM = Integer.parseInt(selHistoryMonth.trim());
+            int selY = Integer.parseInt(selHistoryYear.trim());
+            return curDay == selD && curMonth == selM && curYear == selY;
+        } catch (Exception e) {
+            String curDayStr = String.format(Locale.US, "%02d", curDay);
+            String curMonthStr = String.format(Locale.US, "%02d", curMonth);
+            String curYearStr = String.valueOf(curYear);
+            return (TextUtils.isEmpty(selHistoryDay) || curDayStr.equals(selHistoryDay))
+                    && (TextUtils.isEmpty(selHistoryMonth) || curMonthStr.equals(selHistoryMonth))
+                    && (TextUtils.isEmpty(selHistoryYear) || curYearStr.equals(selHistoryYear));
+        }
     }
 
     private boolean isSupervisorSelfRecord(AttendanceRecordModel r) {
@@ -1057,6 +1067,11 @@ public class SupervisorAttendanceFragment extends Fragment
     private void populateSelfHistoryFromResponse(ManageAttendanceResponse res) {
         if (!isAdded() || res == null) return;
 
+        String historyDate = (res != null && !TextUtils.isEmpty(res.date)) ? res.date : "";
+        if (historyDate.isEmpty() && !TextUtils.isEmpty(selHistoryYear) && !TextUtils.isEmpty(selHistoryMonth) && !TextUtils.isEmpty(selHistoryDay)) {
+            historyDate = String.format(Locale.US, "%s-%s-%s", selHistoryYear, selHistoryMonth, selHistoryDay);
+        }
+
         List<AttendanceRecordModel> historyList = new ArrayList<>();
         if (res.own_attendance != null) {
             String inTimeStr = !TextUtils.isEmpty(res.own_attendance.timein) ? res.own_attendance.timein : res.own_attendance.in_time;
@@ -1086,7 +1101,8 @@ public class SupervisorAttendanceFragment extends Fragment
                         hasOut,
                         inPhoto,
                         outPhoto,
-                        1
+                        1,
+                        historyDate
                 );
                 historyList.add(shift1Record);
             }
@@ -1112,7 +1128,8 @@ public class SupervisorAttendanceFragment extends Fragment
                         mr.has_out,
                         mr.in_photo_url,
                         mr.out_photo_url,
-                        sNo
+                        sNo,
+                        historyDate
                 ));
             }
         }
@@ -1133,6 +1150,9 @@ public class SupervisorAttendanceFragment extends Fragment
         if (context == null || !isAdded()) return;
         if (progressHistory != null) progressHistory.setVisibility(View.VISIBLE);
 
+        String fallbackHistoryDate = (!TextUtils.isEmpty(selHistoryYear) && !TextUtils.isEmpty(selHistoryMonth) && !TextUtils.isEmpty(selHistoryDay))
+                ? String.format(Locale.US, "%s-%s-%s", selHistoryYear, selHistoryMonth, selHistoryDay) : "";
+
         api.fetchFeed(context, supervisorUid, "all", selHistoryDay, selHistoryMonth, selHistoryYear, new ManageAttendanceApi.FeedCallback() {
             @Override
             public void onSuccess(String userName, List<AllocatedProjectModel> projects, List<AttendanceRecordModel> attendanceRecords, List<MoveRecordModel> moveRecords) {
@@ -1151,6 +1171,7 @@ public class SupervisorAttendanceFragment extends Fragment
                             if (TextUtils.isEmpty(displayName) || "User".equalsIgnoreCase(displayName.trim()) || "Worker".equalsIgnoreCase(displayName.trim())) {
                                 displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
                             }
+                            String rDate = !TextUtils.isEmpty(r.getDate()) ? r.getDate() : fallbackHistoryDate;
                             historyList.add(new AttendanceRecordModel(
                                     r.getAttendId(),
                                     r.getUserId(),
@@ -1164,13 +1185,14 @@ public class SupervisorAttendanceFragment extends Fragment
                                     r.isHasOut(),
                                     r.getInPhotoUrl(),
                                     r.getOutPhotoUrl(),
-                                    1
+                                    1,
+                                    rDate
                             ));
                         }
                     }
                 }
 
-                if (historyList.isEmpty() && currentSelfRecord != null && (!TextUtils.isEmpty(currentSelfRecord.getTimeIn()) || currentSelfRecord.isHasIn())) {
+                if (historyList.isEmpty() && isHistoryDateToday() && currentSelfRecord != null && (!TextUtils.isEmpty(currentSelfRecord.getTimeIn()) || currentSelfRecord.isHasIn())) {
                     historyList.add(currentSelfRecord);
                 }
 
@@ -1182,6 +1204,7 @@ public class SupervisorAttendanceFragment extends Fragment
                             if (TextUtils.isEmpty(displayName) || "Worker".equalsIgnoreCase(displayName.trim()) || "User".equalsIgnoreCase(displayName.trim()) || "Supervisor".equalsIgnoreCase(displayName.trim())) {
                                 displayName = !TextUtils.isEmpty(supervisorName) ? supervisorName : "Supervisor #" + supervisorUid;
                             }
+                            String mDate = !TextUtils.isEmpty(m.getDate()) ? m.getDate() : fallbackHistoryDate;
                             moveHistoryList.add(new MoveRecordModel(
                                     m.getMoveId(),
                                     m.getAttendanceId(),
@@ -1194,7 +1217,8 @@ public class SupervisorAttendanceFragment extends Fragment
                                     m.isHasOut(),
                                     m.getInPhotoUrl(),
                                     m.getOutPhotoUrl(),
-                                    m.getShiftNo() > 0 ? m.getShiftNo() : (moveHistoryList.size() + 2)
+                                    m.getShiftNo() > 0 ? m.getShiftNo() : (moveHistoryList.size() + 2),
+                                    mDate
                             ));
                         }
                     }
