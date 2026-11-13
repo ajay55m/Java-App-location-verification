@@ -359,7 +359,7 @@
                     android:layout_height="36dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_baseline_person_24"
-                    app:tint="#38BDF8" />
+                    app:tint="#0284C7" />
             </FrameLayout>
 
             <TextView

@@ -15,6 +15,7 @@
         android:layout_width="74dp"
         android:layout_height="74dp"
         android:background="@drawable/bg_luxury_avatar_ring"
+        android:padding="3dp"
         android:elevation="2dp">
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -23,7 +24,7 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
-            app:srcCompat="@drawable/ic_baseline_person_24" />
+            app:srcCompat="@drawable/ic_court_suit_avatar" />
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/img_emp_photo"

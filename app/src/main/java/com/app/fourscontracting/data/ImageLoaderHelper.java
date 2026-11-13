@@ -80,11 +80,14 @@ public class ImageLoaderHelper {
             if (target != null) {
                 target.setTag(com.app.fourscontracting.R.id.img_lightbox_target, null);
                 target.setTag(null);
-                target.setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
+                target.setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
             }
             if (imgPhoto != null && avatarView != null) {
                 imgPhoto.setImageDrawable(null);
                 imgPhoto.setVisibility(View.GONE);
+                if (avatarView instanceof ImageView) {
+                    ((ImageView) avatarView).setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
+                }
                 avatarView.setVisibility(View.VISIBLE);
             }
             return;
@@ -95,11 +98,14 @@ public class ImageLoaderHelper {
             if (target != null) {
                 target.setTag(com.app.fourscontracting.R.id.img_lightbox_target, null);
                 target.setTag(null);
-                target.setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
+                target.setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
             }
             if (imgPhoto != null && avatarView != null) {
                 imgPhoto.setImageDrawable(null);
                 imgPhoto.setVisibility(View.GONE);
+                if (avatarView instanceof ImageView) {
+                    ((ImageView) avatarView).setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
+                }
                 avatarView.setVisibility(View.VISIBLE);
             }
             return;
@@ -127,11 +133,11 @@ public class ImageLoaderHelper {
             imgPhoto.setImageDrawable(null);
             imgPhoto.setVisibility(View.GONE);
             if (avatarView instanceof ImageView) {
-                ((ImageView) avatarView).setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
+                ((ImageView) avatarView).setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
             }
             avatarView.setVisibility(View.VISIBLE);
         } else {
-            target.setImageResource(com.app.fourscontracting.R.drawable.ic_baseline_person_24);
+            target.setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
         }
 
         final String requestUrl = url;
@@ -238,6 +244,9 @@ public class ImageLoaderHelper {
                         } else {
                             if (imgPhoto != null && avatarView != null) {
                                 imgPhoto.setVisibility(View.GONE);
+                                if (avatarView instanceof ImageView) {
+                                    ((ImageView) avatarView).setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);
+                                }
                                 avatarView.setVisibility(View.VISIBLE);
                             } else {
                                 target.setImageResource(com.app.fourscontracting.R.drawable.ic_court_suit_avatar);

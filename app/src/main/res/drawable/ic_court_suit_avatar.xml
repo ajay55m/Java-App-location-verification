@@ -1,32 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp"
-    android:height="48dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
+    android:width="72dp"
+    android:height="72dp"
+    android:viewportWidth="72"
+    android:viewportHeight="72">
 
-    <!-- Background Circle -->
+    <!-- Light Theme Background Circle -->
     <path
         android:fillColor="#E0F2FE"
-        android:pathData="M 24,24 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0" />
+        android:pathData="M 36,36 m -36,0 a 36,36 0 1,0 72,0 a 36,36 0 1,0 -72,0" />
 
-    <!-- Head -->
+    <!-- Subtle Inner Glow Ring -->
     <path
-        android:fillColor="#475569"
-        android:pathData="M 24,21 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+        android:strokeColor="#BAE6FD"
+        android:strokeWidth="1.5"
+        android:pathData="M 36,36 m -34,0 a 34,34 0 1,0 68,0 a 34,34 0 1,0 -68,0" />
 
-    <!-- Suit Shoulders -->
+    <!-- Head / Face (Signature Mid-Blue) -->
     <path
-        android:fillColor="#0F172A"
-        android:pathData="M 10,44 C 10,36 16,30 24,30 C 32,30 38,36 38,44 Z" />
+        android:fillColor="#0077B6"
+        android:pathData="M 36,29 m -11,0 a 11,11 0 1,0 22,0 a 11,11 0 1,0 -22,0" />
 
-    <!-- White Shirt V -->
+    <!-- Body / Shoulders (Curved Vibrant Cyan-Blue Silhouette) -->
+    <path
+        android:fillColor="#0284C7"
+        android:pathData="M 12,72 C 12,54 22,46 36,46 C 50,46 60,54 60,72 Z" />
+
+    <!-- Stylized Collar / V-Neck (Pure White Accent) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 20,30 L 24,38 L 28,30 Z" />
+        android:pathData="M 29,46 L 36,58 L 43,46 Z" />
 
-    <!-- Tie -->
+    <!-- Tie / Core Accent (Deep Navy) -->
     <path
-        android:fillColor="#0EA5E9"
-        android:pathData="M 23,30 L 25,30 L 25.5,39 L 24,41 L 22.5,39 Z" />
+        android:fillColor="#03045E"
+        android:pathData="M 34.5,46 L 37.5,46 L 38.5,60 L 36,63 L 33.5,60 Z" />
 </vector>
