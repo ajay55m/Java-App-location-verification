@@ -47,11 +47,15 @@ public class ProjectApiHelper {
                             seenCodes.add(code.toLowerCase());
 
                             String desc = obj.optString("project_description", "");
+                            String locName = obj.optString("location_name", obj.optString("locationname", ""));
                             String displayName = (!desc.isEmpty() && !desc.equalsIgnoreCase(code))
                                     ? (code + " - " + desc)
                                     : code;
 
-                            projects.add(new ProjectModel(code, displayName));
+                            ProjectModel pm = new ProjectModel(code, displayName, locName);
+                            pm.project_description = desc;
+                            pm.location_name = locName;
+                            projects.add(pm);
                         }
 
                         callback.onSuccess(projects, "");

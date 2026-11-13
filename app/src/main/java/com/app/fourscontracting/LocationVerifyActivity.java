@@ -52,6 +52,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
     private LocationModel targetLocation;
     private Location gpsLocation;
     private String projectCode = "";
+    private String selectedLocationName = "";
     private int locationId = 0;
     private FusedLocationProviderClient fusedLocationClient;
     private boolean isAutoStartVerify = false;
@@ -127,6 +128,12 @@ public class LocationVerifyActivity extends AppCompatActivity {
                 String locStr = intent.getStringExtra("location_id");
                 if (locStr != null && !locStr.isEmpty()) {
                     try { locationId = Integer.parseInt(locStr); } catch (Exception ignored) {}
+                }
+            }
+            if (intent.hasExtra("location_name")) {
+                String ln = intent.getStringExtra("location_name");
+                if (ln != null && !ln.trim().isEmpty()) {
+                    selectedLocationName = ln.trim();
                 }
             }
         }
@@ -222,6 +229,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         ProjectModel sel = (ProjectModel) parent.getItemAtPosition(position);
                         if (sel != null) {
                             projectCode = sel.getProjectCode();
+                            selectedLocationName = sel.getLocationName();
                             binding.myProjectSpinner.setText(sel.toString(), false);
                             loadLocationsForProject(projectCode);
                         }
@@ -239,6 +247,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         for (ProjectModel p : list) {
                             if (projectCode.equalsIgnoreCase(p.getProjectCode())) {
                                 projectCode = p.getProjectCode();
+                                selectedLocationName = p.getLocationName();
                                 binding.myProjectSpinner.setText(p.toString(), false);
                                 loadLocationsForProject(projectCode);
                                 foundPreselected = true;
@@ -323,11 +332,18 @@ public class LocationVerifyActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Auto-select location matching locationId or default to first location
+                // Auto-select location matching locationId or locationName or default to first location
                 LocationModel selLoc = locList.get(0);
                 if (locationId > 0) {
                     for (LocationModel lm : locList) {
                         if (lm.id == locationId) {
+                            selLoc = lm;
+                            break;
+                        }
+                    }
+                } else if (selectedLocationName != null && !selectedLocationName.trim().isEmpty()) {
+                    for (LocationModel lm : locList) {
+                        if (selectedLocationName.trim().equalsIgnoreCase(lm.getLocationName().trim())) {
                             selLoc = lm;
                             break;
                         }

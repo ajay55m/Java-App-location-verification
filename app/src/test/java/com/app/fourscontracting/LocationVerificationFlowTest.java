@@ -182,4 +182,31 @@ public class LocationVerificationFlowTest {
         assertFalse("User far away must fail verification", inside);
         assertTrue("Distance to box should exceed 200m", distToBox > 200.0f);
     }
+
+    @Test
+    public void testProjectModelLocationNameInDropdown() {
+        String json = "{\n" +
+                "  \"projectid\": \"RST\",\n" +
+                "  \"project_code\": \"RST\",\n" +
+                "  \"project_description\": \"Rathna Softnet Technology\",\n" +
+                "  \"location_name\": \"Head Office\"\n" +
+                "}";
+
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        ProjectModel pm = gson.fromJson(json, ProjectModel.class);
+
+        assertNotNull(pm);
+        assertEquals("Head Office", pm.getLocationName());
+        assertEquals("RST", pm.getProjectCode());
+
+        // toString() must pass location_name in the dropdown name
+        String dropdownName = pm.toString();
+        assertTrue("Dropdown name must include location_name", dropdownName.contains("Head Office"));
+        assertEquals("RST - Head Office (Rathna Softnet Technology)", dropdownName);
+
+        // Case when location_name equals code
+        ProjectModel pm2 = new ProjectModel("RST", "RST", "RST");
+        pm2.project_description = "Rathna Softnet Technology";
+        assertEquals("RST - Rathna Softnet Technology", pm2.toString());
+    }
 }
