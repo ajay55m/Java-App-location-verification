@@ -99,4 +99,87 @@ public class LocationVerificationFlowTest {
         assertTrue("Valid location session must launch photo capture activity directly for worker punch", shouldLaunchLocationActivityDirectly);
         assertFalse("Valid location session must NOT force GPS verification screen for worker punch", shouldLaunchLocationVerifyScreen);
     }
+
+    @Test
+    public void testLocationModelBoundingBoxDeserialization() {
+        String json = "{\n" +
+                "  \"projectid\": \"RST\",\n" +
+                "  \"project_code\": \"RST\",\n" +
+                "  \"location_name\": \"RST\",\n" +
+                "  \"latitude\": 8.1863155,\n" +
+                "  \"longitude\": 77.4254754,\n" +
+                "  \"max_latitude\": 8.1867250,\n" +
+                "  \"max_longtitude\": 77.4247289\n" +
+                "}";
+
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        LocationModel model = gson.fromJson(json, LocationModel.class);
+
+        assertNotNull(model);
+        assertEquals(8.1863155, model.latitude, 0.000001);
+        assertEquals(77.4254754, model.longitude, 0.000001);
+        assertEquals(8.1867250, model.max_latitude, 0.000001);
+        assertEquals(77.4247289, model.max_longtitude, 0.000001);
+        assertTrue("Model should detect active bounding box", model.hasBoundingBox());
+
+        assertEquals(8.1863155, model.getMinLatitude(), 0.000001);
+        assertEquals(8.1867250, model.getMaxLatitude(), 0.000001);
+        assertEquals(77.4247289, model.getMinLongitude(), 0.000001);
+        assertEquals(77.4254754, model.getMaxLongitude(), 0.000001);
+    }
+
+    @Test
+    public void testBoundingBoxVerificationInside() {
+        // Site coordinates from server
+        double lat1 = 8.1863155;
+        double lng1 = 77.4254754;
+        double lat2 = 8.1867250;
+        double lng2 = 77.4247289;
+
+        // User GPS point directly inside the site box
+        double userLat = 8.186500;
+        double userLng = 77.425000;
+
+        boolean inside = LocationVerifier.isWithinBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2, 10.0f);
+        float distToBox = LocationVerifier.distanceToBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2);
+
+        assertTrue("User inside coordinates must pass verification instantly", inside);
+        assertEquals("Distance to box must be 0 for internal points", 0.0f, distToBox, 0.001f);
+    }
+
+    @Test
+    public void testBoundingBoxVerificationWithAccuracyTolerance() {
+        double lat1 = 8.1863155;
+        double lng1 = 77.4254754;
+        double lat2 = 8.1867250;
+        double lng2 = 77.4247289;
+
+        // User slightly outside by ~15m (e.g. at the building doorway)
+        double userLat = 8.186750;
+        double userLng = 77.425000;
+
+        boolean inside = LocationVerifier.isWithinBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2, 25.0f);
+        float distToBox = LocationVerifier.distanceToBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2);
+
+        assertTrue("User within GPS accuracy tolerance must pass verification", inside);
+        assertTrue("Distance to box should be within 30m", distToBox < 30.0f);
+    }
+
+    @Test
+    public void testBoundingBoxVerificationFarAwayFails() {
+        double lat1 = 8.1863155;
+        double lng1 = 77.4254754;
+        double lat2 = 8.1867250;
+        double lng2 = 77.4247289;
+
+        // User far away (> 500m)
+        double userLat = 8.195000;
+        double userLng = 77.435000;
+
+        boolean inside = LocationVerifier.isWithinBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2, 15.0f);
+        float distToBox = LocationVerifier.distanceToBoundingBox(userLat, userLng, lat1, lng1, lat2, lng2);
+
+        assertFalse("User far away must fail verification", inside);
+        assertTrue("Distance to box should exceed 200m", distToBox > 200.0f);
+    }
 }

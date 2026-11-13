@@ -349,7 +349,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
         locationId = loc.id;
 
         if (binding.tvDetails != null) {
-            binding.tvDetails.setText("Site: " + loc.location_name + "\nProject: " + projectCode);
+            String boundedTag = loc.hasBoundingBox() ? " (GPS Geofenced)" : "";
+            binding.tvDetails.setText("Site: " + loc.location_name + "\nProject: " + projectCode + boundedTag);
             binding.tvDetails.setVisibility(View.VISIBLE);
         }
         if (binding.tvVerifyProjectLocation != null) {
@@ -428,6 +429,25 @@ public class LocationVerifyActivity extends AppCompatActivity {
             return;
         }
 
+        // Fast-path: Check last known location first for immediate verification (< 100ms)
+        fusedLocationClient.getLastLocation().addOnSuccessListener(loc -> {
+            if (loc != null && !isFinishing() && !isDestroyed()) {
+                long ageMs = System.currentTimeMillis() - loc.getTime();
+                if (ageMs < 120_000 && loc.getAccuracy() <= 100.0f && isLocationValidForSite(loc)) {
+                    processGpsLocation(loc);
+                    return;
+                }
+            }
+            requestFreshGpsLocation();
+        }).addOnFailureListener(e -> requestFreshGpsLocation());
+    }
+
+    private void requestFreshGpsLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            showError("Location permission required");
+            return;
+        }
+
         LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setMinUpdateIntervalMillis(500)
                 .setMaxUpdates(1)
@@ -446,6 +466,34 @@ public class LocationVerifyActivity extends AppCompatActivity {
                 }
             }
         }, Looper.getMainLooper());
+    }
+
+    private boolean isLocationValidForSite(Location loc) {
+        if (loc == null || targetLocation == null) return false;
+        if (LocationVerifier.isMockLocation(loc)) return false;
+        if (targetLocation.hasBoundingBox()) {
+            boolean strictlyInside = LocationVerifier.isWithinBoundingBox(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude,
+                    targetLocation.max_latitude, targetLocation.max_longtitude,
+                    loc.getAccuracy()
+            );
+            if (strictlyInside) return true;
+            float boxDistance = LocationVerifier.distanceToBoundingBox(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude,
+                    targetLocation.max_latitude, targetLocation.max_longtitude
+            );
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            return boxDistance <= (200.0f + accuracyBuffer);
+        } else {
+            float distance = LocationVerifier.distanceBetween(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude
+            );
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            return distance <= (200.0f + accuracyBuffer);
+        }
     }
 
     private void tryFallbackLastLocation() {
@@ -481,20 +529,46 @@ public class LocationVerifyActivity extends AppCompatActivity {
             return;
         }
 
-        float distance = LocationVerifier.distanceBetween(
-                loc.getLatitude(), loc.getLongitude(),
-                targetLocation.latitude, targetLocation.longitude
-        );
+        float distance;
+        boolean isInsideGeofence;
 
-        float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
-        float maxAllowedDistance = 200.0f + accuracyBuffer;
+        if (targetLocation.hasBoundingBox()) {
+            boolean strictlyInside = LocationVerifier.isWithinBoundingBox(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude,
+                    targetLocation.max_latitude, targetLocation.max_longtitude,
+                    loc.getAccuracy()
+            );
+            float boxDistance = LocationVerifier.distanceToBoundingBox(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude,
+                    targetLocation.max_latitude, targetLocation.max_longtitude
+            );
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            float maxAllowedDistance = 200.0f + accuracyBuffer;
 
-        if (distance > maxAllowedDistance && loc.getAccuracy() > 350.0f) {
-            showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
-            return;
+            if (strictlyInside || boxDistance <= maxAllowedDistance) {
+                isInsideGeofence = true;
+                distance = boxDistance;
+            } else {
+                isInsideGeofence = false;
+                distance = boxDistance;
+            }
+        } else {
+            distance = LocationVerifier.distanceBetween(
+                    loc.getLatitude(), loc.getLongitude(),
+                    targetLocation.latitude, targetLocation.longitude
+            );
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            float maxAllowedDistance = 200.0f + accuracyBuffer;
+            isInsideGeofence = (distance <= maxAllowedDistance);
         }
 
-        if (distance > maxAllowedDistance) {
+        if (!isInsideGeofence) {
+            if (loc.getAccuracy() > 350.0f) {
+                showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
+                return;
+            }
             showError("You are " + (int) distance + "m away from site. Maximum allowed distance is 200m.");
             return;
         }
@@ -503,7 +577,8 @@ public class LocationVerifyActivity extends AppCompatActivity {
         if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
         if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
         if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Location Verified! (" + (int) distance + "m from site)");
+            String distMsg = (distance <= 5.0f) ? "Inside site boundary" : ((int) distance + "m from boundary");
+            binding.tvStatus.setText("Location Verified! (" + distMsg + ")");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
