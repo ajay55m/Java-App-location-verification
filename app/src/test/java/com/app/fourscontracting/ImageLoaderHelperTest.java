@@ -23,28 +23,28 @@ public class ImageLoaderHelperTest {
     public void testSanitizeUrl_httpToHttps() {
         String raw = "http://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14";
         String sanitized = ImageLoaderHelper.sanitizeUrl(raw);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14", sanitized);
+        assertEquals("https://www.4scontracting.com/SMCS_APP/fcm_app/get_labour_photo.php?id=14", sanitized);
     }
 
     @Test
     public void testSanitizeUrl_relativeUrlWithLeadingSlash() {
         String raw = "/SMCS_APP/subcontractor/get_photo.php?id=14";
         String sanitized = ImageLoaderHelper.sanitizeUrl(raw);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14", sanitized);
+        assertEquals("https://www.4scontracting.com/SMCS_APP/fcm_app/get_labour_photo.php?id=14", sanitized);
     }
 
     @Test
     public void testSanitizeUrl_relativeUrlWithoutLeadingSlash() {
-        String raw = "get_photo.php?id=14";
+        String raw = "get_labour_photo.php?id=14";
         String sanitized = ImageLoaderHelper.sanitizeUrl(raw);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14", sanitized);
+        assertEquals("https://www.4scontracting.com/SMCS_APP/fcm_app/get_labour_photo.php?id=14", sanitized);
     }
 
     @Test
     public void testSanitizeUrl_spacesHandling() {
-        String raw = "https://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14 &name=MOHAN";
+        String raw = "https://www.4scontracting.com/SMCS_APP/fcm_app/get_labour_photo.php?id=14 &name=MOHAN";
         String sanitized = ImageLoaderHelper.sanitizeUrl(raw);
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/get_photo.php?id=14%20&name=MOHAN", sanitized);
+        assertEquals("https://www.4scontracting.com/SMCS_APP/fcm_app/get_labour_photo.php?id=14%20&name=MOHAN", sanitized);
     }
 
     @Test
@@ -60,9 +60,9 @@ public class ImageLoaderHelperTest {
     public void testBuildImageRequestHeaders_includesApiKey() {
         Map<String, String> headers = ImageLoaderHelper.buildImageRequestHeaders(null);
         assertNotNull(headers);
-        assertEquals("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36", headers.get("User-Agent"));
-        assertEquals("image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", headers.get("Accept"));
-        assertEquals("https://4scontracting.com/SMCS_APP/subcontractor/", headers.get("Referer"));
+        assertEquals("PostmanRuntime/7.39.0", headers.get("User-Agent"));
+        assertEquals("*/*", headers.get("Accept"));
+        assertEquals("https://www.4scontracting.com/SMCS_APP/fcm_app/", headers.get("Referer"));
         assertEquals("4S_Secure_Access_Token_2024_#$", headers.get("x-api-key"));
     }
 
@@ -71,7 +71,7 @@ public class ImageLoaderHelperTest {
         Map<String, String> headers = ImageLoaderHelper.buildImageAuthRetryHeaders(null);
         assertNotNull(headers);
         assertEquals("4S_Secure_Access_Token_2024_#$", headers.get("x-api-key"));
-        assertEquals("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36", headers.get("User-Agent"));
+        assertEquals("PostmanRuntime/7.39.0", headers.get("User-Agent"));
     }
 
     @Test
@@ -129,7 +129,7 @@ public class ImageLoaderHelperTest {
             String sanitized = ImageLoaderHelper.sanitizeUrl(model.getPhotoUrl());
             assertNotNull(sanitized);
             assertTrue(sanitized.startsWith("https://"));
-            assertTrue(sanitized.contains("get_photo.php?id="));
+            assertTrue(sanitized.contains("get_labour_photo.php?id="));
         }
     }
 

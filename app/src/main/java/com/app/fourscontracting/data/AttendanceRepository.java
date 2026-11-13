@@ -134,8 +134,7 @@ public class AttendanceRepository {
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
-                headers.put("Accept", "application/json, text/plain, */*");
-                headers.put("Accept-Language", "en-US,en;q=0.9");
+                headers.put("Accept", "*/*");
                 headers.put("Cookie", com.app.fourscontracting.CookieHurlStack.getBypassCookie(appContext));
                 headers.put("x-api-key", ApiConfig.X_API_KEY);
                 headers.put("X-API-KEY", ApiConfig.X_API_KEY);

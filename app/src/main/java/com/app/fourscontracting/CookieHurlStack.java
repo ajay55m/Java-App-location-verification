@@ -86,10 +86,7 @@ public class CookieHurlStack extends HurlStack {
             headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
         }
         if (!headers.containsKey("Accept") && !headers.containsKey("accept")) {
-            headers.put("Accept", "application/json, text/plain, */*");
-        }
-        if (!headers.containsKey("Accept-Language") && !headers.containsKey("accept-language")) {
-            headers.put("Accept-Language", "en-US,en;q=0.9");
+            headers.put("Accept", "*/*");
         }
         if (!headers.containsKey(ApiConfig.HEADER_X_API_KEY) && !headers.containsKey("X-API-KEY")) {
             headers.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
@@ -131,10 +128,7 @@ public class CookieHurlStack extends HurlStack {
             retryHeaders.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
         }
         if (!retryHeaders.containsKey("Accept") && !retryHeaders.containsKey("accept")) {
-            retryHeaders.put("Accept", "application/json, text/plain, */*");
-        }
-        if (!retryHeaders.containsKey("Accept-Language") && !retryHeaders.containsKey("accept-language")) {
-            retryHeaders.put("Accept-Language", "en-US,en;q=0.9");
+            retryHeaders.put("Accept", "*/*");
         }
         retryHeaders.put(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY);
         // Also set common casing some servers expect

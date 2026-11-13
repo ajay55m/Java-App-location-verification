@@ -136,9 +136,9 @@ public class ImageLoaderHelper {
 
         final String requestUrl = url;
 
-        // PHP image endpoints (view_attendance_img.php, get_photo.php) contain leading whitespace/null bytes
+        // PHP image endpoints (view_attendance_img.php, get_labour_photo.php, get_photo.php) contain leading whitespace/null bytes
         // that fail standard Glide stream decoding. Route directly to sanitizer fallback.
-        if (requestUrl.contains("view_attendance_img.php") || requestUrl.contains("get_photo.php")) {
+        if (requestUrl.contains("view_attendance_img.php") || requestUrl.contains("get_labour_photo.php") || requestUrl.contains("get_photo.php")) {
             loadWithSanitizerFallback(context, requestUrl, imgPhoto, avatarView, target);
             return;
         }
@@ -147,9 +147,9 @@ public class ImageLoaderHelper {
         if (context != null && !requestUrl.startsWith("data:image/")) {
             try {
                 LazyHeaders.Builder builder = new LazyHeaders.Builder()
-                        .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                        .addHeader("Referer", ApiConfig.SUBCONTRACTOR + "/")
+                        .addHeader("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT)
+                        .addHeader("Accept", "*/*")
+                        .addHeader("Referer", ApiConfig.FCM_APP + "/")
                         .addHeader(ApiConfig.HEADER_X_API_KEY, ApiConfig.X_API_KEY)
                         .addHeader("X-API-KEY", ApiConfig.X_API_KEY);
 
@@ -257,13 +257,20 @@ public class ImageLoaderHelper {
         if (url.startsWith("data:image/")) {
             return url;
         }
+        // Rewrite get_photo.php (legacy subcontractor) to get_labour_photo.php in fcm_app
+        if (url.contains("get_photo.php")) {
+            url = url.replace("/subcontractor/get_photo.php", "/fcm_app/get_labour_photo.php");
+            url = url.replace("get_photo.php", "get_labour_photo.php");
+        }
         if (url.contains("view_attendance_img.php")) {
             if (url.contains("/subcontractor/view_attendance_img.php")) {
                 url = url.replace("/subcontractor/view_attendance_img.php", "/fcm_app/view_attendance_img.php");
             }
         }
-        if (url.startsWith("https://www.4scontracting.com")) {
-            url = url.replace("https://www.4scontracting.com", ApiConfig.HOST);
+        if (url.startsWith("https://4scontracting.com")) {
+            url = url.replace("https://4scontracting.com", ApiConfig.HOST);
+        } else if (url.startsWith("http://4scontracting.com")) {
+            url = url.replace("http://4scontracting.com", ApiConfig.HOST);
         } else if (url.startsWith("http://www.4scontracting.com")) {
             url = url.replace("http://www.4scontracting.com", ApiConfig.HOST);
         } else if (url.startsWith("http://")) {
@@ -271,10 +278,10 @@ public class ImageLoaderHelper {
         } else if (!url.startsWith("https://")) {
             if (url.startsWith("/")) {
                 url = ApiConfig.HOST + url;
-            } else if (url.startsWith("view_attendance_img.php")) {
+            } else if (url.startsWith("view_attendance_img.php") || url.startsWith("get_labour_photo.php")) {
                 url = ApiConfig.FCM_APP + "/" + url;
             } else {
-                url = ApiConfig.SUBCONTRACTOR + "/" + url;
+                url = ApiConfig.FCM_APP + "/" + url;
             }
         }
         return url.replace(" ", "%20");
@@ -282,10 +289,10 @@ public class ImageLoaderHelper {
 
     public static Map<String, String> buildImageRequestHeaders(Context context) {
         Map<String, String> headers = new LinkedHashMap<>();
-        headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36");
-        headers.put("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
+        headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
+        headers.put("Accept", "*/*");
         headers.put("Accept-Language", "en-US,en;q=0.9");
-        headers.put("Referer", ApiConfig.SUBCONTRACTOR + "/");
+        headers.put("Referer", ApiConfig.FCM_APP + "/");
 
         String cookieVal = null;
         if (context != null) {

@@ -134,7 +134,7 @@ public class AttendanceRecordModel {
             return ApiConfig.FCM_APP + "/view_attendance_img.php?attendance_id=" + attendId.trim() + "&type=in";
         }
         if (isHasIn() && empId != null && !empId.trim().isEmpty() && !"null".equalsIgnoreCase(empId.trim()) && !"0".equals(empId.trim())) {
-            return ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId.trim();
+            return ApiConfig.getLabourPhotoUrl(empId.trim());
         }
         return "";
     }

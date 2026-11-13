@@ -4,7 +4,7 @@ public final class Constants {
     private Constants() {
     }
 
-    public static final String HOST = "https://4scontracting.com";
+    public static final String HOST = "https://www.4scontracting.com";
     public static final String BASE_URL = "https://www.4scontracting.com/SMCS_APP/fcm_app/";
     public static final String FCM_APP = HOST + "/SMCS_APP/fcm_app";
     public static final String SUBCONTRACTOR = HOST + "/SMCS_APP/subcontractor";

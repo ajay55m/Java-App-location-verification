@@ -778,12 +778,12 @@ public class LocationActivity extends AppActivity implements LocationListener {
         if (bmp == null) return "";
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         
-        // Resize bitmap to a max width/height of 600px to maintain crisp quality while keeping payload compact
-        Bitmap resizedBitmap = getResizedBitmap(bmp, 600); 
+        // Resize bitmap to a max width/height of 640px to maintain crisp quality while keeping payload compact (<50KB)
+        Bitmap resizedBitmap = getResizedBitmap(bmp, 640); 
         
-        // Compress quality to 55% to keep request body well within ModSecurity WAF limits (~30KB)
+        // Compress quality to 60% to keep request body well within ModSecurity WAF limits
         if (resizedBitmap != null) {
-            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 55, baos);
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 60, baos);
         }
         
         byte[] imageBytes = baos.toByteArray();

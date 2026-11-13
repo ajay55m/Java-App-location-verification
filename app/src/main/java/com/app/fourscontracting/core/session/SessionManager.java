@@ -79,6 +79,14 @@ public class SessionManager {
         }
     }
 
+    public void setEmpId(int empId) {
+        if (pref == null || empId <= 0) return;
+        pref.edit()
+            .putString("empid", String.valueOf(empId))
+            .putString("staffid", String.valueOf(empId))
+            .apply();
+    }
+
     public String getEmpName() {
         if (pref == null) return "";
         return pref.getString("employee_name", "");

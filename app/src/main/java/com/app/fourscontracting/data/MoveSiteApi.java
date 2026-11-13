@@ -3,6 +3,7 @@ package com.app.fourscontracting.data;
 import android.content.Context;
 import android.net.Uri;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.app.fourscontracting.MySingleton;
@@ -11,7 +12,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Native Move Site API client — does not use employee_details.php / WebView.
@@ -57,7 +60,17 @@ public class MoveSiteApi {
                     }
                 },
                 error -> callback.onError("Network error loading departments")
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
+                headers.put("Accept", "*/*");
+                headers.put("x-api-key", ApiConfig.X_API_KEY);
+                headers.put("X-API-KEY", ApiConfig.X_API_KEY);
+                return headers;
+            }
+        };
         MySingleton.getmInstance(context).addToRequestque(request);
     }
 
@@ -88,12 +101,12 @@ public class MoveSiteApi {
                                 String empId = o.optString("id", "");
                                 String photo = o.optString("photo", o.optString("photo_url", "")).trim();
                                 if ((photo.isEmpty() || "null".equalsIgnoreCase(photo)) && !empId.isEmpty()) {
-                                    photo = ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId;
+                                    photo = ApiConfig.getLabourPhotoUrl(empId);
                                 } else if (!photo.isEmpty() && !photo.startsWith("http://") && !photo.startsWith("https://")) {
                                     if (photo.startsWith("/")) {
                                         photo = ApiConfig.HOST + photo;
                                     } else {
-                                        photo = ApiConfig.SUBCONTRACTOR + "/" + photo;
+                                        photo = ApiConfig.FCM_APP + "/" + photo;
                                     }
                                 }
                                 if (photo.startsWith("http://")) {
@@ -125,7 +138,17 @@ public class MoveSiteApi {
                     }
                 },
                 error -> callback.onError("Network error loading move employees")
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("User-Agent", com.app.fourscontracting.core.utils.Constants.USER_AGENT);
+                headers.put("Accept", "*/*");
+                headers.put("x-api-key", ApiConfig.X_API_KEY);
+                headers.put("X-API-KEY", ApiConfig.X_API_KEY);
+                return headers;
+            }
+        };
         MySingleton.getmInstance(context).addToRequestque(request);
     }
 }

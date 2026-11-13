@@ -6,7 +6,7 @@ package com.app.fourscontracting.data;
 public final class ApiConfig {
     private ApiConfig() {}
 
-    public static final String HOST = "https://4scontracting.com";
+    public static final String HOST = "https://www.4scontracting.com";
     public static final String SMCS_ROOT = HOST + "/SMCS_APP";
     public static final String FCM_APP = SMCS_ROOT + "/fcm_app";
     public static final String SUBCONTRACTOR = SMCS_ROOT + "/subcontractor";
@@ -22,10 +22,18 @@ public final class ApiConfig {
     public static final String API_LABOUR_MANAGER = FCM_APP + "/api_labour_manager.php";
     public static final String API_MANAGE_ATTENDANCE = FCM_APP + "/api_manage_attendance.php";
     public static final String VIEW_ATTENDANCE_IMG = FCM_APP + "/view_attendance_img.php";
+    public static final String GET_LABOUR_PHOTO = FCM_APP + "/get_labour_photo.php";
 
     /** Same key as Postman header x-api-key (Move Site JSON APIs). */
     public static final String X_API_KEY = "4S_Secure_Access_Token_2024_#$";
     public static final String HEADER_X_API_KEY = "x-api-key";
+
+    public static String getLabourPhotoUrl(String empId) {
+        if (empId == null || empId.trim().isEmpty() || "0".equals(empId.trim()) || "null".equalsIgnoreCase(empId.trim())) {
+            return "";
+        }
+        return GET_LABOUR_PHOTO + "?id=" + empId.trim();
+    }
 
     /**
      * Resolves authoritative attendance photo URL including shift_no to avoid LruCache collisions.

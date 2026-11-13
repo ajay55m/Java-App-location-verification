@@ -390,7 +390,9 @@ public class SupervisorAttendanceFragment extends Fragment
         int deptIdVal = sm.getDeptId();
         int locIdVal = sm.getLocationId();
 
-        ApiClient.getService().getSelfAttendance(uidVal, empIdVal, deptIdVal, locIdVal, selDay, selMonth, selYear, 0)
+        Integer queryEmpId = (empIdVal > 0 && empIdVal != uidVal) ? empIdVal : null;
+
+        ApiClient.getService().getSelfAttendance(uidVal, queryEmpId, deptIdVal > 0 ? deptIdVal : null, locIdVal > 0 ? locIdVal : null, selDay, selMonth, selYear, 0)
                 .enqueue(new Callback<ManageAttendanceResponse>() {
                     @Override
                     public void onResponse(@NonNull Call<ManageAttendanceResponse> call, @NonNull Response<ManageAttendanceResponse> response) {
@@ -398,6 +400,10 @@ public class SupervisorAttendanceFragment extends Fragment
                         if (progress != null) progress.setVisibility(View.GONE);
                         ManageAttendanceResponse body = response.body();
                         if (body != null && body.isSuccess()) {
+                            if (body.empid > 0) {
+                                supervisorEmpId = String.valueOf(body.empid);
+                                new SessionManager(context).setEmpId(body.empid);
+                            }
                             applySelfAttendanceResponse(body);
                         } else {
                             fetchSupervisorAttendanceFallback(context, "");
@@ -1041,7 +1047,9 @@ public class SupervisorAttendanceFragment extends Fragment
         String month = !TextUtils.isEmpty(selHistoryMonth) ? selHistoryMonth : "";
         String year = !TextUtils.isEmpty(selHistoryYear) ? selHistoryYear : "";
 
-        ApiClient.getService().getSelfAttendance(uidVal, empIdVal, deptIdVal, locIdVal, day, month, year, 0)
+        Integer queryEmpId = (empIdVal > 0 && empIdVal != uidVal) ? empIdVal : null;
+
+        ApiClient.getService().getSelfAttendance(uidVal, queryEmpId, deptIdVal > 0 ? deptIdVal : null, locIdVal > 0 ? locIdVal : null, day, month, year, 0)
                 .enqueue(new Callback<ManageAttendanceResponse>() {
                     @Override
                     public void onResponse(@NonNull Call<ManageAttendanceResponse> call, @NonNull Response<ManageAttendanceResponse> response) {
@@ -1050,6 +1058,10 @@ public class SupervisorAttendanceFragment extends Fragment
 
                         ManageAttendanceResponse res = response.body();
                         if (res != null && res.isSuccess()) {
+                            if (res.empid > 0) {
+                                supervisorEmpId = String.valueOf(res.empid);
+                                new SessionManager(context).setEmpId(res.empid);
+                            }
                             populateSelfHistoryFromResponse(res);
                         } else {
                             loadSupervisorHistoryFallback();

@@ -30,12 +30,12 @@ public class LabourEmployeeModel {
         this.siteName = json.optString("site_name", "");
         String rawPhoto = json.optString("photo", json.optString("photo_url", "")).trim();
         if ((rawPhoto.isEmpty() || "null".equalsIgnoreCase(rawPhoto)) && !this.id.isEmpty()) {
-            rawPhoto = ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + this.id;
+            rawPhoto = ApiConfig.getLabourPhotoUrl(this.id);
         } else if (!rawPhoto.isEmpty() && !rawPhoto.startsWith("http://") && !rawPhoto.startsWith("https://")) {
             if (rawPhoto.startsWith("/")) {
                 rawPhoto = ApiConfig.HOST + rawPhoto;
             } else {
-                rawPhoto = ApiConfig.SUBCONTRACTOR + "/" + rawPhoto;
+                rawPhoto = ApiConfig.FCM_APP + "/" + rawPhoto;
             }
         }
         if (rawPhoto.startsWith("http://")) {
@@ -61,12 +61,12 @@ public class LabourEmployeeModel {
         this.siteName = siteName != null ? siteName : "";
         String rawPhoto = photoUrl != null ? photoUrl.trim() : "";
         if ((rawPhoto.isEmpty() || "null".equalsIgnoreCase(rawPhoto)) && !this.id.isEmpty()) {
-            rawPhoto = ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + this.id;
+            rawPhoto = ApiConfig.getLabourPhotoUrl(this.id);
         } else if (!rawPhoto.isEmpty() && !rawPhoto.startsWith("http://") && !rawPhoto.startsWith("https://")) {
             if (rawPhoto.startsWith("/")) {
                 rawPhoto = ApiConfig.HOST + rawPhoto;
             } else {
-                rawPhoto = ApiConfig.SUBCONTRACTOR + "/" + rawPhoto;
+                rawPhoto = ApiConfig.FCM_APP + "/" + rawPhoto;
             }
         }
         if (rawPhoto.startsWith("http://")) {

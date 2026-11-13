@@ -194,12 +194,12 @@ public class LabourManagementApi {
                                 String empId = o.optString("id", "");
                                 String photo = o.optString("photo", o.optString("photo_url", "")).trim();
                                 if ((photo.isEmpty() || "null".equalsIgnoreCase(photo)) && !empId.isEmpty()) {
-                                    photo = ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId;
+                                    photo = ApiConfig.getLabourPhotoUrl(empId);
                                 } else if (!photo.isEmpty() && !photo.startsWith("http://") && !photo.startsWith("https://")) {
                                     if (photo.startsWith("/")) {
                                         photo = ApiConfig.HOST + photo;
                                     } else {
-                                        photo = ApiConfig.SUBCONTRACTOR + "/" + photo;
+                                        photo = ApiConfig.FCM_APP + "/" + photo;
                                     }
                                 }
                                 if (photo.startsWith("http://")) {

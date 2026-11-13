@@ -42,7 +42,7 @@ public interface ApiService {
     @GET("api_manage_attendance.php")
     Call<ManageAttendanceResponse> getSelfAttendance(
             @Query("uid") int uid,
-            @Query("empid") int empid,
+            @Query("empid") Integer empid,
             @Query("dept_id") Integer deptId,
             @Query("location_id") Integer locationId,
             @Query("f_day") String day,
