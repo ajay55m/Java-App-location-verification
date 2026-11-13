@@ -111,8 +111,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
         initHeaderInfo();
 
         if (intent != null) {
-            isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false)
-                    || intent.getBooleanExtra("IS_INITIAL_VERIFY", false);
+            isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false);
             projectCode = intent.getStringExtra("project_code");
             if (projectCode == null || projectCode.isEmpty()) {
                 projectCode = intent.getStringExtra("projname");
@@ -132,9 +131,10 @@ public class LocationVerifyActivity extends AppCompatActivity {
             }
         }
 
-        // Initialize single button
+        // Initialize single button - prompt user to select project first
         if (binding.btnVerify != null) {
-            binding.btnVerify.setText("VERIFY GPS CHECK");
+            binding.btnVerify.setText("SELECT PROJECT FIRST");
+            binding.btnVerify.setEnabled(false);
             binding.btnVerify.setOnClickListener(v -> onVerifyClicked());
         }
 
@@ -176,8 +176,18 @@ public class LocationVerifyActivity extends AppCompatActivity {
                 binding.myProjectSpinner.showDropDown();
             }
         });
+        binding.myProjectSpinner.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && !binding.myProjectSpinner.isPopupShowing()) {
+                binding.myProjectSpinner.showDropDown();
+            }
+        });
         if (binding.projectInputLayout != null) {
             binding.projectInputLayout.setOnClickListener(v -> {
+                if (!binding.myProjectSpinner.isPopupShowing()) {
+                    binding.myProjectSpinner.showDropDown();
+                }
+            });
+            binding.projectInputLayout.setEndIconOnClickListener(v -> {
                 if (!binding.myProjectSpinner.isPopupShowing()) {
                     binding.myProjectSpinner.showDropDown();
                 }
@@ -217,8 +227,13 @@ public class LocationVerifyActivity extends AppCompatActivity {
                         }
                     });
 
+                    boolean isInitialOrChange = getIntent() != null && (
+                            getIntent().getBooleanExtra("IS_INITIAL_VERIFY", false) ||
+                            getIntent().getBooleanExtra("IS_CHANGE_SITE", false)
+                    );
+
                     boolean foundPreselected = false;
-                    if (projectCode != null && !projectCode.trim().isEmpty()
+                    if (!isInitialOrChange && projectCode != null && !projectCode.trim().isEmpty()
                             && !"Verified Site".equalsIgnoreCase(projectCode.trim())
                             && !com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode.trim())) {
                         for (ProjectModel p : list) {
@@ -233,17 +248,31 @@ public class LocationVerifyActivity extends AppCompatActivity {
                     }
 
                     if (!foundPreselected) {
-                        // Prefer RST or first project if none selected yet
-                        ProjectModel defaultProject = list.get(0);
-                        for (ProjectModel p : list) {
-                            if ("RST".equalsIgnoreCase(p.getProjectCode())) {
-                                defaultProject = p;
-                                break;
-                            }
+                        // User must select the project - remove default pre-selection
+                        projectCode = "";
+                        targetLocation = null;
+                        isAutoStartVerify = false;
+                        binding.myProjectSpinner.setText("", false);
+                        if (binding.tvStatus != null) {
+                            binding.tvStatus.setText("Please select a project to verify location");
+                            binding.tvStatus.setVisibility(View.VISIBLE);
                         }
-                        projectCode = defaultProject.getProjectCode();
-                        binding.myProjectSpinner.setText(defaultProject.toString(), false);
-                        loadLocationsForProject(projectCode);
+                        if (binding.tvVerifyProjectLocation != null) {
+                            binding.tvVerifyProjectLocation.setText("Please select a project");
+                        }
+                        if (binding.tvDetails != null) {
+                            binding.tvDetails.setText("Select your working project from the dropdown above.");
+                            binding.tvDetails.setVisibility(View.VISIBLE);
+                        }
+                        if (binding.btnVerify != null) {
+                            binding.btnVerify.setEnabled(false);
+                            binding.btnVerify.setText("SELECT PROJECT FIRST");
+                        }
+                        binding.myProjectSpinner.post(() -> {
+                            if (!isFinishing() && !isDestroyed()) {
+                                binding.myProjectSpinner.showDropDown();
+                            }
+                        });
                     }
                 } else {
                     showError("No projects available");
@@ -270,6 +299,10 @@ public class LocationVerifyActivity extends AppCompatActivity {
             binding.tvStatus.setText("Loading location for " + pCode + "...");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
+        if (binding.btnVerify != null) {
+            binding.btnVerify.setEnabled(false);
+            binding.btnVerify.setText("LOADING LOCATION...");
+        }
 
         ApiClient.getService().getLocations(pCode).enqueue(new Callback<List<LocationModel>>() {
             @Override
@@ -279,7 +312,14 @@ public class LocationVerifyActivity extends AppCompatActivity {
                     if (binding.tvStatus != null) {
                         binding.tvStatus.setText("No location configured for this project");
                     }
-                    setButtonsEnabled(false);
+                    if (binding.tvDetails != null) {
+                        binding.tvDetails.setText("No location coordinates found for " + pCode + ".");
+                    }
+                    targetLocation = null;
+                    if (binding.btnVerify != null) {
+                        binding.btnVerify.setEnabled(false);
+                        binding.btnVerify.setText("NO LOCATION CONFIGURED");
+                    }
                     return;
                 }
 
@@ -327,7 +367,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
             binding.btnVerify.setVisibility(View.VISIBLE);
         }
 
-        if (isAutoStartVerify && !hasStartedAutoVerify) {
+        if (isAutoStartVerify && !hasStartedAutoVerify && targetLocation != null && projectCode != null && !projectCode.trim().isEmpty()) {
             hasStartedAutoVerify = true;
             onVerifyClicked();
         }
@@ -338,8 +378,11 @@ public class LocationVerifyActivity extends AppCompatActivity {
     }
 
     private void onVerifyClicked() {
-        if (targetLocation == null) {
-            showError("Location not loaded yet");
+        if (targetLocation == null || projectCode == null || projectCode.trim().isEmpty()) {
+            showError("Please select a project from the dropdown first");
+            if (binding.myProjectSpinner != null && !binding.myProjectSpinner.isPopupShowing()) {
+                binding.myProjectSpinner.showDropDown();
+            }
             return;
         }
         if (!PermissionHelper.hasLocationPermission(this)) {

@@ -209,7 +209,7 @@ public class SettingFragment extends Fragment implements LabourEmployeeAdapter.L
         Intent intent = new Intent(requireContext(), LocationVerifyActivity.class);
         intent.putExtra("IS_INITIAL_VERIFY", true);
         intent.putExtra("IS_CHANGE_SITE", false);
-        intent.putExtra("AUTO_START_VERIFY", true);
+        intent.putExtra("AUTO_START_VERIFY", false);
         intent.putExtra("uid", uid);
         startActivityForResult(intent, REQUEST_CODE_SUPERVISOR_VERIFY);
     }
