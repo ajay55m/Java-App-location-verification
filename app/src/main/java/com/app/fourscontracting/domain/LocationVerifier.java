@@ -3,6 +3,10 @@ package com.app.fourscontracting.domain;
 import android.location.Location;
 import android.os.Build;
 
+import com.app.fourscontracting.LocationModel;
+
+import java.util.List;
+
 public class LocationVerifier {
     public static boolean isMockLocation(Location location) {
         if (location == null) return false;
@@ -15,14 +19,16 @@ public class LocationVerifier {
     }
 
     public static float distanceBetween(double lat1, double lng1, double lat2, double lng2) {
+        if (lat1 == lat2 && lng1 == lng2) return 0.0f;
         try {
             float[] results = new float[1];
             Location.distanceBetween(lat1, lng1, lat2, lng2, results);
-            return results[0];
-        } catch (Throwable t) {
-            // Pure Java Haversine fallback (e.g. JVM unit tests where android.jar is not mocked)
-            return (float) computeHaversineMeters(lat1, lng1, lat2, lng2);
-        }
+            if (results[0] > 0.0f) {
+                return results[0];
+            }
+        } catch (Throwable ignored) {}
+        // Pure Java Haversine fallback (e.g. JVM unit tests where android.jar returns default or is not mocked)
+        return (float) computeHaversineMeters(lat1, lng1, lat2, lng2);
     }
 
     public static double computeHaversineMeters(double lat1, double lon1, double lat2, double lon2) {
@@ -84,6 +90,43 @@ public class LocationVerifier {
         double clampedLng = Math.max(minLng, Math.min(userLng, maxLng));
 
         return distanceBetween(userLat, userLng, clampedLat, clampedLng);
+    }
+
+    /**
+     * Scans candidate site locations and finds the first site whose geofence / bounding box matches user's GPS.
+     * Returns the matched LocationModel, or null if no site matches or if mock location is detected.
+     */
+    public static LocationModel findMatchingSite(Location userLoc, List<LocationModel> candidateSites) {
+        if (userLoc == null || candidateSites == null || candidateSites.isEmpty()) return null;
+        if (isMockLocation(userLoc)) return null;
+
+        for (LocationModel site : candidateSites) {
+            if (site == null) continue;
+            if (site.hasBoundingBox()) {
+                boolean strictlyInside = isWithinBoundingBox(
+                        userLoc.getLatitude(), userLoc.getLongitude(),
+                        site.latitude, site.longitude,
+                        site.max_latitude, site.max_longtitude,
+                        userLoc.getAccuracy()
+                );
+                if (strictlyInside) return site;
+                float boxDist = distanceToBoundingBox(
+                        userLoc.getLatitude(), userLoc.getLongitude(),
+                        site.latitude, site.longitude,
+                        site.max_latitude, site.max_longtitude
+                );
+                float buffer = Math.min(userLoc.getAccuracy() * 0.75f, 150.0f);
+                if (boxDist <= (200.0f + buffer)) return site;
+            } else {
+                float dist = distanceBetween(
+                        userLoc.getLatitude(), userLoc.getLongitude(),
+                        site.latitude, site.longitude
+                );
+                float buffer = Math.min(userLoc.getAccuracy() * 0.75f, 150.0f);
+                if (dist <= (200.0f + buffer)) return site;
+            }
+        }
+        return null;
     }
 }
 

@@ -203,4 +203,28 @@ public final class SessionPrefs {
         }
         return out;
     }
+
+    private static final String KEY_CACHED_SITE_LOCATIONS = "cached_site_locations_json";
+
+    public void saveCachedSiteLocations(java.util.List<LocationModel> locations) {
+        if (locations == null || locations.isEmpty()) return;
+        try {
+            com.google.gson.Gson gson = new com.google.gson.Gson();
+            String json = gson.toJson(locations);
+            prefs.edit().putString(KEY_CACHED_SITE_LOCATIONS, json).apply();
+        } catch (Exception ignored) {}
+    }
+
+    public java.util.List<LocationModel> getCachedSiteLocations() {
+        java.util.List<LocationModel> list = new java.util.ArrayList<>();
+        String json = prefs.getString(KEY_CACHED_SITE_LOCATIONS, "");
+        if (TextUtils.isEmpty(json)) return list;
+        try {
+            com.google.gson.Gson gson = new com.google.gson.Gson();
+            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.List<LocationModel>>(){}.getType();
+            java.util.List<LocationModel> parsed = gson.fromJson(json, type);
+            if (parsed != null) list.addAll(parsed);
+        } catch (Exception ignored) {}
+        return list;
+    }
 }

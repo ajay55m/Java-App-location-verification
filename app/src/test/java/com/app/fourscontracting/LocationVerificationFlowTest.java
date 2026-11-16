@@ -209,4 +209,49 @@ public class LocationVerificationFlowTest {
         pm2.project_description = "Rathna Softnet Technology";
         assertEquals("RST - Rathna Softnet Technology", pm2.toString());
     }
+
+    @Test
+    public void testFindMatchingSiteWithBoundingBox() {
+        // Site 1: DF (No coordinates)
+        LocationModel site1 = new LocationModel();
+        site1.id = 16;
+        site1.project_code = "DF";
+        site1.location_name = "DF";
+        site1.latitude = 0.0;
+        site1.longitude = 0.0;
+
+        // Site 2: RST (Has bounding box geofence)
+        LocationModel site2 = new LocationModel();
+        site2.id = 12;
+        site2.project_code = "RST";
+        site2.location_name = "Rathna Softnet Technology";
+        site2.latitude = 8.1863155;
+        site2.longitude = 77.4254754;
+        site2.max_latitude = 8.1867250;
+        site2.max_longtitude = 77.4247289;
+
+        java.util.List<LocationModel> sites = java.util.Arrays.asList(site1, site2);
+
+        // Coordinates strictly inside RST
+        double insideLat = 8.186500;
+        double insideLng = 77.425000;
+        boolean inside = LocationVerifier.isWithinBoundingBox(
+                insideLat, insideLng,
+                site2.latitude, site2.longitude,
+                site2.max_latitude, site2.max_longtitude,
+                10.0f
+        );
+        assertTrue("Inside RST coordinates must match bounding box", inside);
+
+        // Coordinates far away (Fallback condition)
+        double farLat = 8.250000;
+        double farLng = 77.500000;
+        boolean farInside = LocationVerifier.isWithinBoundingBox(
+                farLat, farLng,
+                site2.latitude, site2.longitude,
+                site2.max_latitude, site2.max_longtitude,
+                15.0f
+        );
+        assertFalse("Far coordinates must not match, triggering fallback", farInside);
+    }
 }

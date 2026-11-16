@@ -4,6 +4,8 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
@@ -27,9 +29,11 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -57,6 +61,11 @@ public class LocationVerifyActivity extends AppCompatActivity {
     private FusedLocationProviderClient fusedLocationClient;
     private boolean isAutoStartVerify = false;
     private boolean hasStartedAutoVerify = false;
+
+    private boolean isAutoDetected = false;
+    private boolean isAutoDetecting = false;
+    private final List<LocationModel> cachedSiteLocations = new CopyOnWriteArrayList<>();
+    private final Handler autoDetectTimeoutHandler = new Handler(Looper.getMainLooper());
 
     private final Handler liveClockHandler = new Handler(Looper.getMainLooper());
     private final Runnable liveClockRunnable = new Runnable() {
@@ -147,7 +156,10 @@ public class LocationVerifyActivity extends AppCompatActivity {
 
         setupProjectSelection();
 
-        // Always load projects from server to populate dropdown spinner
+        // 1. Immediately begin background GPS acquisition for fast auto-verification (< 100ms)
+        startGpsPreAcquisition();
+
+        // 2. Always load projects from server to populate dropdown spinner and run auto-detection
         loadProjectsFromServer();
     }
 
@@ -179,22 +191,36 @@ public class LocationVerifyActivity extends AppCompatActivity {
     private void setupProjectSelection() {
         if (binding.myProjectSpinner == null) return;
         binding.myProjectSpinner.setOnClickListener(v -> {
+            if (isAutoDetecting) {
+                onAutoDetectFailed("Please choose your project manually from the dropdown.");
+            }
             if (!binding.myProjectSpinner.isPopupShowing()) {
                 binding.myProjectSpinner.showDropDown();
             }
         });
         binding.myProjectSpinner.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus && !binding.myProjectSpinner.isPopupShowing()) {
-                binding.myProjectSpinner.showDropDown();
+            if (hasFocus) {
+                if (isAutoDetecting) {
+                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
+                }
+                if (!binding.myProjectSpinner.isPopupShowing()) {
+                    binding.myProjectSpinner.showDropDown();
+                }
             }
         });
         if (binding.projectInputLayout != null) {
             binding.projectInputLayout.setOnClickListener(v -> {
+                if (isAutoDetecting) {
+                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
+                }
                 if (!binding.myProjectSpinner.isPopupShowing()) {
                     binding.myProjectSpinner.showDropDown();
                 }
             });
             binding.projectInputLayout.setEndIconOnClickListener(v -> {
+                if (isAutoDetecting) {
+                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
+                }
                 if (!binding.myProjectSpinner.isPopupShowing()) {
                     binding.myProjectSpinner.showDropDown();
                 }
@@ -202,12 +228,51 @@ public class LocationVerifyActivity extends AppCompatActivity {
         }
     }
 
+    private void startGpsPreAcquisition() {
+        if (!PermissionHelper.hasLocationPermission(this)) {
+            return;
+        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        fusedLocationClient.getLastLocation().addOnSuccessListener(loc -> {
+            if (loc != null && !isFinishing() && !isDestroyed()) {
+                long ageMs = System.currentTimeMillis() - loc.getTime();
+                if (ageMs < 120_000 && loc.getAccuracy() <= 150.0f) {
+                    gpsLocation = loc;
+                    updateGpsDisplay(loc);
+                    tryAutoMatchSite();
+                }
+            }
+        });
+
+        LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMinUpdateIntervalMillis(500)
+                .setMaxUpdates(2)
+                .setDurationMillis(8000)
+                .build();
+
+        fusedLocationClient.requestLocationUpdates(request, new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                fusedLocationClient.removeLocationUpdates(this);
+                Location loc = locationResult.getLastLocation();
+                if (loc != null && !isFinishing() && !isDestroyed()) {
+                    gpsLocation = loc;
+                    updateGpsDisplay(loc);
+                    tryAutoMatchSite();
+                }
+            }
+        }, Looper.getMainLooper());
+    }
+
     private void loadProjectsFromServer() {
         if (binding.progressProjectsLoading != null) {
             binding.progressProjectsLoading.setVisibility(View.VISIBLE);
         }
         if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Loading projects...");
+            binding.tvStatus.setText("Loading projects & detecting site...");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
@@ -228,63 +293,15 @@ public class LocationVerifyActivity extends AppCompatActivity {
                     binding.myProjectSpinner.setOnItemClickListener((parent, view, position, id) -> {
                         ProjectModel sel = (ProjectModel) parent.getItemAtPosition(position);
                         if (sel != null) {
-                            projectCode = sel.getProjectCode();
-                            selectedLocationName = sel.getLocationName();
-                            binding.myProjectSpinner.setText(sel.toString(), false);
-                            loadLocationsForProject(projectCode);
+                            onManualProjectSelected(sel);
                         }
                     });
 
-                    boolean isInitialOrChange = getIntent() != null && (
-                            getIntent().getBooleanExtra("IS_INITIAL_VERIFY", false) ||
-                            getIntent().getBooleanExtra("IS_CHANGE_SITE", false)
-                    );
-
-                    boolean foundPreselected = false;
-                    if (!isInitialOrChange && projectCode != null && !projectCode.trim().isEmpty()
-                            && !"Verified Site".equalsIgnoreCase(projectCode.trim())
-                            && !com.app.fourscontracting.data.AttendancePayload.isNumeric(projectCode.trim())) {
-                        for (ProjectModel p : list) {
-                            if (projectCode.equalsIgnoreCase(p.getProjectCode())) {
-                                projectCode = p.getProjectCode();
-                                selectedLocationName = p.getLocationName();
-                                binding.myProjectSpinner.setText(p.toString(), false);
-                                loadLocationsForProject(projectCode);
-                                foundPreselected = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!foundPreselected) {
-                        // User must select the project - remove default pre-selection
-                        projectCode = "";
-                        targetLocation = null;
-                        isAutoStartVerify = false;
-                        binding.myProjectSpinner.setText("", false);
-                        if (binding.tvStatus != null) {
-                            binding.tvStatus.setText("Please select a project to verify location");
-                            binding.tvStatus.setVisibility(View.VISIBLE);
-                        }
-                        if (binding.tvVerifyProjectLocation != null) {
-                            binding.tvVerifyProjectLocation.setText("Please select a project");
-                        }
-                        if (binding.tvDetails != null) {
-                            binding.tvDetails.setText("Select your working project from the dropdown above.");
-                            binding.tvDetails.setVisibility(View.VISIBLE);
-                        }
-                        if (binding.btnVerify != null) {
-                            binding.btnVerify.setEnabled(false);
-                            binding.btnVerify.setText("SELECT PROJECT FIRST");
-                        }
-                        binding.myProjectSpinner.post(() -> {
-                            if (!isFinishing() && !isDestroyed()) {
-                                binding.myProjectSpinner.showDropDown();
-                            }
-                        });
-                    }
+                    // Kick off Auto Location Detection with the project list
+                    startAutoLocationDetection(list);
                 } else {
                     showError("No projects available");
+                    onAutoDetectFailed("No projects configured on server.");
                 }
             }
 
@@ -294,8 +311,240 @@ public class LocationVerifyActivity extends AppCompatActivity {
                     binding.progressProjectsLoading.setVisibility(View.GONE);
                 }
                 showError("Failed to load projects: " + t.getMessage());
+                onAutoDetectFailed("Network error loading projects. Select manually.");
             }
         });
+    }
+
+    private void startAutoLocationDetection(List<ProjectModel> list) {
+        if (isAutoDetected) return;
+        isAutoDetecting = true;
+
+        if (binding.cardAutoDetectBanner != null) {
+            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
+            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#F0F9FF"));
+            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#BAE6FD"));
+            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
+            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#0284C7")));
+            binding.tvAutoDetectTitle.setText("Auto-Detecting Site...");
+            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#03045E"));
+            binding.tvAutoDetectDesc.setText("Checking your current GPS location against site geofences...");
+            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#0077B6"));
+        }
+
+        // Load cached site locations from local storage
+        cachedSiteLocations.clear();
+        List<LocationModel> saved = sessionPrefs.getCachedSiteLocations();
+        if (saved != null && !saved.isEmpty()) {
+            cachedSiteLocations.addAll(saved);
+        }
+
+        // Immediate check if GPS and cached locations are available (< 50ms)
+        if (gpsLocation != null && !cachedSiteLocations.isEmpty()) {
+            tryAutoMatchSite();
+            if (isAutoDetected) return;
+        }
+
+        // Prewarm locations from candidate projects
+        prewarmCandidateSiteLocations(list);
+
+        // Failsafe timeout: if not auto-detected within 3 seconds, gracefully fallback to manual selection
+        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
+        autoDetectTimeoutHandler.postDelayed(() -> {
+            if (isAutoDetecting && !isAutoDetected) {
+                onAutoDetectFailed("Could not auto-detect site at current location. Please select your project below.");
+            }
+        }, 3000);
+    }
+
+    private void prewarmCandidateSiteLocations(List<ProjectModel> list) {
+        if (list == null || list.isEmpty()) return;
+
+        for (ProjectModel p : list) {
+            final String code = p.getProjectCode();
+            if (code.isEmpty()) continue;
+
+            boolean alreadyCached = false;
+            for (LocationModel loc : cachedSiteLocations) {
+                if (code.equalsIgnoreCase(loc.getProjectCode())) {
+                    alreadyCached = true;
+                    break;
+                }
+            }
+
+            if (!alreadyCached) {
+                ApiClient.getService().getLocations(code).enqueue(new Callback<List<LocationModel>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<List<LocationModel>> call, @NonNull Response<List<LocationModel>> resp) {
+                        List<LocationModel> locs = resp.body();
+                        if (locs != null && !locs.isEmpty()) {
+                            for (LocationModel lm : locs) {
+                                if (lm != null) {
+                                    if (lm.project_code == null || lm.project_code.isEmpty()) {
+                                        lm.project_code = code;
+                                    }
+                                    cachedSiteLocations.add(lm);
+                                }
+                            }
+                            sessionPrefs.saveCachedSiteLocations(new ArrayList<>(cachedSiteLocations));
+                            if (isAutoDetecting && !isAutoDetected) {
+                                tryAutoMatchSite();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<List<LocationModel>> call, @NonNull Throwable t) {
+                        // Ignore individual failure during prewarm
+                    }
+                });
+            }
+        }
+    }
+
+    private synchronized void tryAutoMatchSite() {
+        if (isAutoDetected || isFinishing() || isDestroyed()) return;
+        if (gpsLocation == null || cachedSiteLocations.isEmpty()) return;
+
+        LocationModel matched = LocationVerifier.findMatchingSite(gpsLocation, new ArrayList<>(cachedSiteLocations));
+        if (matched != null) {
+            onSiteAutoDetected(matched);
+        }
+    }
+
+    private void onSiteAutoDetected(LocationModel matched) {
+        if (isFinishing() || isDestroyed()) return;
+        isAutoDetected = true;
+        isAutoDetecting = false;
+        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
+
+        targetLocation = matched;
+        locationId = matched.id;
+        projectCode = matched.getProjectCode();
+        selectedLocationName = matched.getLocationName();
+
+        // 1. Banner to Green (Success)
+        if (binding.cardAutoDetectBanner != null) {
+            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
+            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#ECFDF5"));
+            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#A7F3D0"));
+            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
+            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#059669")));
+            binding.tvAutoDetectTitle.setText("Site Auto-Detected");
+            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#065F46"));
+            String siteDisplay = matched.getLocationName();
+            if (!matched.getProjectCode().isEmpty() && !matched.getProjectCode().equalsIgnoreCase(siteDisplay)) {
+                siteDisplay += " (" + matched.getProjectCode() + ")";
+            }
+            binding.tvAutoDetectDesc.setText("You are at " + siteDisplay + ". Tap Confirm below or select another project.");
+            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#047857"));
+        }
+
+        // 2. Pre-select in the Dropdown (still editable!)
+        if (binding.myProjectSpinner != null) {
+            String displayDropdown = matched.getProjectCode();
+            if (!matched.getLocationName().isEmpty()) {
+                displayDropdown += " - " + matched.getLocationName();
+            }
+            binding.myProjectSpinner.setText(displayDropdown, false);
+        }
+
+        if (binding.tvVerifyProjectLocation != null) {
+            binding.tvVerifyProjectLocation.setText(matched.getLocationName() + " (" + matched.getProjectCode() + ")");
+        }
+        if (binding.tvDetails != null) {
+            binding.tvDetails.setText("Site: " + matched.getLocationName() + "\nProject: " + matched.getProjectCode() + (matched.hasBoundingBox() ? " (GPS Geofenced)" : ""));
+            binding.tvDetails.setVisibility(View.VISIBLE);
+        }
+
+        // 3. Update Progress & Status
+        if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
+        if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
+        if (binding.tvStatus != null) {
+            binding.tvStatus.setText("Site detected via GPS: " + matched.getLocationName());
+            binding.tvStatus.setVisibility(View.VISIBLE);
+        }
+
+        // 4. Update Button to Confirm
+        if (binding.btnVerify != null) {
+            binding.btnVerify.setText("CONFIRM & CONTINUE");
+            binding.btnVerify.setEnabled(true);
+            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#0284C7")));
+            binding.btnVerify.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void onAutoDetectFailed(String reason) {
+        if (isFinishing() || isDestroyed() || isAutoDetected) return;
+        isAutoDetecting = false;
+        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
+
+        // 1. Update the Banner to Amber (Informative Fallback)
+        if (binding.cardAutoDetectBanner != null) {
+            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
+            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#FFFBEB"));
+            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#FDE68A"));
+            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_info_circle_24);
+            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#D97706")));
+            binding.tvAutoDetectTitle.setText("Manual Project Selection");
+            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#92400E"));
+            binding.tvAutoDetectDesc.setText(reason != null ? reason : "Could not auto-detect site at current location. Please select your project below.");
+            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#B45309"));
+        }
+
+        // 2. Guide user to Manual Dropdown
+        if (binding.tvStatus != null) {
+            binding.tvStatus.setText("Please select your project from the dropdown");
+            binding.tvStatus.setVisibility(View.VISIBLE);
+        }
+        if (binding.tvDetails != null) {
+            binding.tvDetails.setText("Select your working project from the dropdown above.");
+            binding.tvDetails.setVisibility(View.VISIBLE);
+        }
+
+        // 3. Reset Button for manual verification
+        if (targetLocation == null) {
+            if (binding.btnVerify != null) {
+                binding.btnVerify.setText("SELECT PROJECT FIRST");
+                binding.btnVerify.setEnabled(false);
+                binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
+            }
+            binding.myProjectSpinner.post(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    binding.myProjectSpinner.showDropDown();
+                }
+            });
+        }
+    }
+
+    private void onManualProjectSelected(ProjectModel sel) {
+        isAutoDetecting = false;
+        isAutoDetected = false;
+        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
+
+        projectCode = sel.getProjectCode();
+        selectedLocationName = sel.getLocationName();
+        binding.myProjectSpinner.setText(sel.toString(), false);
+
+        if (binding.cardAutoDetectBanner != null) {
+            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
+            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#F8FAFC"));
+            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#E2E8F0"));
+            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
+            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
+            binding.tvAutoDetectTitle.setText("Selected Site: " + (!selectedLocationName.isEmpty() ? selectedLocationName : projectCode));
+            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#03045E"));
+            binding.tvAutoDetectDesc.setText("Tap VERIFY GPS CHECK below to verify your location.");
+            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#64748B"));
+        }
+
+        if (binding.btnVerify != null) {
+            binding.btnVerify.setEnabled(false);
+            binding.btnVerify.setText("LOADING LOCATION...");
+            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
+        }
+
+        loadLocationsForProject(projectCode);
     }
 
     private void loadLocationsForProject(String pCode) {
@@ -364,6 +613,18 @@ public class LocationVerifyActivity extends AppCompatActivity {
         targetLocation = loc;
         locationId = loc.id;
 
+        boolean alreadyCached = false;
+        for (LocationModel lm : cachedSiteLocations) {
+            if (lm.id == loc.id) {
+                alreadyCached = true;
+                break;
+            }
+        }
+        if (!alreadyCached) {
+            cachedSiteLocations.add(loc);
+            sessionPrefs.saveCachedSiteLocations(new ArrayList<>(cachedSiteLocations));
+        }
+
         if (binding.tvDetails != null) {
             String boundedTag = loc.hasBoundingBox() ? " (GPS Geofenced)" : "";
             binding.tvDetails.setText("Site: " + loc.location_name + "\nProject: " + projectCode + boundedTag);
@@ -382,6 +643,7 @@ public class LocationVerifyActivity extends AppCompatActivity {
             binding.btnVerify.setText("VERIFY GPS CHECK");
             binding.btnVerify.setEnabled(true);
             binding.btnVerify.setVisibility(View.VISIBLE);
+            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
         }
 
         if (isAutoStartVerify && !hasStartedAutoVerify && targetLocation != null && projectCode != null && !projectCode.trim().isEmpty()) {
@@ -395,6 +657,11 @@ public class LocationVerifyActivity extends AppCompatActivity {
     }
 
     private void onVerifyClicked() {
+        if (isAutoDetected && targetLocation != null && gpsLocation != null) {
+            completeVerification(targetLocation, gpsLocation);
+            return;
+        }
+
         if (targetLocation == null || projectCode == null || projectCode.trim().isEmpty()) {
             showError("Please select a project from the dropdown first");
             if (binding.myProjectSpinner != null && !binding.myProjectSpinner.isPopupShowing()) {
@@ -590,16 +857,20 @@ public class LocationVerifyActivity extends AppCompatActivity {
         }
 
         // Within geofence! Location is verified
+        completeVerification(targetLocation, loc);
+    }
+
+    private void completeVerification(LocationModel loc, Location gps) {
+        if (loc == null || gps == null) return;
         if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
         if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
         if (binding.tvStatus != null) {
-            String distMsg = (distance <= 5.0f) ? "Inside site boundary" : ((int) distance + "m from boundary");
-            binding.tvStatus.setText("Location Verified! (" + distMsg + ")");
+            binding.tvStatus.setText("Location Verified!");
             binding.tvStatus.setVisibility(View.VISIBLE);
         }
 
-        String verifiedSiteName = targetLocation.location_name != null && !targetLocation.location_name.isEmpty()
-                ? targetLocation.location_name
+        String verifiedSiteName = loc.location_name != null && !loc.location_name.isEmpty()
+                ? loc.location_name
                 : projectCode;
 
         SessionPrefs sessionPrefs = new SessionPrefs(this);
@@ -651,9 +922,9 @@ public class LocationVerifyActivity extends AppCompatActivity {
             punchIntent.putExtra("project_code", projectCode);
             punchIntent.putExtra("project_name", verifiedSiteName);
             punchIntent.putExtra("location_name", verifiedSiteName);
-            punchIntent.putExtra("lat", loc.getLatitude());
-            punchIntent.putExtra("lng", loc.getLongitude());
-            punchIntent.putExtra("gps_accuracy", loc.getAccuracy());
+            punchIntent.putExtra("lat", gps.getLatitude());
+            punchIntent.putExtra("lng", gps.getLongitude());
+            punchIntent.putExtra("gps_accuracy", gps.getAccuracy());
             startActivity(punchIntent);
         }
 
@@ -736,5 +1007,6 @@ public class LocationVerifyActivity extends AppCompatActivity {
         super.onDestroy();
         isVerificationActive = false;
         liveClockHandler.removeCallbacks(liveClockRunnable);
+        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
     }
 }

@@ -26,6 +26,16 @@ public class LocationModel {
         return location_name != null ? location_name : "";
     }
 
+    public String getProjectCode() {
+        if (project_code != null && !project_code.trim().isEmpty()) {
+            return project_code.trim();
+        }
+        if (projectid != null && !projectid.trim().isEmpty()) {
+            return projectid.trim();
+        }
+        return "";
+    }
+
     public boolean hasBoundingBox() {
         return Math.abs(max_latitude) > 0.0001 && Math.abs(max_longtitude) > 0.0001;
     }

@@ -265,6 +265,65 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
+                    <!-- Auto Location Detection Status Banner -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardAutoDetectBanner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="#F0F9FF"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#BAE6FD"
+                        app:strokeWidth="1.5dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="14dp"
+                            android:paddingTop="12dp"
+                            android:paddingEnd="14dp"
+                            android:paddingBottom="12dp">
+
+                            <ImageView
+                                android:id="@+id/imgAutoDetectIcon"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_marginEnd="10dp"
+                                android:src="@drawable/ic_target_gps_24"
+                                app:tint="#0284C7" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tvAutoDetectTitle"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="sans-serif-black"
+                                    android:text="Site Auto-Detected"
+                                    android:textColor="#03045E"
+                                    android:textSize="13sp" />
+
+                                <TextView
+                                    android:id="@+id/tvAutoDetectDesc"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:fontFamily="sans-serif"
+                                    android:text="You are on site. Tap Confirm below or select another project."
+                                    android:textColor="#0077B6"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                     <!-- Project Dropdown Field -->
                     <FrameLayout
                         android:layout_width="match_parent"
