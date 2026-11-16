@@ -10,13 +10,13 @@ public class LocationVerificationFlowTest {
 
     @Test
     public void testInitialLaunchAutoVerifyFlags() {
-        // Initial launch requires supervisor to select project first (no default project preselection).
-        // AUTO_START_VERIFY = false, IS_CHANGE_SITE = false, IS_INITIAL_VERIFY = true
+        // Initial launch auto-verifies supervisor location on site using baseline auto-verification UI.
+        // AUTO_START_VERIFY = true, IS_CHANGE_SITE = false, IS_INITIAL_VERIFY = true
         boolean isInitialVerify = true;
         boolean isChangeSite = false;
-        boolean isAutoStartVerify = false; // User must select project first before verifying GPS
+        boolean isAutoStartVerify = true; // Auto-verify on site immediately
 
-        assertFalse("Initial launch must not auto-start verification before project is selected", isAutoStartVerify);
+        assertTrue("Initial launch must auto-start verification for seamless workflow", isAutoStartVerify);
         assertFalse("Initial launch must not force manual change site mode", isChangeSite);
         assertTrue("Initial launch must set initial verify flag", isInitialVerify);
     }

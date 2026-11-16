@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#F4FAFC"
+    android:gravity="center_horizontal">
+
+    <!-- Top Navigation Header Bar -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp">
+
+        <ImageView
+            android:id="@+id/btn_dialog_back"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_baseline_arrow_back_24"
+            app:tint="#03045E" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.06"
+            android:text="PROFILE VIEW"
+            android:textColor="#0077B6"
+            android:textSize="12sp" />
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_baseline_more_vert_24"
+            app:tint="#03045E" />
+    </RelativeLayout>
+
+    <!-- Large Circular Avatar Container (Labour Page Cyan Border & Light Blue BG) -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="136dp"
+        android:layout_height="136dp"
+        android:layout_marginBottom="18dp"
+        app:cardBackgroundColor="#E0F2FE"
+        app:cardCornerRadius="68dp"
+        app:cardElevation="6dp"
+        app:strokeColor="#0EA5E9"
+        app:strokeWidth="3dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/img_dialog_fallback"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_baseline_person_24"
+                app:tint="#03045E" />
+
+            <ImageView
+                android:id="@+id/img_dialog_photo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Person Name (e.g. Ajjj (You) in Deep Navy) -->
+    <TextView
+        android:id="@+id/tv_dialog_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:text="Name (You)"
+        android:textColor="#03045E"
+        android:textSize="22sp"
+        android:textAlignment="center"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Subtitle / ID -->
+    <TextView
+        android:id="@+id/tv_dialog_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:text="Worker ID: #--"
+        android:textColor="#64748B"
+        android:textSize="13sp"
+        android:textAlignment="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Location Tag -->
+    <TextView
+        android:id="@+id/tv_dialog_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chip"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="10dp"
+        android:text="Location: --"
+        android:textColor="#0077B6"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

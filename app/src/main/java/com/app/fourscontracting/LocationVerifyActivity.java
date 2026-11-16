@@ -1,999 +1,636 @@
 package com.app.fourscontracting;
 
 import android.Manifest;
+// ProgressDialog removed
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
+import android.net.Uri;
 import android.location.Location;
+import android.location.LocationManager;
+import android.location.LocationListener;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.text.TextUtils;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.Filter;
+import android.widget.ProgressBar;
+import android.widget.Toast;
+import android.widget.TextView;
+import android.widget.ImageView;
 import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.airbnb.lottie.LottieAnimationView;
+import java.util.Collections;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import com.app.fourscontracting.databinding.ActivityLocationVerifyBinding;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
+import com.android.volley.Request;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 
-import java.text.SimpleDateFormat;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
-public class LocationVerifyActivity extends AppCompatActivity {
-
-    private static final String TAG = "LocationVerifyActivity";
-    private static final int REQUEST_LOCATION_PERMISSION = 1001;
-
+public class LocationVerifyActivity extends AppActivity {
     private static volatile boolean isVerificationActive = false;
 
     public static boolean isVerificationActive() {
         return isVerificationActive;
     }
 
-    private ActivityLocationVerifyBinding binding;
-    private SessionManager session;
-    private SessionPrefs sessionPrefs;
-    private LocationModel targetLocation;
-    private Location gpsLocation;
-    private String projectCode = "";
-    private String selectedLocationName = "";
-    private int locationId = 0;
-    private FusedLocationProviderClient fusedLocationClient;
-    private boolean isAutoStartVerify = false;
+    MaterialAutoCompleteTextView myProjectSpinner;
+    Button btnVerify;
+    private ProgressBar progressProjectsLoading;
+    private TextView tvGpsLat;
+    private TextView tvGpsLng;
+    private TextView tvVerifyProgressPct;
+    private ProgressBar progressVerifyBar;
+
+    private void updateGpsDisplay(Location loc) {
+        if (loc == null) return;
+        runOnUiThread(() -> {
+            if (tvGpsLat != null) {
+                tvGpsLat.setText(String.format(Locale.US, "+%.5f° N", loc.getLatitude()));
+            }
+            if (tvGpsLng != null) {
+                tvGpsLng.setText(String.format(Locale.US, "+%.5f° E", loc.getLongitude()));
+            }
+            if (tvVerifyProgressPct != null && progressVerifyBar != null) {
+                int pct = Math.min(100, (int) (100.0f * Math.min(1.0f, 50.0f / Math.max(1.0f, loc.getAccuracy()))));
+                pct = Math.max(30, pct);
+                tvVerifyProgressPct.setText(pct + "%");
+                progressVerifyBar.setProgress(pct);
+            }
+        });
+    }
+    List<JSONObject> locationData = new ArrayList<>();
+    String empId = "", empName = "", projectId = "", deptId = "", type = "IN", managerUid = "";
+    String selectedProjectId = "";
+    private String moveId = "";
+    private String attendId = "";
+    private boolean isMovement = false;
+    private boolean isInitialVerify = false;
+    private boolean isChangeSite = false;
     private boolean hasStartedAutoVerify = false;
+    private boolean hasCompletedVerification = false;
+    private String lockedLocationId = null;
+    private FusedLocationProviderClient fusedLocationClient;
+    private LoadingManager loadingManager;
 
-    private boolean isAutoDetected = false;
-    private boolean isAutoDetecting = false;
-    private final List<LocationModel> cachedSiteLocations = new CopyOnWriteArrayList<>();
-    private final Handler autoDetectTimeoutHandler = new Handler(Looper.getMainLooper());
+    // Hybrid Sampling System Fields
+    private final List<Location> locationSamples = new ArrayList<>();
+    private boolean isSampling = false;
+    /** Max GPS reported-accuracy to accept a fix (lower = stricter). Raised to 350m to handle indoor / initial cell-tower fixes during site matching. */
+    private static final float ACCURACY_GUARD = 350.0f;
+    /** Base geofence radius in metres. */
+    private static final float GEOFENCE_RADIUS_M = 50.0f;
+    /** Extra buffer added to the geofence radius equal to GPS accuracy (capped). Raised so jitter on 1st/2nd attempt does not cause false failures. */
+    private static final float GEOFENCE_ACCURACY_BUFFER_CAP_M = 35.0f;
+    /** Total sampling window in ms. Reduced to 3s failsafe timeout max for single verification. */
+    private static final long SAMPLING_DURATION = 3000;
+    /** Early-exit accuracy threshold (lower = better fix). Relaxed to 120m for realistic single mobile GPS verification. */
+    private static final float EARLY_EXIT_ACCURACY_M = 120.0f;
+    /** Require only 1 good sample to early-exit — waiting for 2 was causing timeouts. */
+    private static final int EARLY_EXIT_MIN_GOOD_SAMPLES = 1;
+    private int goodAccuracySampleCount = 0;
+    private LocationCallback locationCallback;
+    /** Separate callback for silent GPS pre-warm — runs from onCreate until Verify is tapped. */
+    private LocationCallback warmUpCallback;
+    private android.os.Handler samplingHandler;
+    private Runnable samplingTimeoutRunnable;
 
-    private final Handler liveClockHandler = new Handler(Looper.getMainLooper());
+    // Fallback LocationManager tracking fields
+    private LocationManager fallbackLocationManager;
+    private LocationListener fallbackListener;
+    private Runnable fallbackTimeoutRunnable;
+    private android.os.CountDownTimer countDownTimer;
+
+    private void cancelCountDown() {
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
+    }
+
+    private void stopProgressAnimation() {
+        if (verifyProgress != null) {
+            verifyProgress.clearAnimation();
+            android.view.View icon = verifyProgress.findViewById(R.id.construction_icon);
+            if (icon != null) {
+                icon.clearAnimation();
+            }
+        }
+    }
+
+    // Blueprint Overlay Fields
+    private View inputSelectionCard;
+    private View blueprintOverlay;
+    private android.view.View verifyProgress;
+    private android.widget.ImageView verifyStatusIcon;
+    private android.view.View verifyStatusBadge;
+    private TextView blueprintStatus;
+    private TextView tvAccuracyBadge;
+    private TextView tvSelectedLocation;
+    private View containerSuccess, containerFailure;
+    private Button btnBlueprintProceed, btnBlueprintRetry, btnBlueprintLeave, btnBlueprintReselect;
+
+    private TextView tvVerifyUserName;
+    private TextView tvVerifyDateTime;
+    private TextView tvVerifyProjectLocation;
+    private TextView tvBlueprintEmpName;
+    private TextView tvBlueprintDateTime;
+    private TextView tvBlueprintProjectLocation;
+    private View cardBlueprintEmpAvatar;
+    private ImageView imgBlueprintEmpPhoto;
+    private View imgBlueprintEmpAvatarFallback;
+    private TextView tvBlueprintEmpSubtitle;
+    private String photoUrl = "";
+    private final android.os.Handler liveClockHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable liveClockRunnable = new Runnable() {
         @Override
         public void run() {
-            String currentDateTime = new SimpleDateFormat("EEE, dd MMM yyyy | hh:mm:ss a", Locale.getDefault()).format(new Date());
-            if (binding != null && binding.tvVerifyDatetime != null) {
-                binding.tvVerifyDatetime.setText(currentDateTime);
+            String currentDateTime = new java.text.SimpleDateFormat("EEE, dd MMM yyyy | hh:mm:ss a", java.util.Locale.getDefault()).format(new java.util.Date());
+            if (tvVerifyDateTime != null) {
+                tvVerifyDateTime.setText(currentDateTime);
+            }
+            if (tvBlueprintDateTime != null) {
+                tvBlueprintDateTime.setText(currentDateTime);
             }
             liveClockHandler.postDelayed(this, 1000);
         }
     };
 
+    private boolean isAutoStartVerify = false;
+    private static final int REQUEST_CAPTURE_PHOTO = 1002;
+    private String targetLocationId = null;
+    private String pendingEid = null;
+    private String pendingAction = null;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("saved_emp_id", empId);
+        outState.putString("saved_emp_name", empName);
+        outState.putString("saved_photo_url", photoUrl);
+        outState.putString("saved_project_id", projectId);
+        outState.putString("saved_dept_id", deptId);
+        outState.putString("saved_type", type);
+        outState.putString("saved_selected_project_id", selectedProjectId);
+        outState.putString("saved_manager_uid", managerUid);
+        outState.putBoolean("saved_is_initial_verify", isInitialVerify);
+        outState.putString("saved_locked_location_id", lockedLocationId);
+        outState.putBoolean("saved_is_auto_start_verify", isAutoStartVerify);
+        outState.putBoolean("saved_has_started_auto_verify", hasStartedAutoVerify);
+        outState.putBoolean("saved_has_completed_verification", hasCompletedVerification);
+        outState.putString("saved_target_location_id", targetLocationId);
+        outState.putString("saved_pending_eid", pendingEid);
+        outState.putString("saved_pending_action", pendingAction);
+        outState.putString("saved_move_id", moveId);
+        outState.putString("saved_attend_id", attendId);
+        outState.putBoolean("saved_is_movement", isMovement);
+    }
+
+    private void getIncomingData() {
+        Intent intent = getIntent();
+        if (intent != null) {
+            isInitialVerify = intent.getBooleanExtra("IS_INITIAL_VERIFY", false);
+            isChangeSite = intent.getBooleanExtra("IS_CHANGE_SITE", false)
+                    || intent.getBooleanExtra("FROM_CHANGE_SITE", false);
+            lockedLocationId = intent.getStringExtra("LOCKED_LOCATION_ID");
+            targetLocationId = intent.getStringExtra("target_location_id");
+            pendingEid = intent.getStringExtra("pending_eid");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("empid");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("emp_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("employee_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("worker_id");
+            if (pendingEid == null || pendingEid.isEmpty()) pendingEid = intent.getStringExtra("labour_id");
+
+            pendingAction = intent.getStringExtra("pending_action");
+            lockedLocationId = targetLocationId != null ? targetLocationId : lockedLocationId;
+            selectedProjectId = intent.getStringExtra("selected_project_id");
+
+            boolean sessionValid = new SessionPrefs(this).isLocationSessionValid();
+            boolean isPunchAction = (pendingAction != null && !pendingAction.trim().isEmpty())
+                    || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
+
+            if (isChangeSite) {
+                isAutoStartVerify = false;
+            } else if (sessionValid && !isPunchAction) {
+                isAutoStartVerify = false;
+            } else if (intent.hasExtra("AUTO_START_VERIFY")) {
+                isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false);
+            } else if (isPunchAction) {
+                isAutoStartVerify = true;
+            } else if (!sessionValid) {
+                isAutoStartVerify = true;
+            } else {
+                isAutoStartVerify = false;
+            }
+
+            empId = intent.getStringExtra("empid");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("pending_eid");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("emp_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("employee_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("worker_id");
+            if (empId == null || empId.isEmpty()) empId = intent.getStringExtra("labour_id");
+            if (empId == null) empId = "";
+
+            managerUid = intent.getStringExtra("uid");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("user_id");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("userid");
+            if (managerUid == null || managerUid.isEmpty()) managerUid = intent.getStringExtra("manager_uid");
+            if (managerUid == null) managerUid = "";
+
+            empName = intent.getStringExtra("emp_name");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("empname");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("employee_name");
+            if (empName == null || empName.isEmpty()) empName = intent.getStringExtra("name");
+            if (empName == null) empName = "";
+
+            photoUrl = intent.getStringExtra("photo_url");
+            if (photoUrl == null || photoUrl.isEmpty()) photoUrl = intent.getStringExtra("photo");
+            if (photoUrl == null || photoUrl.isEmpty()) photoUrl = intent.getStringExtra("emp_photo");
+            if ((photoUrl == null || photoUrl.isEmpty()) && empId != null && !empId.isEmpty()) {
+                photoUrl = com.app.fourscontracting.data.ApiConfig.SUBCONTRACTOR + "/get_photo.php?id=" + empId;
+            }
+            projectId = intent.getStringExtra("projname") != null ? intent.getStringExtra("projname") : "";
+            type = intent.getStringExtra("type") != null ? intent.getStringExtra("type") : "IN";
+            moveId = intent.getStringExtra("move_id") != null ? intent.getStringExtra("move_id")
+                    : (intent.getStringExtra("moveid") != null ? intent.getStringExtra("moveid") : "");
+            attendId = intent.getStringExtra("attend_id") != null ? intent.getStringExtra("attend_id")
+                    : (intent.getStringExtra("attendance_id") != null ? intent.getStringExtra("attendance_id") : "");
+            if (intent.hasExtra("is_movement")) {
+                isMovement = intent.getBooleanExtra("is_movement", false);
+            } else {
+                isMovement = "MOVE".equalsIgnoreCase(type);
+            }
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (isVerificationActive) {
-            Log.w(TAG, "LocationVerifyActivity already active, dismissing duplicate instance.");
+            Log.w("LOCATION_VERIFY", "LocationVerifyActivity already active, dismissing duplicate instance.");
             finish();
             return;
         }
         isVerificationActive = true;
+        try {
+            setContentView(R.layout.activity_location_verify);
 
-        session = new SessionManager(this);
-        sessionPrefs = new SessionPrefs(this);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        // Check if location session is already valid for today (prevents showing multiple times)
-        Intent intent = getIntent();
-        boolean isChangeSite = intent != null && intent.getBooleanExtra("IS_CHANGE_SITE", false);
-
-        if (sessionPrefs.isLocationSessionValid() && !isChangeSite) {
-            Log.d(TAG, "Location session already valid for today. Finishing immediately.");
-            Intent resultIntent = new Intent();
-            String savedId = sessionPrefs.getLocationId();
-            String savedName = sessionPrefs.getProjectName();
-            resultIntent.putExtra("location_id", savedId);
-            resultIntent.putExtra("project_id", sessionPrefs.getProjectId());
-            resultIntent.putExtra("projname", savedName);
-            resultIntent.putExtra("project_name", savedName);
-            resultIntent.putExtra("location_name", savedName);
-            resultIntent.putExtra("VERIFIED", "true");
-            resultIntent.putExtra("VERIFICATION_TOKEN", sessionPrefs.getVerificationToken());
-            setResult(RESULT_OK, resultIntent);
-            isVerificationActive = false;
-            finish();
-            return;
-        }
-
-        binding = ActivityLocationVerifyBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        initHeaderInfo();
-
-        if (intent != null) {
-            isAutoStartVerify = intent.getBooleanExtra("AUTO_START_VERIFY", false);
-            projectCode = intent.getStringExtra("project_code");
-            if (projectCode == null || projectCode.isEmpty()) {
-                projectCode = intent.getStringExtra("projname");
-            }
-            if (projectCode == null || projectCode.isEmpty()) {
-                projectCode = intent.getStringExtra("project_name");
-            }
-            if (projectCode == null || projectCode.isEmpty()) {
-                projectCode = intent.getStringExtra("selected_project_id");
-            }
-            locationId = intent.getIntExtra("location_id", 0);
-            if (locationId == 0) {
-                String locStr = intent.getStringExtra("location_id");
-                if (locStr != null && !locStr.isEmpty()) {
-                    try { locationId = Integer.parseInt(locStr); } catch (Exception ignored) {}
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                getWindow().setStatusBarColor(android.graphics.Color.parseColor("#F8FAFC"));
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
                 }
             }
-            if (intent.hasExtra("location_name")) {
-                String ln = intent.getStringExtra("location_name");
-                if (ln != null && !ln.trim().isEmpty()) {
-                    selectedLocationName = ln.trim();
-                }
+
+            myProjectSpinner = findViewById(R.id.myProjectSpinner);
+            btnVerify = findViewById(R.id.btnVerify);
+            inputSelectionCard = findViewById(R.id.inputSelectionCard);
+            progressProjectsLoading = findViewById(R.id.progress_projects_loading);
+            tvVerifyUserName = findViewById(R.id.tv_verify_user_name);
+            tvVerifyDateTime = findViewById(R.id.tv_verify_datetime);
+            tvVerifyProjectLocation = findViewById(R.id.tv_verify_project_location);
+            tvGpsLat = findViewById(R.id.tv_gps_lat);
+            tvGpsLng = findViewById(R.id.tv_gps_lng);
+            tvVerifyProgressPct = findViewById(R.id.tv_verify_progress_pct);
+            progressVerifyBar = findViewById(R.id.progress_verify_bar);
+
+            bindVerifyUserInfo();
+            startLiveClock();
+
+            if (myProjectSpinner == null || btnVerify == null) {
+                throw new NullPointerException("XML Error: myProjectSpinner or btnVerify not found in activity_location_verify.xml");
             }
-        }
 
-        // Initialize single button - prompt user to select project first
-        if (binding.btnVerify != null) {
-            binding.btnVerify.setText("SELECT PROJECT FIRST");
-            binding.btnVerify.setEnabled(false);
-            binding.btnVerify.setOnClickListener(v -> onVerifyClicked());
-        }
-
-        setupProjectSelection();
-
-        // 1. Immediately begin background GPS acquisition for fast auto-verification (< 100ms)
-        startGpsPreAcquisition();
-
-        // 2. Always load projects from server to populate dropdown spinner and run auto-detection
-        loadProjectsFromServer();
-    }
-
-    private void initHeaderInfo() {
-        if (binding.tvVerifyUserName != null) {
-            String u = session.getEmpName();
-            if (u == null || u.trim().isEmpty()) {
-                u = session.getUsername();
+            if (savedInstanceState != null) {
+                empId = savedInstanceState.getString("saved_emp_id", "");
+                empName = savedInstanceState.getString("saved_emp_name", "");
+                photoUrl = savedInstanceState.getString("saved_photo_url", "");
+                projectId = savedInstanceState.getString("saved_project_id", "");
+                deptId = savedInstanceState.getString("saved_dept_id", "");
+                type = savedInstanceState.getString("saved_type", "IN");
+                selectedProjectId = savedInstanceState.getString("saved_selected_project_id", "");
+                managerUid = savedInstanceState.getString("saved_manager_uid", "");
+                isInitialVerify = savedInstanceState.getBoolean("saved_is_initial_verify", false);
+                lockedLocationId = savedInstanceState.getString("saved_locked_location_id", null);
+                isAutoStartVerify = savedInstanceState.getBoolean("saved_is_auto_start_verify", false);
+                hasStartedAutoVerify = savedInstanceState.getBoolean("saved_has_started_auto_verify", false);
+                hasCompletedVerification = savedInstanceState.getBoolean("saved_has_completed_verification", false);
+                targetLocationId = savedInstanceState.getString("saved_target_location_id", null);
+                pendingEid = savedInstanceState.getString("saved_pending_eid", null);
+                pendingAction = savedInstanceState.getString("saved_pending_action", null);
+                moveId = savedInstanceState.getString("saved_move_id", "");
+                attendId = savedInstanceState.getString("saved_attend_id", "");
+                isMovement = savedInstanceState.getBoolean("saved_is_movement", false);
+            } else {
+                getIncomingData();
             }
-            if (u == null || u.trim().isEmpty()) {
-                try {
-                    User user = new UserLocalStore(this).getLoggedInUser();
-                    if (user != null) {
-                        u = user.displayName;
-                        if (u == null || u.trim().isEmpty()) {
-                            String[] parts = UserLocalStore.parseUserInfo(user.username);
-                            if (parts.length > 2 && !parts[2].trim().isEmpty()) {
-                                u = parts[2].trim();
-                            }
-                        }
+
+            SessionPrefs session = new SessionPrefs(this);
+            boolean isPunchActionInOnCreate = (pendingAction != null && !pendingAction.trim().isEmpty())
+                    || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
+
+            if (session.isLocationSessionValid() && !isChangeSite) {
+                if (isPunchActionInOnCreate) {
+                    Log.d("LOCATION_VERIFY", "Location session already valid. Bypassing location re-scan for punch action.");
+                    String freshToken = session.issueFreshVerificationToken();
+                    Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
+                    Bundle extras = new Bundle();
+                    String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
+                            : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
+                            : "";
+                    if (targetEmpId.isEmpty()) {
+                        Intent resultIntent = new Intent();
+                        String savedId = session.getLocationId();
+                        String savedName = session.getProjectName();
+                        resultIntent.putExtra("location_id", savedId);
+                        resultIntent.putExtra("project_name", savedName);
+                        setResult(RESULT_OK, resultIntent);
+                        finish();
+                        return;
                     }
-                } catch (Exception ignored) {}
-            }
-            if (u == null || u.trim().isEmpty()) u = "User";
-            binding.tvVerifyUserName.setText(u.trim());
-        }
-    }
+                    String targetAction = (pendingAction != null && !pendingAction.trim().isEmpty()) ? pendingAction : type;
+                    String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : session.getProjectId();
+                    String targetName = session.getProjectName();
+                    String savedLocId = session.getLocationId();
 
-    private void setupProjectSelection() {
-        if (binding.myProjectSpinner == null) return;
-        binding.myProjectSpinner.setOnClickListener(v -> {
-            if (isAutoDetecting) {
-                onAutoDetectFailed("Please choose your project manually from the dropdown.");
-            }
-            if (!binding.myProjectSpinner.isPopupShowing()) {
-                binding.myProjectSpinner.showDropDown();
-            }
-        });
-        binding.myProjectSpinner.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                if (isAutoDetecting) {
-                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
-                }
-                if (!binding.myProjectSpinner.isPopupShowing()) {
-                    binding.myProjectSpinner.showDropDown();
-                }
-            }
-        });
-        if (binding.projectInputLayout != null) {
-            binding.projectInputLayout.setOnClickListener(v -> {
-                if (isAutoDetecting) {
-                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
-                }
-                if (!binding.myProjectSpinner.isPopupShowing()) {
-                    binding.myProjectSpinner.showDropDown();
-                }
-            });
-            binding.projectInputLayout.setEndIconOnClickListener(v -> {
-                if (isAutoDetecting) {
-                    onAutoDetectFailed("Please choose your project manually from the dropdown.");
-                }
-                if (!binding.myProjectSpinner.isPopupShowing()) {
-                    binding.myProjectSpinner.showDropDown();
-                }
-            });
-        }
-    }
-
-    private void startGpsPreAcquisition() {
-        if (!PermissionHelper.hasLocationPermission(this)) {
-            return;
-        }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        fusedLocationClient.getLastLocation().addOnSuccessListener(loc -> {
-            if (loc != null && !isFinishing() && !isDestroyed()) {
-                long ageMs = System.currentTimeMillis() - loc.getTime();
-                if (ageMs < 120_000 && loc.getAccuracy() <= 150.0f) {
-                    gpsLocation = loc;
-                    updateGpsDisplay(loc);
-                    tryAutoMatchSite();
-                }
-            }
-        });
-
-        LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-                .setMinUpdateIntervalMillis(500)
-                .setMaxUpdates(2)
-                .setDurationMillis(8000)
-                .build();
-
-        fusedLocationClient.requestLocationUpdates(request, new LocationCallback() {
-            @Override
-            public void onLocationResult(@NonNull LocationResult locationResult) {
-                fusedLocationClient.removeLocationUpdates(this);
-                Location loc = locationResult.getLastLocation();
-                if (loc != null && !isFinishing() && !isDestroyed()) {
-                    gpsLocation = loc;
-                    updateGpsDisplay(loc);
-                    tryAutoMatchSite();
-                }
-            }
-        }, Looper.getMainLooper());
-    }
-
-    private void loadProjectsFromServer() {
-        if (binding.progressProjectsLoading != null) {
-            binding.progressProjectsLoading.setVisibility(View.VISIBLE);
-        }
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Loading projects & detecting site...");
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-
-        ApiClient.getService().getProjects().enqueue(new Callback<List<ProjectModel>>() {
-            @Override
-            public void onResponse(@NonNull Call<List<ProjectModel>> call, @NonNull Response<List<ProjectModel>> response) {
-                if (binding.progressProjectsLoading != null) {
-                    binding.progressProjectsLoading.setVisibility(View.GONE);
-                }
-                List<ProjectModel> list = response.body();
-                if (list != null && !list.isEmpty()) {
-                    ArrayAdapter<ProjectModel> adapter = new ArrayAdapter<>(
-                            LocationVerifyActivity.this,
-                            android.R.layout.simple_dropdown_item_1line,
-                            list
-                    );
-                    binding.myProjectSpinner.setAdapter(adapter);
-                    binding.myProjectSpinner.setOnItemClickListener((parent, view, position, id) -> {
-                        ProjectModel sel = (ProjectModel) parent.getItemAtPosition(position);
-                        if (sel != null) {
-                            onManualProjectSelected(sel);
-                        }
-                    });
-
-                    // Kick off Auto Location Detection with the project list
-                    startAutoLocationDetection(list);
-                } else {
-                    showError("No projects available");
-                    onAutoDetectFailed("No projects configured on server.");
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<List<ProjectModel>> call, @NonNull Throwable t) {
-                if (binding.progressProjectsLoading != null) {
-                    binding.progressProjectsLoading.setVisibility(View.GONE);
-                }
-                showError("Failed to load projects: " + t.getMessage());
-                onAutoDetectFailed("Network error loading projects. Select manually.");
-            }
-        });
-    }
-
-    private void startAutoLocationDetection(List<ProjectModel> list) {
-        if (isAutoDetected) return;
-        isAutoDetecting = true;
-
-        if (binding.cardAutoDetectBanner != null) {
-            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
-            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#F0F9FF"));
-            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#BAE6FD"));
-            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
-            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#0284C7")));
-            binding.tvAutoDetectTitle.setText("Auto-Detecting Site...");
-            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#03045E"));
-            binding.tvAutoDetectDesc.setText("Checking your current GPS location against site geofences...");
-            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#0077B6"));
-        }
-
-        // Load cached site locations from local storage
-        cachedSiteLocations.clear();
-        List<LocationModel> saved = sessionPrefs.getCachedSiteLocations();
-        if (saved != null && !saved.isEmpty()) {
-            cachedSiteLocations.addAll(saved);
-        }
-
-        // Immediate check if GPS and cached locations are available (< 50ms)
-        if (gpsLocation != null && !cachedSiteLocations.isEmpty()) {
-            tryAutoMatchSite();
-            if (isAutoDetected) return;
-        }
-
-        // Prewarm locations from candidate projects
-        prewarmCandidateSiteLocations(list);
-
-        // Failsafe timeout: if not auto-detected within 3 seconds, gracefully fallback to manual selection
-        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
-        autoDetectTimeoutHandler.postDelayed(() -> {
-            if (isAutoDetecting && !isAutoDetected) {
-                onAutoDetectFailed("Could not auto-detect site at current location. Please select your project below.");
-            }
-        }, 3000);
-    }
-
-    private void prewarmCandidateSiteLocations(List<ProjectModel> list) {
-        if (list == null || list.isEmpty()) return;
-
-        for (ProjectModel p : list) {
-            final String code = p.getProjectCode();
-            if (code.isEmpty()) continue;
-
-            boolean alreadyCached = false;
-            for (LocationModel loc : cachedSiteLocations) {
-                if (code.equalsIgnoreCase(loc.getProjectCode())) {
-                    alreadyCached = true;
-                    break;
-                }
-            }
-
-            if (!alreadyCached) {
-                ApiClient.getService().getLocations(code).enqueue(new Callback<List<LocationModel>>() {
-                    @Override
-                    public void onResponse(@NonNull Call<List<LocationModel>> call, @NonNull Response<List<LocationModel>> resp) {
-                        List<LocationModel> locs = resp.body();
-                        if (locs != null && !locs.isEmpty()) {
-                            for (LocationModel lm : locs) {
-                                if (lm != null) {
-                                    if (lm.project_code == null || lm.project_code.isEmpty()) {
-                                        lm.project_code = code;
-                                    }
-                                    cachedSiteLocations.add(lm);
-                                }
-                            }
-                            sessionPrefs.saveCachedSiteLocations(new ArrayList<>(cachedSiteLocations));
-                            if (isAutoDetecting && !isAutoDetected) {
-                                tryAutoMatchSite();
-                            }
-                        }
+                    extras.putString("empid", targetEmpId);
+                    extras.putString("type", targetAction);
+                    boolean movementPunch = isMovement
+                            || "MOVE".equalsIgnoreCase(type)
+                            || "MOVE".equalsIgnoreCase(targetAction)
+                            || getIntent().getBooleanExtra("is_movement", false);
+                    extras.putBoolean("is_movement", movementPunch);
+                    intent.putExtra("is_movement", movementPunch);
+                    if (moveId != null && !moveId.isEmpty()) {
+                        extras.putString("move_id", moveId);
+                        extras.putString("moveid", moveId);
+                        intent.putExtra("move_id", moveId);
+                        intent.putExtra("moveid", moveId);
                     }
-
-                    @Override
-                    public void onFailure(@NonNull Call<List<LocationModel>> call, @NonNull Throwable t) {
-                        // Ignore individual failure during prewarm
+                    if (attendId != null && !attendId.isEmpty()) {
+                        extras.putString("attend_id", attendId);
+                        extras.putString("attendance_id", attendId);
+                        intent.putExtra("attend_id", attendId);
+                        intent.putExtra("attendance_id", attendId);
                     }
-                });
-            }
-        }
-    }
+                    extras.putString("uid", managerUid != null ? managerUid : empId);
+                    extras.putString("project_id", targetDept);
+                    extras.putString("departmentid", targetDept);
+                    extras.putString("projname", targetName);
+                    extras.putString("project_name", targetName);
+                    extras.putString("VERIFIED", "true");
+                    extras.putString("VERIFICATION_TOKEN", freshToken);
+                    extras.putString("MATCHED_LOC_ID", savedLocId);
+                    extras.putString("locationid", savedLocId);
+                    extras.putString("loc_id", savedLocId);
 
-    private synchronized void tryAutoMatchSite() {
-        if (isAutoDetected || isFinishing() || isDestroyed()) return;
-        if (gpsLocation == null || cachedSiteLocations.isEmpty()) return;
-
-        LocationModel matched = LocationVerifier.findMatchingSite(gpsLocation, new ArrayList<>(cachedSiteLocations));
-        if (matched != null) {
-            onSiteAutoDetected(matched);
-        }
-    }
-
-    private void onSiteAutoDetected(LocationModel matched) {
-        if (isFinishing() || isDestroyed()) return;
-        isAutoDetected = true;
-        isAutoDetecting = false;
-        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
-
-        targetLocation = matched;
-        locationId = matched.id;
-        projectCode = matched.getProjectCode();
-        selectedLocationName = matched.getLocationName();
-
-        // 1. Banner to Green (Success)
-        if (binding.cardAutoDetectBanner != null) {
-            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
-            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#ECFDF5"));
-            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#A7F3D0"));
-            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
-            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#059669")));
-            binding.tvAutoDetectTitle.setText("Site Auto-Detected");
-            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#065F46"));
-            String siteDisplay = matched.getLocationName();
-            if (!matched.getProjectCode().isEmpty() && !matched.getProjectCode().equalsIgnoreCase(siteDisplay)) {
-                siteDisplay += " (" + matched.getProjectCode() + ")";
-            }
-            binding.tvAutoDetectDesc.setText("You are at " + siteDisplay + ". Tap Confirm below or select another project.");
-            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#047857"));
-        }
-
-        // 2. Pre-select in the Dropdown (still editable!)
-        if (binding.myProjectSpinner != null) {
-            String displayDropdown = matched.getProjectCode();
-            if (!matched.getLocationName().isEmpty()) {
-                displayDropdown += " - " + matched.getLocationName();
-            }
-            binding.myProjectSpinner.setText(displayDropdown, false);
-        }
-
-        if (binding.tvVerifyProjectLocation != null) {
-            binding.tvVerifyProjectLocation.setText(matched.getLocationName() + " (" + matched.getProjectCode() + ")");
-        }
-        if (binding.tvDetails != null) {
-            binding.tvDetails.setText("Site: " + matched.getLocationName() + "\nProject: " + matched.getProjectCode() + (matched.hasBoundingBox() ? " (GPS Geofenced)" : ""));
-            binding.tvDetails.setVisibility(View.VISIBLE);
-        }
-
-        // 3. Update Progress & Status
-        if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
-        if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Site detected via GPS: " + matched.getLocationName());
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-
-        // 4. Update Button to Confirm
-        if (binding.btnVerify != null) {
-            binding.btnVerify.setText("CONFIRM & CONTINUE");
-            binding.btnVerify.setEnabled(true);
-            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#0284C7")));
-            binding.btnVerify.setVisibility(View.VISIBLE);
-        }
-    }
-
-    private void onAutoDetectFailed(String reason) {
-        if (isFinishing() || isDestroyed() || isAutoDetected) return;
-        isAutoDetecting = false;
-        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
-
-        // 1. Update the Banner to Amber (Informative Fallback)
-        if (binding.cardAutoDetectBanner != null) {
-            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
-            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#FFFBEB"));
-            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#FDE68A"));
-            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_info_circle_24);
-            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#D97706")));
-            binding.tvAutoDetectTitle.setText("Manual Project Selection");
-            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#92400E"));
-            binding.tvAutoDetectDesc.setText(reason != null ? reason : "Could not auto-detect site at current location. Please select your project below.");
-            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#B45309"));
-        }
-
-        // 2. Guide user to Manual Dropdown
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Please select your project from the dropdown");
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-        if (binding.tvDetails != null) {
-            binding.tvDetails.setText("Select your working project from the dropdown above.");
-            binding.tvDetails.setVisibility(View.VISIBLE);
-        }
-
-        // 3. Reset Button for manual verification
-        if (targetLocation == null) {
-            if (binding.btnVerify != null) {
-                binding.btnVerify.setText("SELECT PROJECT FIRST");
-                binding.btnVerify.setEnabled(false);
-                binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
-            }
-            binding.myProjectSpinner.post(() -> {
-                if (!isFinishing() && !isDestroyed()) {
-                    binding.myProjectSpinner.showDropDown();
-                }
-            });
-        }
-    }
-
-    private void onManualProjectSelected(ProjectModel sel) {
-        isAutoDetecting = false;
-        isAutoDetected = false;
-        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
-
-        projectCode = sel.getProjectCode();
-        selectedLocationName = sel.getLocationName();
-        binding.myProjectSpinner.setText(sel.toString(), false);
-
-        if (binding.cardAutoDetectBanner != null) {
-            binding.cardAutoDetectBanner.setVisibility(View.VISIBLE);
-            binding.cardAutoDetectBanner.setCardBackgroundColor(Color.parseColor("#F8FAFC"));
-            binding.cardAutoDetectBanner.setStrokeColor(Color.parseColor("#E2E8F0"));
-            binding.imgAutoDetectIcon.setImageResource(R.drawable.ic_target_gps_24);
-            binding.imgAutoDetectIcon.setImageTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
-            binding.tvAutoDetectTitle.setText("Selected Site: " + (!selectedLocationName.isEmpty() ? selectedLocationName : projectCode));
-            binding.tvAutoDetectTitle.setTextColor(Color.parseColor("#03045E"));
-            binding.tvAutoDetectDesc.setText("Tap VERIFY GPS CHECK below to verify your location.");
-            binding.tvAutoDetectDesc.setTextColor(Color.parseColor("#64748B"));
-        }
-
-        if (binding.btnVerify != null) {
-            binding.btnVerify.setEnabled(false);
-            binding.btnVerify.setText("LOADING LOCATION...");
-            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
-        }
-
-        loadLocationsForProject(projectCode);
-    }
-
-    private void loadLocationsForProject(String pCode) {
-        if (pCode == null || pCode.isEmpty()) {
-            showError("No Project Allocated");
-            return;
-        }
-
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Loading location for " + pCode + "...");
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-        if (binding.btnVerify != null) {
-            binding.btnVerify.setEnabled(false);
-            binding.btnVerify.setText("LOADING LOCATION...");
-        }
-
-        ApiClient.getService().getLocations(pCode).enqueue(new Callback<List<LocationModel>>() {
-            @Override
-            public void onResponse(@NonNull Call<List<LocationModel>> c, @NonNull Response<List<LocationModel>> r) {
-                List<LocationModel> locList = r.body();
-                if (locList == null || locList.isEmpty()) {
-                    if (binding.tvStatus != null) {
-                        binding.tvStatus.setText("No location configured for this project");
-                    }
-                    if (binding.tvDetails != null) {
-                        binding.tvDetails.setText("No location coordinates found for " + pCode + ".");
-                    }
-                    targetLocation = null;
-                    if (binding.btnVerify != null) {
-                        binding.btnVerify.setEnabled(false);
-                        binding.btnVerify.setText("NO LOCATION CONFIGURED");
-                    }
+                    intent.putExtras(extras);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
                     return;
-                }
-
-                // Auto-select location matching locationId or locationName or default to first location
-                LocationModel selLoc = locList.get(0);
-                if (locationId > 0) {
-                    for (LocationModel lm : locList) {
-                        if (lm.id == locationId) {
-                            selLoc = lm;
-                            break;
-                        }
-                    }
-                } else if (selectedLocationName != null && !selectedLocationName.trim().isEmpty()) {
-                    for (LocationModel lm : locList) {
-                        if (selectedLocationName.trim().equalsIgnoreCase(lm.getLocationName().trim())) {
-                            selLoc = lm;
-                            break;
-                        }
-                    }
-                }
-                applySelectedLocation(selLoc);
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<List<LocationModel>> c, @NonNull Throwable t) {
-                showError("Failed to load location: " + t.getMessage());
-            }
-        });
-    }
-
-    private void applySelectedLocation(LocationModel loc) {
-        if (loc == null) return;
-        targetLocation = loc;
-        locationId = loc.id;
-
-        boolean alreadyCached = false;
-        for (LocationModel lm : cachedSiteLocations) {
-            if (lm.id == loc.id) {
-                alreadyCached = true;
-                break;
-            }
-        }
-        if (!alreadyCached) {
-            cachedSiteLocations.add(loc);
-            sessionPrefs.saveCachedSiteLocations(new ArrayList<>(cachedSiteLocations));
-        }
-
-        if (binding.tvDetails != null) {
-            String boundedTag = loc.hasBoundingBox() ? " (GPS Geofenced)" : "";
-            binding.tvDetails.setText("Site: " + loc.location_name + "\nProject: " + projectCode + boundedTag);
-            binding.tvDetails.setVisibility(View.VISIBLE);
-        }
-        if (binding.tvVerifyProjectLocation != null) {
-            binding.tvVerifyProjectLocation.setText(loc.location_name + " (" + projectCode + ")");
-        }
-
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Ready to verify location for " + projectCode);
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-
-        if (binding.btnVerify != null) {
-            binding.btnVerify.setText("VERIFY GPS CHECK");
-            binding.btnVerify.setEnabled(true);
-            binding.btnVerify.setVisibility(View.VISIBLE);
-            binding.btnVerify.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#03045E")));
-        }
-
-        if (isAutoStartVerify && !hasStartedAutoVerify && targetLocation != null && projectCode != null && !projectCode.trim().isEmpty()) {
-            hasStartedAutoVerify = true;
-            onVerifyClicked();
-        }
-    }
-
-    private void setButtonsEnabled(boolean enabled) {
-        if (binding.btnVerify != null) binding.btnVerify.setEnabled(enabled);
-    }
-
-    private void onVerifyClicked() {
-        if (isAutoDetected && targetLocation != null && gpsLocation != null) {
-            completeVerification(targetLocation, gpsLocation);
-            return;
-        }
-
-        if (targetLocation == null || projectCode == null || projectCode.trim().isEmpty()) {
-            showError("Please select a project from the dropdown first");
-            if (binding.myProjectSpinner != null && !binding.myProjectSpinner.isPopupShowing()) {
-                binding.myProjectSpinner.showDropDown();
-            }
-            return;
-        }
-        if (!PermissionHelper.hasLocationPermission(this)) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
-                    REQUEST_LOCATION_PERMISSION
-            );
-            return;
-        }
-
-        if (!LocationHelper.isGpsEnabled(this)) {
-            LocationHelper.checkAndPromptLocationSettings(this, new LocationHelper.LocationSettingsCallback() {
-                @Override
-                public void onLocationSettingsEnabled() {
-                    startGpsVerification();
-                }
-
-                @Override
-                public void onLocationSettingsFailed(String reason) {
-                    showError("Please enable device location / GPS to verify location.");
-                }
-            });
-            return;
-        }
-
-        startGpsVerification();
-    }
-
-    private void startGpsVerification() {
-        setButtonsEnabled(false);
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Acquiring GPS fix...");
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-
-        fetchGpsAndVerify();
-    }
-
-    private void fetchGpsAndVerify() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            showError("Location permission required");
-            return;
-        }
-
-        // Fast-path: Check last known location first for immediate verification (< 100ms)
-        fusedLocationClient.getLastLocation().addOnSuccessListener(loc -> {
-            if (loc != null && !isFinishing() && !isDestroyed()) {
-                long ageMs = System.currentTimeMillis() - loc.getTime();
-                if (ageMs < 120_000 && loc.getAccuracy() <= 100.0f && isLocationValidForSite(loc)) {
-                    processGpsLocation(loc);
+                } else {
+                    Log.d("LOCATION_VERIFY", "Location session already valid for today. Finishing immediately.");
+                    Intent resultIntent = new Intent();
+                    String savedId = session.getLocationId();
+                    String savedName = session.getProjectName();
+                    resultIntent.putExtra("location_id", savedId);
+                    resultIntent.putExtra("locationid", savedId);
+                    resultIntent.putExtra("loc_id", savedId);
+                    resultIntent.putExtra("MATCHED_LOC_ID", savedId);
+                    resultIntent.putExtra("project_id", session.getProjectId());
+                    resultIntent.putExtra("departmentid", session.getProjectId());
+                    resultIntent.putExtra("project_name", savedName);
+                    resultIntent.putExtra("projname", savedName);
+                    resultIntent.putExtra("VERIFIED", "true");
+                    resultIntent.putExtra("VERIFICATION_TOKEN", session.getVerificationToken());
+                    setResult(RESULT_OK, resultIntent);
+                    finish();
                     return;
                 }
             }
-            requestFreshGpsLocation();
-        }).addOnFailureListener(e -> requestFreshGpsLocation());
-    }
 
-    private void requestFreshGpsLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            showError("Location permission required");
-            return;
-        }
+            getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+                @Override
+                public void handleOnBackPressed() {
+                    SessionPrefs session = new SessionPrefs(LocationVerifyActivity.this);
+                    if (!session.isLocationSessionValid()) {
+                        Toast.makeText(LocationVerifyActivity.this, "Supervisor location verification is required.", Toast.LENGTH_SHORT).show();
+                    }
+                    finish();
+                }
+            });
 
-        LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-                .setMinUpdateIntervalMillis(500)
-                .setMaxUpdates(1)
-                .setDurationMillis(12000)
-                .build();
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        fusedLocationClient.requestLocationUpdates(request, new LocationCallback() {
-            @Override
-            public void onLocationResult(@NonNull LocationResult locationResult) {
-                fusedLocationClient.removeLocationUpdates(this);
-                Location loc = locationResult.getLastLocation();
-                if (loc != null) {
-                    processGpsLocation(loc);
-                } else {
-                    tryFallbackLastLocation();
+            // ── GPS Pre-Warm ──────────────────────────────────────────────────────────
+            // Start collecting GPS samples silently while the user selects a project.
+            // By the time they tap Verify the chip is warm and samples are ready.
+            // No background permission needed — this Activity is in the foreground.
+            startGpsPreWarm();
+            // ─────────────────────────────────────────────────────────────────────────
+
+            loadingManager = new LoadingManager();
+
+            blueprintOverlay = findViewById(R.id.blueprint_skeleton_overlay);
+            if (blueprintOverlay != null) {
+                verifyProgress = blueprintOverlay.findViewById(R.id.verify_progress);
+                verifyStatusIcon = blueprintOverlay.findViewById(R.id.verify_status_icon);
+                verifyStatusBadge = blueprintOverlay.findViewById(R.id.verify_status_icon_badge);
+                blueprintStatus = blueprintOverlay.findViewById(R.id.blueprint_status);
+                tvAccuracyBadge = blueprintOverlay.findViewById(R.id.tv_accuracy_badge);
+                containerSuccess = blueprintOverlay.findViewById(R.id.container_blueprint_success);
+                containerFailure = blueprintOverlay.findViewById(R.id.container_blueprint_failure);
+                btnBlueprintProceed = blueprintOverlay.findViewById(R.id.btn_blueprint_proceed);
+                btnBlueprintRetry = blueprintOverlay.findViewById(R.id.btn_blueprint_retry);
+                btnBlueprintLeave = blueprintOverlay.findViewById(R.id.btn_blueprint_leave);
+                btnBlueprintReselect = blueprintOverlay.findViewById(R.id.btn_blueprint_reselect);
+                tvSelectedLocation = blueprintOverlay.findViewById(R.id.blueprint_selected_location);
+                tvBlueprintEmpName = blueprintOverlay.findViewById(R.id.tv_blueprint_emp_name);
+                tvBlueprintDateTime = blueprintOverlay.findViewById(R.id.tv_blueprint_datetime);
+                tvBlueprintProjectLocation = blueprintOverlay.findViewById(R.id.tv_blueprint_project_location);
+                cardBlueprintEmpAvatar = blueprintOverlay.findViewById(R.id.card_blueprint_emp_avatar);
+                imgBlueprintEmpPhoto = blueprintOverlay.findViewById(R.id.img_blueprint_emp_photo);
+                imgBlueprintEmpAvatarFallback = blueprintOverlay.findViewById(R.id.img_blueprint_emp_avatar_fallback);
+                tvBlueprintEmpSubtitle = blueprintOverlay.findViewById(R.id.tv_blueprint_emp_subtitle);
+                View btnTopBack = blueprintOverlay.findViewById(R.id.btn_blueprint_top_back);
+                if (btnTopBack != null) {
+                    btnTopBack.setOnClickListener(v -> finish());
+                }
+                if (cardBlueprintEmpAvatar != null) {
+                    cardBlueprintEmpAvatar.setOnClickListener(v -> showWhatsAppProfileView());
                 }
             }
-        }, Looper.getMainLooper());
+            bindVerifyUserInfo();
+            if (isAutoStartVerify) {
+                setScanningLocationState();
+            } else {
+                updateSelectedLocationDisplay();
+            }
+
+            if (isAutoStartVerify) {
+                if (inputSelectionCard != null) {
+                    inputSelectionCard.setVisibility(View.GONE);
+                }
+                if (blueprintOverlay != null) {
+                    blueprintOverlay.setVisibility(View.VISIBLE);
+                    
+                    // Show progress and hide checkmark/error icon
+                    if (verifyProgress != null) {
+                        verifyProgress.setVisibility(View.VISIBLE);
+                        verifyProgress.clearAnimation();
+                        verifyProgress.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.anim_rotate_loading));
+                        android.view.View icon = verifyProgress.findViewById(R.id.construction_icon);
+                        if (icon != null) {
+                            icon.clearAnimation();
+                            icon.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.anim_pulse_loading));
+                        }
+                    }
+                    if (verifyStatusIcon != null) {
+                        verifyStatusIcon.setVisibility(View.GONE);
+                    }
+                    
+                    // Text & Badge
+                    if (blueprintStatus != null) {
+                        blueprintStatus.setText("LOADING SITE COORDINATES...");
+                        blueprintStatus.setTextColor(android.graphics.Color.parseColor("#0EA5E9"));
+                    }
+                    setScanningLocationState();
+                    if (tvAccuracyBadge != null) {
+                        tvAccuracyBadge.setVisibility(View.GONE);
+                    }
+                    
+                    // Hide action containers
+                    if (containerSuccess != null) containerSuccess.setVisibility(View.GONE);
+                    if (containerFailure != null) containerFailure.setVisibility(View.GONE);
+                }
+            }
+
+            if (selectedProjectId == null || selectedProjectId.isEmpty()) {
+                selectedProjectId = new SessionPrefs(this).getProjectId();
+            }
+
+            if (isAutoStartVerify) {
+                if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.GONE);
+                if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.VISIBLE);
+                loadAllProjectNames();
+            } else if (isChangeSite) {
+                if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.VISIBLE);
+                if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.GONE);
+                loadAllProjectNames();
+            } else if (selectedProjectId != null && !selectedProjectId.isEmpty()) {
+                if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.GONE);
+                if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.VISIBLE);
+                fetchGeofenceBoundaries(selectedProjectId);
+            } else {
+                if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.VISIBLE);
+                if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.GONE);
+                loadAllProjectNames();
+            }
+            btnVerify.setEnabled(false); // always start disabled
+
+            btnVerify.setOnClickListener(v -> performGpsCheck());
+        } catch (Exception e) {
+            android.util.Log.e("APP_ERROR", "Crash in LocationVerify", e);
+            Toast.makeText(this, "System Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    LocationVerifyActivity.this.finish();
+                }
+            }, 5000);
+        }
     }
 
-    private boolean isLocationValidForSite(Location loc) {
-        if (loc == null || targetLocation == null) return false;
-        if (LocationVerifier.isMockLocation(loc)) return false;
-        if (targetLocation.hasBoundingBox()) {
-            boolean strictlyInside = LocationVerifier.isWithinBoundingBox(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude,
-                    targetLocation.max_latitude, targetLocation.max_longtitude,
-                    loc.getAccuracy()
-            );
-            if (strictlyInside) return true;
-            float boxDistance = LocationVerifier.distanceToBoundingBox(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude,
-                    targetLocation.max_latitude, targetLocation.max_longtitude
-            );
-            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
-            return boxDistance <= (200.0f + accuracyBuffer);
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        getIncomingData();
+        bindVerifyUserInfo();
+        if (myProjectSpinner != null) {
+            loadAllProjectNames();
+        }
+    }
+
+    private void bindVerifyUserInfo() {
+        String displayName = "";
+        boolean isSelf = false;
+        UserLocalStore userLocalStore = new UserLocalStore(this);
+        User user = userLocalStore.getLoggedInUser();
+        String val = (user != null && user.username != null) ? user.username : "";
+        String[] val_list = UserLocalStore.parseUserInfo(val);
+        String selfName = (val_list.length > 2 && !val_list[2].isEmpty()) ? val_list[2] : "";
+
+        if (empName != null && !empName.trim().isEmpty()) {
+            displayName = empName.trim();
+            if (!selfName.isEmpty() && displayName.equalsIgnoreCase(selfName.trim())) {
+                isSelf = true;
+            }
         } else {
-            float distance = LocationVerifier.distanceBetween(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude
-            );
-            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
-            return distance <= (200.0f + accuracyBuffer);
-        }
-    }
-
-    private void tryFallbackLastLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            showError("Location permission required");
-            return;
-        }
-        fusedLocationClient.getLastLocation().addOnSuccessListener(loc -> {
-            if (loc != null) {
-                processGpsLocation(loc);
-            } else {
-                showError("Unable to acquire GPS fix. Please ensure Location is ON and move outdoors.");
-            }
-        }).addOnFailureListener(e -> showError("GPS failed: " + e.getMessage()));
-    }
-
-    private void processGpsLocation(@NonNull Location loc) {
-        this.gpsLocation = loc;
-        updateGpsDisplay(loc);
-
-        if (LocationVerifier.isMockLocation(loc)) {
-            showError("Mock/Fake GPS detected. Please turn off mock location apps.");
-            return;
+            displayName = !selfName.isEmpty() ? selfName : "Supervisor";
+            isSelf = true;
         }
 
-        if (loc.getAccuracy() > 200.0f) {
-            showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
-            return;
+        String formattedName = isSelf ? displayName + " (You)" : displayName;
+
+        if (tvVerifyUserName != null) {
+            tvVerifyUserName.setText(displayName);
         }
-
-        if (targetLocation == null) {
-            showError("Target location not loaded yet.");
-            return;
+        if (tvBlueprintEmpName != null) {
+            tvBlueprintEmpName.setText(formattedName);
         }
-
-        float distance;
-        boolean isInsideGeofence;
-
-        if (targetLocation.hasBoundingBox()) {
-            boolean strictlyInside = LocationVerifier.isWithinBoundingBox(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude,
-                    targetLocation.max_latitude, targetLocation.max_longtitude,
-                    loc.getAccuracy()
-            );
-            float boxDistance = LocationVerifier.distanceToBoundingBox(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude,
-                    targetLocation.max_latitude, targetLocation.max_longtitude
-            );
-            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
-            float maxAllowedDistance = 200.0f + accuracyBuffer;
-
-            if (strictlyInside || boxDistance <= maxAllowedDistance) {
-                isInsideGeofence = true;
-                distance = boxDistance;
-            } else {
-                isInsideGeofence = false;
-                distance = boxDistance;
-            }
-        } else {
-            distance = LocationVerifier.distanceBetween(
-                    loc.getLatitude(), loc.getLongitude(),
-                    targetLocation.latitude, targetLocation.longitude
-            );
-            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
-            float maxAllowedDistance = 200.0f + accuracyBuffer;
-            isInsideGeofence = (distance <= maxAllowedDistance);
+        if (tvBlueprintEmpSubtitle != null) {
+            tvBlueprintEmpSubtitle.setText("Supervisor Site Verification");
         }
-
-        if (!isInsideGeofence) {
-            if (loc.getAccuracy() > 350.0f) {
-                showError("GPS accuracy is weak (" + (int) loc.getAccuracy() + "m). Please move outdoors.");
-                return;
-            }
-            showError("You are " + (int) distance + "m away from site. Maximum allowed distance is 200m.");
-            return;
+        if (photoUrl != null && !photoUrl.trim().isEmpty()) {
+            com.app.fourscontracting.data.ImageLoaderHelper.loadImage(this, photoUrl, imgBlueprintEmpPhoto, imgBlueprintEmpAvatarFallback);
         }
-
-        // Within geofence! Location is verified
-        completeVerification(targetLocation, loc);
-    }
-
-    private void completeVerification(LocationModel loc, Location gps) {
-        if (loc == null || gps == null) return;
-        if (binding.progressVerifyBar != null) binding.progressVerifyBar.setProgress(100);
-        if (binding.tvVerifyProgressPct != null) binding.tvVerifyProgressPct.setText("100%");
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText("Location Verified!");
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-
-        String verifiedSiteName = loc.location_name != null && !loc.location_name.isEmpty()
-                ? loc.location_name
-                : projectCode;
-
-        SessionPrefs sessionPrefs = new SessionPrefs(this);
-        String token = sessionPrefs.issueFreshVerificationToken();
-        sessionPrefs.saveVerifiedLocation(String.valueOf(locationId), verifiedSiteName, token);
-        sessionPrefs.saveProject(projectCode, verifiedSiteName, "");
-        sessionPrefs.saveLocationId(String.valueOf(locationId));
-
-        session.save("location_id", locationId);
-        session.save("project_code", projectCode);
-        session.save("location_name", verifiedSiteName);
-        session.save("project_name", verifiedSiteName);
-
-        new UserLocalStore(this).storeUserLocationData(new UserLocation(verifiedSiteName));
-        new UserLocalStore(this).storeUserProjectData(new UserProject(projectCode));
-
-        getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-                .edit()
-                .putString("selected_project_name", projectCode)
-                .putString("selected_location_name", verifiedSiteName)
-                .putString("location_id", String.valueOf(locationId))
-                .apply();
-
-        Toast.makeText(this, "Location verified successfully: " + verifiedSiteName, Toast.LENGTH_SHORT).show();
-
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("location_id", String.valueOf(locationId));
-        resultIntent.putExtra("project_id", projectCode);
-        resultIntent.putExtra("project_code", projectCode);
-        resultIntent.putExtra("project_name", verifiedSiteName);
-        resultIntent.putExtra("location_name", verifiedSiteName);
-        resultIntent.putExtra("VERIFIED", "true");
-        resultIntent.putExtra("VERIFICATION_TOKEN", token);
-        setResult(RESULT_OK, resultIntent);
-
-        Intent inc = getIntent();
-        boolean hasPendingPunch = inc != null && (
-                (inc.hasExtra("pending_eid") && !TextUtils.isEmpty(inc.getStringExtra("pending_eid"))) ||
-                (inc.hasExtra("empid") && !TextUtils.isEmpty(inc.getStringExtra("empid")))
-        );
-
-        if (hasPendingPunch) {
-            Intent punchIntent = new Intent(this, LocationActivity.class);
-            punchIntent.putExtras(inc);
-            punchIntent.putExtra("VERIFIED", "true");
-            punchIntent.putExtra("VERIFICATION_TOKEN", token);
-            punchIntent.putExtra("location_id", String.valueOf(locationId));
-            punchIntent.putExtra("project_id", projectCode);
-            punchIntent.putExtra("project_code", projectCode);
-            punchIntent.putExtra("project_name", verifiedSiteName);
-            punchIntent.putExtra("location_name", verifiedSiteName);
-            punchIntent.putExtra("lat", gps.getLatitude());
-            punchIntent.putExtra("lng", gps.getLongitude());
-            punchIntent.putExtra("gps_accuracy", gps.getAccuracy());
-            startActivity(punchIntent);
-        }
-
-        isVerificationActive = false;
-        finish();
-    }
-
-    private void updateGpsDisplay(Location loc) {
-        if (loc == null) return;
-        runOnUiThread(() -> {
-            if (binding.tvGpsLat != null) {
-                binding.tvGpsLat.setText(String.format(Locale.US, "+%.5f° N", loc.getLatitude()));
-            }
-            if (binding.tvGpsLng != null) {
-                binding.tvGpsLng.setText(String.format(Locale.US, "+%.5f° E", loc.getLongitude()));
-            }
-            if (binding.tvVerifyProgressPct != null && binding.progressVerifyBar != null) {
-                int pct = Math.min(100, (int) (100.0f * Math.min(1.0f, 50.0f / Math.max(1.0f, loc.getAccuracy()))));
-                pct = Math.max(30, pct);
-                binding.tvVerifyProgressPct.setText(pct + "%");
-                binding.progressVerifyBar.setProgress(pct);
-            }
-        });
-    }
-
-    private void showError(String msg) {
-        if (binding.tvStatus != null) {
-            binding.tvStatus.setText(msg);
-            binding.tvStatus.setVisibility(View.VISIBLE);
-        }
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-        setButtonsEnabled(true);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_LOCATION_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                onVerifyClicked();
-            } else {
-                showError("Location permission is required to verify GPS");
+        if (blueprintOverlay != null) {
+            TextView tvCardWorkerId = blueprintOverlay.findViewById(R.id.tv_card_worker_id);
+            if (tvCardWorkerId != null) {
+                String uidStr = (val_list.length > 0 && !val_list[0].isEmpty()) ? val_list[0] : "--";
+                tvCardWorkerId.setText("UID #" + uidStr);
             }
         }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == LocationHelper.REQUEST_CHECK_LOCATION_SETTINGS) {
-            if (resultCode == RESULT_OK) {
-                onVerifyClicked();
-            } else {
-                showError("Please enable device location / GPS to continue.");
-            }
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        isVerificationActive = false;
-        super.onBackPressed();
+    private void startLiveClock() {
+        liveClockHandler.removeCallbacks(liveClockRunnable);
+        liveClockHandler.post(liveClockRunnable);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        liveClockHandler.removeCallbacks(liveClockRunnable);
-        liveClockHandler.post(liveClockRunnable);
+        startLiveClock();
     }
 
     @Override
@@ -1002,11 +639,2084 @@ public class LocationVerifyActivity extends AppCompatActivity {
         liveClockHandler.removeCallbacks(liveClockRunnable);
     }
 
+    private void loadAllProjectNames() {
+        UserLocalStore userLocalStore = new UserLocalStore(this);
+        User user = userLocalStore.getLoggedInUser();
+        String val = (user != null && user.username != null) ? user.username : "";
+        String[] val_list = UserLocalStore.parseUserInfo(val);
+        String uid = val_list.length > 0 ? val_list[0] : "";
+
+        // Instant UI load from local cache or assigned projects (0ms delay)
+        SessionPrefs session = new SessionPrefs(this);
+        java.util.List<Project> cached = session.getCachedProjectList(true);
+        if (!cached.isEmpty()) {
+            bindProjectDropdown(cached);
+            autoSelectIfNeeded(cached);
+        } else {
+            List<Project> instantLocal = getInstantLocalProjects(val_list);
+            if (!instantLocal.isEmpty()) {
+                bindProjectDropdown(instantLocal);
+                autoSelectIfNeeded(instantLocal);
+            } else if (myProjectSpinner != null) {
+                myProjectSpinner.setText("Loading projects…", false);
+                myProjectSpinner.setEnabled(false);
+            }
+        }
+
+        if (progressProjectsLoading != null) {
+            progressProjectsLoading.setVisibility(View.VISIBLE);
+        }
+
+        if (uid.isEmpty()) {
+            if (progressProjectsLoading != null) {
+                progressProjectsLoading.setVisibility(View.GONE);
+            }
+            useFallbackLocalProjects(val_list);
+            return;
+        }
+
+        // Silent background update from server
+        String getProjectsUrl = "https://4scontracting.com/SMCS_APP/fcm_app/getprojects.php?uid=" + uid;
+
+        JsonObjectRequest getProjectsRequest = new JsonObjectRequest(Request.Method.GET, getProjectsUrl, null,
+            response -> {
+                if (progressProjectsLoading != null) {
+                    progressProjectsLoading.setVisibility(View.GONE);
+                }
+                try {
+                    String status = response.optString("status", "");
+                    if (!"success".equalsIgnoreCase(status)) {
+                        if (cached.isEmpty()) useFallbackLocalProjects(val_list);
+                        return;
+                    }
+
+                    JSONArray projectsArray = response.optJSONArray("projects");
+                    List<String> newProjectsList = new ArrayList<>();
+                    List<Project> projectList = new ArrayList<>();
+                    if (projectsArray != null) {
+                        for (int i = 0; i < projectsArray.length(); i++) {
+                            JSONObject projObj = projectsArray.optJSONObject(i);
+                            if (projObj == null) continue;
+                            String proj = projObj.optString("projname", "");
+                            String id = projObj.optString("id", "");
+                            if (proj.isEmpty()) continue;
+                            newProjectsList.add(proj);
+                            projectList.add(new Project(id, proj, projObj.optString("break_hours", "")));
+                        }
+                    }
+
+                    userLocalStore.updateAssignedProjects(newProjectsList, this);
+
+                    if (projectList.isEmpty()) {
+                        if (cached.isEmpty()) useFallbackLocalProjects(val_list);
+                        return;
+                    }
+
+                    session.saveProjectListCache(projectList);
+                    if (myProjectSpinner != null) myProjectSpinner.setEnabled(true);
+                    bindProjectDropdown(projectList);
+                    if (!hasStartedAutoVerify && !hasCompletedVerification) {
+                        autoSelectIfNeeded(projectList);
+                    }
+
+                    // Optional: enrich break_hours in background (does not block dropdown)
+                    enrichBreakHoursInBackground(projectList);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    if (cached.isEmpty()) useFallbackLocalProjects(val_list);
+                }
+            },
+            error -> {
+                if (progressProjectsLoading != null) {
+                    progressProjectsLoading.setVisibility(View.GONE);
+                }
+                error.printStackTrace();
+                if (cached.isEmpty()) {
+                    useFallbackLocalProjects(val_list);
+                } else if (myProjectSpinner != null) {
+                    myProjectSpinner.setEnabled(true);
+                }
+            }
+        );
+
+        getProjectsRequest.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                8000,
+                1,
+                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+        MySingleton.getmInstance(this).addToRequestque(getProjectsRequest);
+    }
+
+    private List<Project> getInstantLocalProjects(String[] val_list) {
+        List<Project> list = new ArrayList<>();
+        String assignedProjectsStr = val_list.length > 3 ? val_list[3] : "";
+        if (!assignedProjectsStr.isEmpty()) {
+            for (String p : assignedProjectsStr.split(",")) {
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) {
+                    list.add(new Project(trimmed, trimmed, ""));
+                }
+            }
+        }
+        return list;
+    }
+
+    private void autoSelectIfNeeded(List<Project> projectList) {
+        if (projectList == null || projectList.isEmpty()) return;
+
+        int index = -1;
+        if (projectId != null && !projectId.trim().isEmpty()) {
+            for (int i = 0; i < projectList.size(); i++) {
+                if (projectList.get(i).name.trim().equalsIgnoreCase(projectId.trim())
+                        || projectList.get(i).id.trim().equalsIgnoreCase(projectId.trim())) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        if (index == -1) {
+            String savedId = new SessionPrefs(this).getProjectId();
+            if (savedId != null && !savedId.trim().isEmpty()) {
+                for (int i = 0; i < projectList.size(); i++) {
+                    if (projectList.get(i).id.trim().equalsIgnoreCase(savedId.trim())
+                            || projectList.get(i).name.trim().equalsIgnoreCase(savedId.trim())) {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (index == -1) {
+            index = 0;
+        }
+
+        Project selectedProject = projectList.get(index);
+        if (myProjectSpinner != null && (myProjectSpinner.getText() == null || myProjectSpinner.getText().toString().isEmpty())) {
+            myProjectSpinner.setText(selectedProject.name, false);
+        }
+        selectedProjectId = selectedProject.id;
+        projectId = selectedProject.name;
+        new SessionPrefs(this).saveProject(selectedProject.id, selectedProject.name, selectedProject.breakHours);
+        
+        // Smart Multi-Project Fetch: Load site boundaries across ALL assigned projects for automatic site matching
+        if (lockedLocationId != null && !lockedLocationId.trim().isEmpty()) {
+            fetchGeofenceBoundaries(selectedProjectId != null ? selectedProjectId : lockedLocationId);
+        } else {
+            fetchGeofenceBoundariesForAllProjects(projectList);
+        }
+    }
+
+    private void fetchGeofenceBoundariesForAllProjects(final List<Project> projectList) {
+        if (projectList == null || projectList.isEmpty()) {
+            fetchGeofenceBoundaries("");
+            return;
+        }
+
+        locationData.clear();
+        btnVerify.setEnabled(false);
+        btnVerify.setText("Scanning site locations...");
+
+        final java.util.concurrent.atomic.AtomicInteger pendingRequests = new java.util.concurrent.atomic.AtomicInteger(projectList.size());
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_locations.php";
+
+        for (Project proj : projectList) {
+            final String currentProjId = proj.id != null ? proj.id : "";
+            final String currentProjName = proj.name != null ? proj.name : "";
+
+            StringRequest request = new StringRequest(Request.Method.POST, url, response -> {
+                try {
+                    JSONArray array = new JSONArray(response);
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject obj = array.getJSONObject(i);
+                        if (!obj.has("projname") || obj.optString("projname", "").isEmpty()) {
+                            obj.put("projname", currentProjName);
+                        }
+                        if (!obj.has("projectid") || obj.optString("projectid", "").isEmpty()) {
+                            obj.put("projectid", currentProjId);
+                        }
+                        locationData.add(obj);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    if (pendingRequests.decrementAndGet() <= 0) {
+                        onAllGeofencesLoaded();
+                    }
+                }
+            }, error -> {
+                error.printStackTrace();
+                if (pendingRequests.decrementAndGet() <= 0) {
+                    onAllGeofencesLoaded();
+                }
+            }) {
+                @Override
+                protected Map<String, String> getParams() {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("project_id", currentProjId);
+                    return params;
+                }
+            };
+
+            request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                    12000, 1, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+            ));
+            MySingleton.getmInstance(this).addToRequestque(request);
+        }
+    }
+
+    private void onAllGeofencesLoaded() {
+        runOnUiThread(() -> {
+            if (hasCompletedVerification) return;
+            if (!locationData.isEmpty()) {
+                btnVerify.setEnabled(true);
+                btnVerify.setText("VERIFY GPS CHECK");
+                if (isAutoStartVerify && !hasStartedAutoVerify) {
+                    performGpsCheck();
+                } else if (!isAutoStartVerify) {
+                    Toast.makeText(LocationVerifyActivity.this, "Site locations loaded.", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                if (isAutoStartVerify) {
+                    showBlueprintFailure(AppMessages.NO_SITE_LOCATIONS, 0.0f);
+                } else {
+                    Toast.makeText(LocationVerifyActivity.this, AppMessages.NO_SITE_LOCATIONS, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
+    /** Soft merge break_hours from get_project_name.php — dropdown already visible. */
+    private void enrichBreakHoursInBackground(final List<Project> projectList) {
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_project_name.php";
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+            response -> {
+                try {
+                    java.util.Map<String, String> breaks = new java.util.HashMap<>();
+                    for (int i = 0; i < response.length(); i++) {
+                        JSONObject obj = response.optJSONObject(i);
+                        if (obj == null) continue;
+                        String name = obj.optString("projname", "").trim().toLowerCase();
+                        if (name.isEmpty()) continue;
+                        String bh = obj.optString("break_hours", "");
+                        if (bh.isEmpty()) bh = obj.optString("city", "");
+                        if (bh.isEmpty()) bh = obj.optString("district", "");
+                        if (!bh.isEmpty()) breaks.put(name, bh);
+                    }
+                    boolean changed = false;
+                    for (Project p : projectList) {
+                        if (p == null || p.name == null) continue;
+                        if (p.breakHours != null && !p.breakHours.isEmpty()) continue;
+                        String bh = breaks.get(p.name.trim().toLowerCase());
+                        if (bh != null && !bh.isEmpty()) {
+                            p.breakHours = bh;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        new SessionPrefs(this).saveProjectListCache(projectList);
+                    }
+                } catch (Exception ignored) {
+                }
+            },
+            error -> { /* ignore — dropdown already works */ }
+        );
+        request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                10000, 0, 1f));
+        MySingleton.getmInstance(this).addToRequestque(request);
+    }
+
+    private void useFallbackLocalProjects(String[] val_list) {
+        String assignedProjectsStr = val_list.length > 3 ? val_list[3] : "";
+        final java.util.Set<String> assignedProjects = new java.util.HashSet<>();
+        if (!assignedProjectsStr.isEmpty()) {
+            for (String p : assignedProjectsStr.split(",")) {
+                assignedProjects.add(p.trim().toLowerCase());
+            }
+        }
+        // Last resort: metadata API (slower). Prefer cache/getprojects path above.
+        fetchProjectsMetadata(assignedProjects);
+    }
+
+    private void fetchProjectsMetadata(final java.util.Set<String> assignedProjects) {
+        if (progressProjectsLoading != null) {
+            progressProjectsLoading.setVisibility(View.VISIBLE);
+        }
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_project_name.php";
+
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+            response -> {
+                if (progressProjectsLoading != null) {
+                    progressProjectsLoading.setVisibility(View.GONE);
+                }
+                try {
+                    List<Project> allProjects = new ArrayList<>();
+                    List<Project> projectList = new ArrayList<>();
+
+                    for (int i = 0; i < response.length(); i++) {
+                        JSONObject obj = response.getJSONObject(i);
+                        String projname = obj.optString("projname", "");
+                        if (projname.isEmpty()) continue;
+
+                        String breakHoursVal = obj.optString("break_hours", "");
+                        if (breakHoursVal.isEmpty()) {
+                            breakHoursVal = obj.optString("city", "");
+                        }
+                        if (breakHoursVal.isEmpty()) {
+                            breakHoursVal = obj.optString("district", "");
+                        }
+                        Project p = new Project(
+                                obj.optString("id", ""),
+                                projname,
+                                breakHoursVal
+                        );
+                        allProjects.add(p);
+
+                        // Filter: show only projects assigned to the user (when we know assignments)
+                        if (assignedProjects == null || assignedProjects.isEmpty()
+                                || assignedProjects.contains(projname.trim().toLowerCase())) {
+                            projectList.add(p);
+                        }
+                    }
+
+                    // If assignment filter wiped the list but server returned projects, show all
+                    // (avoids empty dropdown on Poco/MIUI when assignment names don't match exactly)
+                    if (projectList.isEmpty() && !allProjects.isEmpty()) {
+                        projectList.addAll(allProjects);
+                        Toast.makeText(this,
+                                "Could not match assigned projects. Showing all projects — pick yours.",
+                                Toast.LENGTH_LONG).show();
+                    }
+
+                    if (projectList.isEmpty()) {
+                        if (isAutoStartVerify) {
+                            showBlueprintFailure("No projects available for this account.", 0.0f);
+                        } else {
+                            Toast.makeText(this, "No projects found. Tap Verify card after retry.", Toast.LENGTH_LONG).show();
+                            showRetryProjectsDialog();
+                        }
+                        return;
+                    }
+
+                    bindProjectDropdown(projectList);
+                    new SessionPrefs(this).saveProjectListCache(projectList);
+                    autoSelectIfNeeded(projectList);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    if (isAutoStartVerify) {
+                        showBlueprintFailure("Failed to read project list.", 0.0f);
+                    } else {
+                        Toast.makeText(this, "Error reading projects. Retry.", Toast.LENGTH_LONG).show();
+                        showRetryProjectsDialog();
+                    }
+                }
+            },
+            error -> {
+                if (progressProjectsLoading != null) {
+                    progressProjectsLoading.setVisibility(View.GONE);
+                }
+                if (isAutoStartVerify) {
+                    showBlueprintFailure("Failed to load project details.", 0.0f);
+                } else {
+                    Toast.makeText(this, "Error loading projects", Toast.LENGTH_SHORT).show();
+                    showRetryProjectsDialog();
+                }
+            }
+        );
+
+        MySingleton.getmInstance(this).addToRequestque(request);
+    }
+
+    /**
+     * MIUI / Poco F5: default ArrayAdapter filtering + plain AutoCompleteTextView often
+     * opens an empty popup. Use a non-filtering adapter and force showDropDown on tap.
+     */
+    private void bindProjectDropdown(final List<Project> projectList) {
+        if (myProjectSpinner == null) return;
+        if (projectList == null || projectList.isEmpty()) return;
+
+        final List<Project> masterList = new ArrayList<>(projectList);
+
+        final ArrayAdapter<Project> adapter = new ArrayAdapter<Project>(
+                this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>(masterList)) {
+            @NonNull
+            @Override
+            public Filter getFilter() {
+                return new Filter() {
+                    @Override
+                    protected FilterResults performFiltering(CharSequence constraint) {
+                        FilterResults results = new FilterResults();
+                        results.values = masterList;
+                        results.count = masterList.size();
+                        return results;
+                    }
+
+                    @Override
+                    protected void publishResults(CharSequence constraint, FilterResults results) {
+                        // Do not clear/addAll/notifyDataSetChanged asynchronously here.
+                        // The adapter already contains masterList, so updating it asynchronously
+                        // triggers a dataset change that closes the dropdown popup on tap ("blink and go").
+                    }
+                };
+            }
+        };
+
+        myProjectSpinner.setAdapter(adapter);
+        myProjectSpinner.setEnabled(true);
+        myProjectSpinner.setThreshold(1);
+        myProjectSpinner.setKeyListener(null);
+        // Keep current selection text if already chosen; otherwise clear loading placeholder
+        String current = myProjectSpinner.getText() != null ? myProjectSpinner.getText().toString() : "";
+        if (current.startsWith("Loading") || current.isEmpty()) {
+            myProjectSpinner.setText("", false);
+        } else {
+            myProjectSpinner.setText(current, false);
+        }
+
+        View.OnClickListener openAll = v -> {
+            if (!myProjectSpinner.isPopupShowing()) {
+                myProjectSpinner.showDropDown();
+            }
+        };
+        myProjectSpinner.setOnClickListener(openAll);
+
+        com.google.android.material.textfield.TextInputLayout projectInputLayout = findViewById(R.id.project_input_layout);
+        if (projectInputLayout != null) {
+            projectInputLayout.setOnClickListener(openAll);
+        }
+
+        myProjectSpinner.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && !myProjectSpinner.isPopupShowing()) {
+                myProjectSpinner.post(myProjectSpinner::showDropDown);
+            }
+        });
+
+        myProjectSpinner.setOnItemClickListener((parent, view, position, id) -> {
+            Object item = parent.getItemAtPosition(position);
+            if (!(item instanceof Project)) return;
+            Project selectedProject = (Project) item;
+            LocationVerifyActivity.this.selectedProjectId = selectedProject.id;
+            LocationVerifyActivity.this.projectId = selectedProject.name;
+            myProjectSpinner.setText(selectedProject.name, false);
+            new SessionPrefs(LocationVerifyActivity.this).saveProject(
+                    selectedProject.id, selectedProject.name, selectedProject.breakHours);
+            fetchGeofenceBoundaries(LocationVerifyActivity.this.selectedProjectId);
+        });
+    }
+
+    private void fetchGeofenceBoundaries(String selectedProjectId) {
+        final String projId = (selectedProjectId != null && !selectedProjectId.isEmpty())
+                ? selectedProjectId
+                : (this.selectedProjectId != null && !this.selectedProjectId.isEmpty())
+                ? this.selectedProjectId
+                : new SessionPrefs(this).getProjectId();
+
+        locationData.clear();
+        btnVerify.setEnabled(false);
+        btnVerify.setText("Verify GPS Check");
+        String url = "https://4scontracting.com/SMCS_APP/fcm_app/get_locations.php";
+        StringRequest request = new StringRequest(Request.Method.POST, url, response -> {
+            try {
+                JSONArray array = new JSONArray(response);
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = array.getJSONObject(i);
+                    locationData.add(obj);
+                }
+                
+                if (!locationData.isEmpty()) {
+                    btnVerify.setEnabled(true);
+                    if (isAutoStartVerify && !hasStartedAutoVerify && !hasCompletedVerification) {
+                        performGpsCheck();
+                    } else if (!isAutoStartVerify) {
+                        Toast.makeText(this, "Locations loaded. You can verify GPS now.", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    if (isAutoStartVerify) {
+                        showBlueprintFailure(AppMessages.NO_SITE_LOCATIONS, 0.0f);
+                    } else {
+                        Toast.makeText(this, AppMessages.NO_SITE_LOCATIONS, Toast.LENGTH_LONG).show();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (isAutoStartVerify) {
+                    showBlueprintFailure("Error parsing site coordinates.", 0.0f);
+                } else {
+                    Toast.makeText(this, "Error parsing locations", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }, error -> {
+            android.util.Log.e("LOCATION_VERIFY", "Failed to load locations: " + error.toString());
+            if (isAutoStartVerify) {
+                showBlueprintFailure("Failed to load locations from server.", 0.0f);
+            } else {
+                Toast.makeText(this, "Failed to load locations", Toast.LENGTH_SHORT).show();
+                showRetryLocationsDialog(projId);
+            }
+        }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("project_id", projId != null ? projId : "");
+                return params;
+            }
+        };
+
+        request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                15000,
+                2,
+                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
+        MySingleton.getmInstance(this).addToRequestque(request);
+    }
+
+    private void showPreciseLocationRequiredDialog() {
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Precise Location Required")
+            .setMessage("This app requires precise GPS location to verify that you are on the construction site. Please enable \"Precise Location\" in the app settings.")
+            .setPositiveButton("Open Settings", (dialog, which) -> {
+                try {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                    startActivity(intent);
+                }
+            })
+            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+            .setCancelable(false)
+            .show();
+    }
+
+    private void stopAllGpsTasks() {
+        isSampling = false;
+        cancelCountDown();
+        stopGpsPreWarm();
+        if (samplingHandler != null) {
+            samplingHandler.removeCallbacksAndMessages(null);
+        }
+        cancelFallbackTimeout();
+        if (fusedLocationClient != null) {
+            if (locationCallback != null) {
+                try {
+                    fusedLocationClient.removeLocationUpdates(locationCallback);
+                } catch (Exception ignored) {}
+            }
+            if (warmUpCallback != null) {
+                try {
+                    fusedLocationClient.removeLocationUpdates(warmUpCallback);
+                } catch (Exception ignored) {}
+            }
+        }
+        if (fallbackLocationManager != null && fallbackListener != null) {
+            try {
+                fallbackLocationManager.removeUpdates(fallbackListener);
+            } catch (Exception ignored) {}
+            fallbackListener = null;
+        }
+    }
+
+    private void startBlueprintScanning() {
+        if (hasCompletedVerification) return;
+        if (inputSelectionCard != null) {
+            inputSelectionCard.setVisibility(View.GONE);
+        }
+        if (blueprintOverlay != null) {
+            blueprintOverlay.setVisibility(View.VISIBLE);
+            
+            // Show progress and hide checkmark/error icon
+            if (verifyProgress != null) {
+                verifyProgress.setVisibility(View.VISIBLE);
+                verifyProgress.clearAnimation();
+                verifyProgress.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.anim_rotate_loading));
+                android.view.View icon = verifyProgress.findViewById(R.id.construction_icon);
+                if (icon != null) {
+                    icon.clearAnimation();
+                    icon.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.anim_pulse_loading));
+                }
+            }
+            if (verifyStatusIcon != null) {
+                verifyStatusIcon.setVisibility(View.GONE);
+            }
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.GONE);
+            }
+            
+            // Text & Badge
+            blueprintStatus.setText("DRAFTING COORDINATES...");
+            blueprintStatus.setTextColor(android.graphics.Color.parseColor("#0EA5E9"));
+            setScanningLocationState();
+            tvAccuracyBadge.setVisibility(View.GONE);
+            
+            // Hide action containers
+            containerSuccess.setVisibility(View.GONE);
+            containerFailure.setVisibility(View.GONE);
+        }
+    }
+
+    private void showBlueprintSuccess(String matchType, String matchedPointId, String matchedPointName, double liveLat, double liveLon, float accuracy) {
+        if (hasCompletedVerification) {
+            Log.d("LOCATION_VERIFY", "Verification already completed, ignoring duplicate showBlueprintSuccess call");
+            return;
+        }
+        hasCompletedVerification = true;
+        stopAllGpsTasks();
+
+        if (inputSelectionCard != null) {
+            inputSelectionCard.setVisibility(View.GONE);
+        }
+        if (blueprintOverlay != null) {
+            blueprintOverlay.setVisibility(View.VISIBLE);
+            
+            // Hide progress and show success checkmark icon
+            if (verifyProgress != null) {
+                stopProgressAnimation();
+                verifyProgress.setVisibility(View.GONE);
+            }
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.VISIBLE);
+                if (verifyStatusIcon != null) {
+                    verifyStatusIcon.setVisibility(View.VISIBLE);
+                    verifyStatusIcon.setImageResource(R.drawable.ic_baseline_check_24);
+                    verifyStatusIcon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#16A34A")));
+                }
+                verifyStatusBadge.setScaleX(0f);
+                verifyStatusBadge.setScaleY(0f);
+                verifyStatusBadge.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(500)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f))
+                    .start();
+            } else if (verifyStatusIcon != null) {
+                verifyStatusIcon.setVisibility(View.VISIBLE);
+                verifyStatusIcon.setImageResource(R.drawable.ic_baseline_check_24);
+                verifyStatusIcon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#22C55E")));
+                
+                // Spring overshoot animation on checkmark
+                verifyStatusIcon.setScaleX(0f);
+                verifyStatusIcon.setScaleY(0f);
+                verifyStatusIcon.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(500)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f))
+                    .start();
+            }
+            
+            // Text & Badge
+            if (matchedPointName != null && !matchedPointName.trim().isEmpty() && !isNumeric(matchedPointName.trim())) {
+                projectId = matchedPointName.trim();
+            }
+            blueprintStatus.setText("VERIFICATION SUCCESSFUL\n" + matchType);
+            blueprintStatus.setTextColor(android.graphics.Color.parseColor("#22C55E"));
+            setVerifiedLocationState(matchedPointName);
+            
+            tvAccuracyBadge.setVisibility(View.VISIBLE);
+            tvAccuracyBadge.setText("GPS ACCURACY: " + Math.round(accuracy) + "m");
+            tvAccuracyBadge.setTextColor(android.graphics.Color.parseColor("#22C55E"));
+            
+            // Setup buttons
+            // Generate Secure verification token & Save Session (24h site + 5min punch token)
+            String secureToken = java.util.UUID.randomUUID().toString();
+            String locIdToSave = (matchedPointId != null && !matchedPointId.trim().isEmpty())
+                    ? matchedPointId.trim()
+                    : ((selectedProjectId != null && !selectedProjectId.trim().isEmpty())
+                    ? selectedProjectId.trim()
+                    : ((projectId != null && !projectId.trim().isEmpty())
+                    ? projectId.trim()
+                    : "1"));
+            new SessionPrefs(this).saveVerifiedLocation(locIdToSave, matchedPointName, secureToken);
+
+            boolean isPunchAction = (pendingAction != null && !pendingAction.trim().isEmpty())
+                    || (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim()));
+
+            if (isAutoStartVerify) {
+                if (isPunchAction) {
+                    blueprintStatus.setText("VERIFICATION SUCCESSFUL!\nOpening Photo Submission...");
+                    final Runnable autoRedirectTask = new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isFinishing() && !isDestroyed()) {
+                                String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
+                                                        : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
+                                                        : "";
+                                if (targetEmpId.isEmpty()) {
+                                    Intent resIntent = new Intent();
+                                    resIntent.putExtra("location_id", locIdToSave);
+                                    resIntent.putExtra("project_name", matchedPointName);
+                                    resIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+                                    setResult(RESULT_OK, resIntent);
+                                    finish();
+                                    return;
+                                }
+
+                                String targetAction = (pendingAction != null && !pendingAction.trim().isEmpty()) ? pendingAction
+                                                    : (type != null && !type.trim().isEmpty()) ? type
+                                                    : "IN";
+
+                                String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : projectId;
+                                String targetName = (matchedPointName != null && !matchedPointName.isEmpty()) ? matchedPointName : projectId;
+                                if (targetDept != null && targetName != null && !targetName.isEmpty()) {
+                                    new SessionPrefs(LocationVerifyActivity.this).saveProject(targetDept, targetName, "");
+                                }
+
+                                Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
+                                Bundle extras = new Bundle();
+                                extras.putString("empid", targetEmpId);
+                                extras.putString("type", targetAction);
+                                boolean movementPunch = isMovement
+                                        || "MOVE".equalsIgnoreCase(type)
+                                        || "MOVE".equalsIgnoreCase(targetAction)
+                                        || getIntent().getBooleanExtra("is_movement", false);
+                                extras.putBoolean("is_movement", movementPunch);
+                                intent.putExtra("is_movement", movementPunch);
+                                if (moveId != null && !moveId.isEmpty()) {
+                                    extras.putString("move_id", moveId);
+                                    extras.putString("moveid", moveId);
+                                    intent.putExtra("move_id", moveId);
+                                    intent.putExtra("moveid", moveId);
+                                }
+                                if (attendId != null && !attendId.isEmpty()) {
+                                    extras.putString("attend_id", attendId);
+                                    extras.putString("attendance_id", attendId);
+                                    intent.putExtra("attend_id", attendId);
+                                    intent.putExtra("attendance_id", attendId);
+                                }
+                                intent.putExtra("type", targetAction);
+                                intent.putExtra("empid", targetEmpId);
+                                if (managerUid != null) {
+                                    extras.putString("uid", managerUid);
+                                    intent.putExtra("uid", managerUid);
+                                }
+                                if (targetDept != null) {
+                                    extras.putString("project_id", targetDept);
+                                    extras.putString("departmentid", targetDept);
+                                    intent.putExtra("project_id", targetDept);
+                                    intent.putExtra("departmentid", targetDept);
+                                }
+                                if (targetName != null && !targetName.isEmpty()) {
+                                    extras.putString("projname", targetName);
+                                    extras.putString("project_name", targetName);
+                                    intent.putExtra("projname", targetName);
+                                    intent.putExtra("project_name", targetName);
+                                }
+                                extras.putString("VERIFIED", "true");
+                                extras.putString("VERIFICATION_TOKEN", secureToken);
+                                extras.putDouble("lat", liveLat);
+                                extras.putDouble("lng", liveLon);
+                                extras.putFloat("gps_accuracy", accuracy);
+
+                                intent.putExtra("VERIFIED", "true");
+                                intent.putExtra("VERIFICATION_TOKEN", secureToken);
+                                intent.putExtra("lat", liveLat);
+                                intent.putExtra("lng", liveLon);
+                                intent.putExtra("gps_accuracy", accuracy);
+
+                                if (matchedPointId != null) {
+                                    extras.putString("MATCHED_LOC_ID", matchedPointId);
+                                    extras.putString("locationid", matchedPointId);
+                                    extras.putString("loc_id", matchedPointId);
+                                    intent.putExtra("MATCHED_LOC_ID", matchedPointId);
+                                    intent.putExtra("locationid", matchedPointId);
+                                    intent.putExtra("loc_id", matchedPointId);
+                                }
+                                intent.putExtras(extras);
+                                intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                startActivity(intent);
+                                finish();
+                            }
+                        }
+                    };
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(autoRedirectTask, 1000);
+                } else {
+                    // Initial Launch Auto Verification: Only lock location session for 24h & redirect to Dashboard
+                    // Does NOT force camera / photo submit! Supervisor marks self attendance on Self Attendance page.
+                    blueprintStatus.setText("LOCATION VERIFIED SUCCESSFULLY!\nNavigating to Dashboard...");
+                    String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : projectId;
+                    String targetName = (matchedPointName != null && !matchedPointName.isEmpty()) ? matchedPointName : projectId;
+                    if (targetDept != null && targetName != null && !targetName.isEmpty()) {
+                        new SessionPrefs(LocationVerifyActivity.this).saveProject(targetDept, targetName, "");
+                    }
+
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("location_id", matchedPointId != null ? matchedPointId : "");
+                    resultIntent.putExtra("locationid", matchedPointId != null ? matchedPointId : "");
+                    resultIntent.putExtra("loc_id", matchedPointId != null ? matchedPointId : "");
+                    resultIntent.putExtra("MATCHED_LOC_ID", matchedPointId != null ? matchedPointId : "");
+                    resultIntent.putExtra("project_id", targetDept != null ? targetDept : "");
+                    resultIntent.putExtra("departmentid", targetDept != null ? targetDept : "");
+                    resultIntent.putExtra("selected_project_id", targetDept != null ? targetDept : "");
+                    resultIntent.putExtra("project_name", targetName != null ? targetName : "");
+                    resultIntent.putExtra("projname", targetName != null ? targetName : "");
+                    resultIntent.putExtra("VERIFIED", "true");
+                    resultIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+                    resultIntent.putExtra("lat", liveLat);
+                    resultIntent.putExtra("lng", liveLon);
+                    resultIntent.putExtra("gps_accuracy", accuracy);
+                    setResult(RESULT_OK, resultIntent);
+
+                    final Runnable finishTask = new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isFinishing() && !isDestroyed()) {
+                                if (getCallingActivity() != null) {
+                                    finish();
+                                } else {
+                                    Intent intent = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
+                                    intent.putExtra("destination_id", R.id.nav_profile);
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                    startActivity(intent);
+                                    finish();
+                                }
+                            }
+                        }
+                    };
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(finishTask, 1000);
+                }
+                return;
+            }
+
+            Intent resultIntent = new Intent();
+            String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : projectId;
+            String targetName = (matchedPointName != null && !matchedPointName.isEmpty()) ? matchedPointName : projectId;
+            resultIntent.putExtra("location_id", matchedPointId != null ? matchedPointId : "");
+            resultIntent.putExtra("locationid", matchedPointId != null ? matchedPointId : "");
+            resultIntent.putExtra("loc_id", matchedPointId != null ? matchedPointId : "");
+            resultIntent.putExtra("MATCHED_LOC_ID", matchedPointId != null ? matchedPointId : "");
+            resultIntent.putExtra("project_id", targetDept != null ? targetDept : "");
+            resultIntent.putExtra("departmentid", targetDept != null ? targetDept : "");
+            resultIntent.putExtra("selected_project_id", targetDept != null ? targetDept : "");
+            resultIntent.putExtra("project_name", targetName != null ? targetName : "");
+            resultIntent.putExtra("projname", targetName != null ? targetName : "");
+            resultIntent.putExtra("VERIFIED", "true");
+            resultIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+            resultIntent.putExtra("lat", liveLat);
+            resultIntent.putExtra("lng", liveLon);
+            resultIntent.putExtra("gps_accuracy", accuracy);
+
+            if (isInitialVerify) {
+                setResult(RESULT_OK, resultIntent);
+                blueprintStatus.setText("SUPERVISOR LOCATION VERIFIED!\nSession locked for 24 hours.");
+                if (btnBlueprintProceed != null) {
+                    btnBlueprintProceed.setText("PROCEED");
+                }
+                final Runnable finishTask = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing() && !isDestroyed()) {
+                            finish();
+                        }
+                    }
+                };
+                final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+                handler.postDelayed(finishTask, 1000);
+
+                btnBlueprintProceed.setOnClickListener(v -> {
+                    handler.removeCallbacks(finishTask);
+                    finishTask.run();
+                });
+                return;
+            }
+                
+            final Runnable redirectTask = new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing() && !isDestroyed()) {
+                        String targetEmpId = (pendingEid != null && !pendingEid.trim().isEmpty() && !"--".equals(pendingEid.trim())) ? pendingEid.trim()
+                                                : (empId != null && !empId.trim().isEmpty() && !"--".equals(empId.trim())) ? empId.trim()
+                                                : "";
+                        if (targetEmpId.isEmpty()) {
+                            Intent resIntent = new Intent();
+                            resIntent.putExtra("location_id", locIdToSave);
+                            resIntent.putExtra("project_name", matchedPointName);
+                            resIntent.putExtra("VERIFICATION_TOKEN", secureToken);
+                            setResult(RESULT_OK, resIntent);
+                            finish();
+                            return;
+                        }
+
+                        Intent intent = new Intent(LocationVerifyActivity.this, LocationActivity.class);
+
+                        Bundle extras = new Bundle();
+                        if (targetEmpId != null) extras.putString("empid", targetEmpId);
+                        extras.putString("type", type != null ? type : "IN");
+                        boolean movementPunch = isMovement || "MOVE".equalsIgnoreCase(type);
+                        extras.putBoolean("is_movement", movementPunch);
+                        intent.putExtra("is_movement", movementPunch);
+                        if (moveId != null && !moveId.isEmpty()) {
+                            extras.putString("move_id", moveId);
+                            extras.putString("moveid", moveId);
+                            intent.putExtra("move_id", moveId);
+                            intent.putExtra("moveid", moveId);
+                        }
+                        if (attendId != null && !attendId.isEmpty()) {
+                            extras.putString("attend_id", attendId);
+                            extras.putString("attendance_id", attendId);
+                            intent.putExtra("attend_id", attendId);
+                            intent.putExtra("attendance_id", attendId);
+                        }
+                        if (managerUid != null) extras.putString("uid", managerUid);
+                        
+                        String targetDept = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : projectId;
+                        if (targetDept != null) {
+                            extras.putString("project_id", targetDept);
+                            extras.putString("departmentid", targetDept);
+                        }
+                        String targetName = (matchedPointName != null && !matchedPointName.isEmpty()) ? matchedPointName : projectId;
+                        if (targetName != null && !targetName.isEmpty()) {
+                            extras.putString("projname", targetName);
+                            extras.putString("project_name", targetName);
+                        }
+                        
+                        extras.putString("VERIFIED", "true");
+                        extras.putString("VERIFICATION_TOKEN", secureToken);
+                        extras.putDouble("lat", liveLat);
+                        extras.putDouble("lng", liveLon);
+                        extras.putFloat("gps_accuracy", accuracy);
+                        if (matchedPointId != null) {
+                            extras.putString("MATCHED_LOC_ID", matchedPointId);
+                            extras.putString("locationid", matchedPointId);
+                            extras.putString("loc_id", matchedPointId);
+                        }
+                        
+                        intent.putExtras(extras);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        startActivity(intent);
+                        finish();
+                    }
+                }
+            };
+            
+            final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.postDelayed(redirectTask, 1500);
+            
+            btnBlueprintProceed.setOnClickListener(v -> {
+                handler.removeCallbacks(redirectTask);
+                redirectTask.run();
+            });
+        }
+    }
+
+    private void showBlueprintFailure(String statusMessage, float accuracy) {
+        stopAllGpsTasks();
+        if (inputSelectionCard != null) {
+            inputSelectionCard.setVisibility(View.GONE);
+        }
+        if (blueprintOverlay != null) {
+            blueprintOverlay.setVisibility(View.VISIBLE);
+            
+            // Hide progress and show red warning icon
+            if (verifyProgress != null) {
+                stopProgressAnimation();
+                verifyProgress.setVisibility(View.GONE);
+            }
+            if (verifyStatusBadge != null) {
+                verifyStatusBadge.setVisibility(View.VISIBLE);
+            }
+            if (verifyStatusIcon != null) {
+                verifyStatusIcon.setVisibility(View.VISIBLE);
+                verifyStatusIcon.setImageResource(R.drawable.ic_warning_red);
+                verifyStatusIcon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#EF4444")));
+                
+                // Shake animation on failure icon
+                verifyStatusIcon.setScaleX(1.0f);
+                verifyStatusIcon.setScaleY(1.0f);
+                verifyStatusIcon.setTranslationX(0f);
+                verifyStatusIcon.animate()
+                    .translationXBy(15f)
+                    .setDuration(50)
+                    .withEndAction(() -> verifyStatusIcon.animate()
+                        .translationXBy(-30f)
+                        .setDuration(100)
+                        .withEndAction(() -> verifyStatusIcon.animate()
+                            .translationXBy(15f)
+                            .setDuration(50)
+                            .start())
+                        .start())
+                    .start();
+            }
+            
+            // Text & Badge
+            blueprintStatus.setText(statusMessage);
+            blueprintStatus.setTextColor(android.graphics.Color.parseColor("#EF4444"));
+            if (isAutoStartVerify) {
+                setFailedLocationState();
+            } else {
+                updateSelectedLocationDisplay();
+            }
+            
+            if (accuracy > 0.0f) {
+                tvAccuracyBadge.setVisibility(View.VISIBLE);
+                tvAccuracyBadge.setText("GPS ACCURACY: " + Math.round(accuracy) + "m");
+                tvAccuracyBadge.setTextColor(android.graphics.Color.parseColor("#EF4444"));
+            } else {
+                tvAccuracyBadge.setVisibility(View.GONE);
+            }
+            
+            // Setup buttons
+            containerSuccess.setVisibility(View.GONE);
+            containerFailure.setVisibility(View.VISIBLE);
+            
+            btnBlueprintRetry.setOnClickListener(v -> {
+                hasCompletedVerification = false;
+                hasStartedAutoVerify = false;
+                if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.GONE);
+                if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.VISIBLE);
+                if (selectedProjectId == null || selectedProjectId.isEmpty()) {
+                    loadAllProjectNames();
+                } else {
+                    performGpsCheck();
+                }
+            });
+
+            if (btnBlueprintReselect != null) {
+                btnBlueprintReselect.setVisibility(View.VISIBLE);
+                btnBlueprintReselect.setText("SELECT PROJECT");
+                btnBlueprintReselect.setOnClickListener(v -> {
+                    hasCompletedVerification = false;
+                    hasStartedAutoVerify = false;
+                    if (blueprintOverlay != null) blueprintOverlay.setVisibility(View.GONE);
+                    if (inputSelectionCard != null) inputSelectionCard.setVisibility(View.VISIBLE);
+                    isAutoStartVerify = false;
+                    isInitialVerify = false;
+                    loadAllProjectNames();
+                });
+            }
+            
+            btnBlueprintLeave.setOnClickListener(v -> {
+                Intent intent = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
+                intent.putExtra("destination_id", R.id.nav_profile);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+                finish();
+            });
+        }
+    }
+
+    private String getResolvedProjectName() {
+        if (projectId != null && !projectId.trim().isEmpty() && !isNumeric(projectId.trim())) {
+            return projectId.trim();
+        }
+        SessionPrefs session = new SessionPrefs(this);
+        String savedName = session.getProjectName();
+        if (savedName != null && !savedName.trim().isEmpty() && !isNumeric(savedName.trim())) {
+            return savedName.trim();
+        }
+        UserLocalStore userLocalStore = new UserLocalStore(this);
+        UserLocation loc = userLocalStore.getLoggedInUserLocation();
+        if (loc != null && loc.locationname != null && !loc.locationname.trim().isEmpty() && !isNumeric(loc.locationname.trim())) {
+            return loc.locationname.trim();
+        }
+        String targetId = (selectedProjectId != null && !selectedProjectId.isEmpty()) ? selectedProjectId : targetLocationId;
+        if (targetId != null && !targetId.isEmpty()) {
+            java.util.List<Project> cached = session.getCachedProjectList();
+            for (Project p : cached) {
+                if (p != null && (targetId.equalsIgnoreCase(p.id) || targetId.equalsIgnoreCase(p.name))) {
+                    if (p.name != null && !p.name.trim().isEmpty()) {
+                        return p.name.trim();
+                    }
+                }
+            }
+        }
+        if (projectId != null && !projectId.trim().isEmpty()) {
+            return isNumeric(projectId.trim()) ? "Site " + projectId.trim() : projectId.trim();
+        }
+        if (targetId != null && !targetId.trim().isEmpty()) {
+            return "Site " + targetId.trim();
+        }
+        return "Location Verification";
+    }
+
+    private static boolean isNumeric(String str) {
+        if (str == null || str.isEmpty()) return false;
+        for (char c : str.toCharArray()) {
+            if (!Character.isDigit(c)) return false;
+        }
+        return true;
+    }
+
+    private void showWhatsAppProfileView() {
+        try {
+            android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_whatsapp_profile_view, null);
+            ImageView imgDialogPhoto = dialogView.findViewById(R.id.img_dialog_photo);
+            View imgDialogFallback = dialogView.findViewById(R.id.img_dialog_fallback);
+            TextView tvDialogName = dialogView.findViewById(R.id.tv_dialog_name);
+            TextView tvDialogSubtitle = dialogView.findViewById(R.id.tv_dialog_subtitle);
+            TextView tvDialogLocation = dialogView.findViewById(R.id.tv_dialog_location);
+
+            String name = tvBlueprintEmpName != null ? tvBlueprintEmpName.getText().toString() : "Employee";
+            tvDialogName.setText(name);
+            if (empId != null && !empId.isEmpty()) {
+                tvDialogSubtitle.setText("Worker ID: #" + empId);
+            } else {
+                tvDialogSubtitle.setText("Supervisor / Worker Profile");
+            }
+            tvDialogLocation.setText("Location: " + getResolvedProjectName());
+
+            if (photoUrl != null && !photoUrl.trim().isEmpty()) {
+                com.app.fourscontracting.data.ImageLoaderHelper.loadImage(this, photoUrl, imgDialogPhoto, imgDialogFallback);
+            }
+
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setView(dialogView)
+                    .setPositiveButton("Close", (dialog, which) -> dialog.dismiss())
+                    .show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private android.animation.ObjectAnimator locationPulseAnimator;
+
+    private void setScanningLocationState() {
+        if (hasCompletedVerification) return;
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setText("Detecting Site...");
+            startLocationPulseAnimation();
+        }
+        if (tvSelectedLocation != null) {
+            tvSelectedLocation.setText("Selected Site: Detecting Site...");
+            tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (tvVerifyProjectLocation != null) {
+            tvVerifyProjectLocation.setText("Project: Detecting Site...");
+        }
+    }
+
+    private void startLocationPulseAnimation() {
+        if (hasCompletedVerification) return;
+        if (tvBlueprintProjectLocation == null) return;
+        stopLocationPulseAnimation();
+        locationPulseAnimator = android.animation.ObjectAnimator.ofFloat(tvBlueprintProjectLocation, "alpha", 0.35f, 1.0f);
+        locationPulseAnimator.setDuration(700);
+        locationPulseAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        locationPulseAnimator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
+        locationPulseAnimator.start();
+    }
+
+    private void stopLocationPulseAnimation() {
+        if (locationPulseAnimator != null) {
+            locationPulseAnimator.cancel();
+            locationPulseAnimator = null;
+        }
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setAlpha(1.0f);
+        }
+    }
+
+    private void setVerifiedLocationState(String matchedName) {
+        stopLocationPulseAnimation();
+
+        String siteText = (matchedName != null && !matchedName.trim().isEmpty() && !isNumeric(matchedName.trim()))
+                ? matchedName.trim()
+                : getResolvedProjectName();
+
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setText(siteText);
+            tvBlueprintProjectLocation.setScaleX(0.7f);
+            tvBlueprintProjectLocation.setScaleY(0.7f);
+            tvBlueprintProjectLocation.setAlpha(0.2f);
+            tvBlueprintProjectLocation.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .alpha(1.0f)
+                    .setDuration(600)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.3f))
+                    .start();
+        }
+        if (tvSelectedLocation != null) {
+            tvSelectedLocation.setText("Selected Site: " + siteText);
+            tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (tvVerifyProjectLocation != null) {
+            tvVerifyProjectLocation.setText("Project: " + siteText);
+        }
+    }
+
+    private void setFailedLocationState() {
+        stopLocationPulseAnimation();
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setText("Unverified Site");
+            tvBlueprintProjectLocation.setAlpha(1.0f);
+        }
+        if (tvSelectedLocation != null) {
+            tvSelectedLocation.setText("Selected Site: Unverified");
+            tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (tvVerifyProjectLocation != null) {
+            tvVerifyProjectLocation.setText("Project: Unverified");
+        }
+    }
+
+    private void updateSelectedLocationDisplay() {
+        String siteText = getResolvedProjectName();
+
+        if (tvSelectedLocation != null) {
+            tvSelectedLocation.setText("Selected Site: " + siteText);
+            tvSelectedLocation.setVisibility(View.VISIBLE);
+        }
+        if (tvBlueprintProjectLocation != null) {
+            tvBlueprintProjectLocation.setText(siteText);
+        }
+        if (tvVerifyProjectLocation != null) {
+            tvVerifyProjectLocation.setText("Project: " + siteText);
+        }
+    }
+
+    private static final int REQUEST_CHECK_SETTINGS = 1001;
+
+    private void performGpsCheck() {
+        try {
+            if (hasCompletedVerification) {
+                Log.d("LOCATION_VERIFY", "Verification already completed, ignoring performGpsCheck");
+                return;
+            }
+            if (isSampling) {
+                Log.d("LOCATION_VERIFY", "Sampling already in progress, ignoring performGpsCheck");
+                return;
+            }
+            if (isAutoStartVerify && hasStartedAutoVerify) {
+                Log.d("LOCATION_VERIFY", "Auto-start verification already initiated, ignoring performGpsCheck");
+                return;
+            }
+            if (isAutoStartVerify) {
+                hasStartedAutoVerify = true;
+            }
+
+            if (locationData.isEmpty()) {
+                Toast.makeText(this, "No geofenced locations loaded for this project.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (!AppPermissions.hasLocation(this)) {
+                AppPermissions.ensureOrGuide(this, false, true);
+                return;
+            }
+
+            boolean hasFineLocation = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            boolean hasCoarseLocation = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+
+            if (!hasFineLocation && hasCoarseLocation) {
+                showPreciseLocationRequiredDialog();
+                return;
+            }
+
+            checkLocationSettings();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fallbackToLocationManager();
+        }
+    }
+
+    private void checkLocationSettings() {
+        com.google.android.gms.location.LocationRequest locationRequest = new com.google.android.gms.location.LocationRequest.Builder(
+                com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                1000
+        ).build();
+
+        com.google.android.gms.location.LocationSettingsRequest.Builder builder = new com.google.android.gms.location.LocationSettingsRequest.Builder()
+                .addLocationRequest(locationRequest);
+        builder.setAlwaysShow(true);
+
+        com.google.android.gms.location.SettingsClient client = com.google.android.gms.location.LocationServices.getSettingsClient(this);
+        com.google.android.gms.tasks.Task<com.google.android.gms.location.LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+
+        task.addOnSuccessListener(this, new com.google.android.gms.tasks.OnSuccessListener<com.google.android.gms.location.LocationSettingsResponse>() {
+            @Override
+            public void onSuccess(com.google.android.gms.location.LocationSettingsResponse locationSettingsResponse) {
+                startHybridVerification();
+            }
+        });
+
+        task.addOnFailureListener(this, new com.google.android.gms.tasks.OnFailureListener() {
+            @Override
+            public void onFailure(@androidx.annotation.NonNull Exception e) {
+                if (e instanceof com.google.android.gms.common.api.ResolvableApiException) {
+                    try {
+                        com.google.android.gms.common.api.ResolvableApiException resolvable = (com.google.android.gms.common.api.ResolvableApiException) e;
+                        resolvable.startResolutionForResult(LocationVerifyActivity.this, REQUEST_CHECK_SETTINGS);
+                    } catch (android.content.IntentSender.SendIntentException sendEx) {
+                        startHybridVerification();
+                    }
+                } else {
+                    startHybridVerification();
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CHECK_SETTINGS) {
+            if (resultCode == RESULT_OK) {
+                Toast.makeText(this, "Location enabled. Starting verification...", Toast.LENGTH_SHORT).show();
+                startHybridVerification();
+            } else {
+                Toast.makeText(this, AppMessages.GPS_DISABLED, Toast.LENGTH_LONG).show();
+                showBlueprintFailure(AppMessages.GPS_DISABLED, 0.0f);
+            }
+        } else if (requestCode == REQUEST_CAPTURE_PHOTO) {
+            if (resultCode == RESULT_OK && data != null) {
+                final String photoPath = data.getStringExtra("photo_path");
+                final String eid = data.getStringExtra("eid");
+                final String action = data.getStringExtra("action");
+                final String uid = data.getStringExtra("uid");
+                final String projectId = data.getStringExtra("project_id");
+                final String locationId = data.getStringExtra("location_id");
+                final double lat = data.getDoubleExtra("lat", 0.0);
+                final double lng = data.getDoubleExtra("lng", 0.0);
+                
+                if (photoPath == null || photoPath.isEmpty()) {
+                    Toast.makeText(this, "Photo capture failed", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                submitAttendance(eid, action, uid, projectId, locationId, lat, lng, photoPath);
+            } else {
+                Toast.makeText(this, "Photo capture cancelled", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void startHybridVerification() {
+        if (hasCompletedVerification) {
+            Log.d("LOCATION_VERIFY", "Verification already completed, ignoring startHybridVerification");
+            return;
+        }
+        if (locationData.isEmpty()) {
+            Toast.makeText(this, "No geofenced locations loaded for this project.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Stop pre-warm before we take over with the full sampling request
+        stopGpsPreWarm();
+
+        // ── Fast-path: use pre-warm samples if they are good enough ───────────────
+        // Count how many pre-warm samples already pass the early-exit accuracy or site-match bar.
+        int preWarmGoodCount = 0;
+        for (Location s : locationSamples) {
+            if (isSampleAcceptableForVerification(s)) preWarmGoodCount++;
+        }
+        boolean hasEnoughPreWarmSamples = !locationSamples.isEmpty()
+                && preWarmGoodCount >= EARLY_EXIT_MIN_GOOD_SAMPLES;
+
+        if (hasEnoughPreWarmSamples) {
+            Log.d("GPS_PREWARM", "Pre-warm gave " + locationSamples.size()
+                    + " samples (" + preWarmGoodCount + " good). Single verification complete.");
+            // Jump straight to result — no wait
+            isSampling = true;  // processBestLocation() guards on this
+            if (blueprintStatus != null) blueprintStatus.setText("PROCESSING BEST LOCATION...");
+            processBestLocation();
+            return;
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // Normal path — start fresh sampling window
+        startBlueprintScanning();
+        if (blueprintStatus != null) {
+            blueprintStatus.setText("VERIFYING SITE COORDINATES...");
+        }
+
+        locationSamples.clear();
+        goodAccuracySampleCount = 0;
+        isSampling = true;
+
+        if (samplingHandler == null) {
+            samplingHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        } else {
+            samplingHandler.removeCallbacksAndMessages(null);
+        }
+
+        cancelCountDown();
+        countDownTimer = new android.os.CountDownTimer(SAMPLING_DURATION, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                long secondsRemaining = Math.max(1, Math.round(millisUntilFinished / 1000.0));
+                if (blueprintStatus != null && isSampling) {
+                    blueprintStatus.setText("VERIFYING SITE COORDINATES... (" + secondsRemaining + "s)");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (blueprintStatus != null && isSampling) {
+                    blueprintStatus.setText("PROCESSING BEST LOCATION...");
+                }
+            }
+        }.start();
+
+        samplingTimeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isSampling) {
+                    cancelCountDown();
+                    processBestLocation();
+                }
+            }
+        };
+        samplingHandler.postDelayed(samplingTimeoutRunnable, SAMPLING_DURATION);
+
+        try {
+            locationCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@androidx.annotation.NonNull LocationResult locationResult) {
+                    for (Location location : locationResult.getLocations()) {
+                        if (location != null) {
+                            // Ignore cached/stale fixes — raised to 60 s so valid first-fixes are not discarded
+                            long ageMs = Math.abs(System.currentTimeMillis() - location.getTime());
+                            if (ageMs > 60000L) {
+                                Log.d("GPS_SAMPLING", "Skipping stale sample ageMs=" + ageMs);
+                                continue;
+                            }
+                            Log.d("GPS_SAMPLING", "Acquired sample: Lat=" + location.getLatitude() + " Lng=" + location.getLongitude() + " Accuracy=" + location.getAccuracy() + "m");
+                            locationSamples.add(location);
+                            updateGpsDisplay(location);
+
+                            // Single verification exit as soon as sample has acceptable accuracy or matches site
+                            if (isSampleAcceptableForVerification(location)) {
+                                goodAccuracySampleCount++;
+                                if (goodAccuracySampleCount >= EARLY_EXIT_MIN_GOOD_SAMPLES) {
+                                    Log.d("GPS_SAMPLING", "Single verification signal acquired, completing sampling");
+                                    samplingHandler.removeCallbacks(samplingTimeoutRunnable);
+                                    cancelCountDown();
+                                    processBestLocation();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            com.google.android.gms.location.LocationRequest request = new com.google.android.gms.location.LocationRequest.Builder(
+                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                    800  // poll every 800 ms — faster samples on first two attempts
+            ).setMinUpdateIntervalMillis(400)
+                    .setMaxUpdateAgeMillis(0)
+                    .setWaitForAccurateLocation(false)  // don't block; collect and pick best
+                    .build();
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                fusedLocationClient.requestLocationUpdates(request, locationCallback, android.os.Looper.getMainLooper());
+            } else {
+                fallbackToLocationManager();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("GPS_SAMPLING", "Failed to start requestLocationUpdates, falling back", e);
+            fallbackToLocationManager();
+        }
+    }
+
+    private void processBestLocation() {
+        if (!isSampling) return;
+        isSampling = false;
+        cancelCountDown();
+
+        if (locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
+
+        if (locationSamples.isEmpty()) {
+            Log.d("GPS_SAMPLING", "No samples collected, falling back to LocationManager");
+            fallbackToLocationManager();
+            return;
+        }
+
+        // Find the sample with the lowest accuracy number (the most confident signal)
+        Location bestLocation = Collections.min(locationSamples, new java.util.Comparator<Location>() {
+            @Override
+            public int compare(Location l1, Location l2) {
+                return Float.compare(l1.getAccuracy(), l2.getAccuracy());
+            }
+        });
+
+        float accuracy = bestLocation.getAccuracy();
+        Log.d("GPS_SAMPLING", "Best sample selected: Accuracy=" + accuracy + "m");
+
+        if (accuracy > ACCURACY_GUARD) {
+            showBlueprintFailure(AppMessages.gpsWeakWithAccuracy(accuracy), accuracy);
+        } else {
+            // Process the best acquired location
+            processFetchedLocation(bestLocation);
+        }
+    }
+
+    private void fallbackToLocationManager() {
+        try {
+            fallbackLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            if (fallbackLocationManager == null) {
+                showBlueprintFailure(AppMessages.GPS_SERVICES_UNAVAILABLE, 0.0f);
+                return;
+            }
+
+            boolean isGpsEnabled = fallbackLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            boolean isNetworkEnabled = fallbackLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+            if (!isGpsEnabled && !isNetworkEnabled) {
+                showBlueprintFailure(AppMessages.GPS_DISABLED, 0.0f);
+                return;
+            }
+
+            Location lastKnown = null;
+            if (isNetworkEnabled) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    lastKnown = fallbackLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                }
+            }
+
+            if (lastKnown == null && isGpsEnabled) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    lastKnown = fallbackLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                }
+            }
+
+            // Never accept a stale lastKnown for worker #2 / MOVE — force a fresh lock instead
+            boolean lastKnownFresh = lastKnown != null
+                    && Math.abs(System.currentTimeMillis() - lastKnown.getTime()) <= 30000L;
+
+            if (lastKnownFresh) {
+                processFetchedLocation(lastKnown);
+            } else {
+                // Cancel any pending fallback timeout first
+                cancelFallbackTimeout();
+                cancelCountDown();
+
+                // Request a single update with timeout failsafe
+                fallbackListener = new LocationListener() {
+                    @Override
+                    public void onLocationChanged(@androidx.annotation.NonNull Location location) {
+                        cancelFallbackTimeout();
+                        cancelCountDown();
+                        if (fallbackLocationManager != null) {
+                            fallbackLocationManager.removeUpdates(this);
+                        }
+                        fallbackListener = null;
+                        processFetchedLocation(location);
+                    }
+                    @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+                    @Override public void onProviderEnabled(String provider) {}
+                    @Override public void onProviderDisabled(String provider) {}
+                };
+
+                // Setup timeout runnable
+                fallbackTimeoutRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (fallbackListener != null && fallbackLocationManager != null) {
+                            fallbackLocationManager.removeUpdates(fallbackListener);
+                            fallbackListener = null;
+                            cancelCountDown();
+                            showBlueprintFailure(AppMessages.GPS_TIMEOUT, 0.0f);
+                        }
+                    }
+                };
+
+                if (samplingHandler == null) {
+                    samplingHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                }
+                samplingHandler.postDelayed(fallbackTimeoutRunnable, 10000); // 10 seconds failsafe
+
+                countDownTimer = new android.os.CountDownTimer(10000, 1000) {
+                    @Override
+                    public void onTick(long millisUntilFinished) {
+                        long secondsRemaining = Math.max(1, Math.round(millisUntilFinished / 1000.0));
+                        if (blueprintStatus != null && fallbackListener != null) {
+                            blueprintStatus.setText("ACQUIRING GPS LOCK... (" + secondsRemaining + "s)");
+                        }
+                    }
+
+                    @Override
+                    public void onFinish() {
+                        if (blueprintStatus != null && fallbackListener != null) {
+                            blueprintStatus.setText("PROCESSING LOCATION...");
+                        }
+                    }
+                }.start();
+
+                if (isGpsEnabled && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    fallbackLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, fallbackListener);
+                } else if (isNetworkEnabled && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    fallbackLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, fallbackListener);
+                } else {
+                    cancelFallbackTimeout();
+                    fallbackListener = null;
+                    showBlueprintFailure("Location Permission Denied", 0.0f);
+                }
+            }
+        } catch (Exception e) {
+            cancelFallbackTimeout();
+            fallbackListener = null;
+            showBlueprintFailure("Failed to retrieve GPS location: " + e.getMessage(), 0.0f);
+        }
+    }
+
+    private void cancelFallbackTimeout() {
+        if (samplingHandler != null && fallbackTimeoutRunnable != null) {
+            samplingHandler.removeCallbacks(fallbackTimeoutRunnable);
+            fallbackTimeoutRunnable = null;
+        }
+    }
+
+    private void processFetchedLocation(Location location) {
+        if (hasCompletedVerification) {
+            Log.d("LOCATION_VERIFY", "Verification already completed, ignoring processFetchedLocation");
+            return;
+        }
+        if (location != null) {
+            // Anti-cheat verification (Mock location detection)
+            boolean isMock = false;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                isMock = location.isMock();
+            } else {
+                isMock = location.isFromMockProvider();
+            }
+
+            if (isMock) {
+                showBlueprintFailure(AppMessages.GPS_MOCK, location.getAccuracy());
+                return;
+            }
+
+            // Chronological Stale Location age check — relaxed to 90 s so valid fixes aren't rejected
+            long locationTime = location.getTime();
+            long systemTime = System.currentTimeMillis();
+            long ageInSeconds = Math.abs(systemTime - locationTime) / 1000;
+            if (ageInSeconds > 90) {
+                showBlueprintFailure(AppMessages.GPS_STALE, location.getAccuracy());
+                return;
+            }
+
+            // Accuracy Guard: Raised threshold to 350m to allow site matching even during indoor / initial cell-tower fixes
+            if (location.getAccuracy() > 350.0f) {
+                showBlueprintFailure("Weak GPS Signal (" + Math.round(location.getAccuracy()) + "m accuracy).\nStep near a window or outdoors and retry.", location.getAccuracy());
+                return;
+            }
+
+            double liveLat = location.getLatitude();
+            double liveLon = location.getLongitude();
+            float liveAccuracy = location.getAccuracy();
+            Log.d("GPS_FIX", "Fetched Lat: " + liveLat + " Lng: " + liveLon + " Accuracy: " + liveAccuracy);
+
+            if (locationData.isEmpty()) {
+                showBlueprintFailure(AppMessages.NO_SITE_LOCATIONS, liveAccuracy);
+                return;
+            }
+
+            boolean verified = false;
+            String matchedPointId = "";
+            String matchType = "";
+            String matchedPointName = "";
+
+            JSONObject closestLoc = null;
+            float minDistanceToClosestSite = Float.MAX_VALUE;
+            String closestSiteName = "";
+
+            for (JSONObject loc : locationData) {
+                try {
+                    double dbLat = loc.getDouble("latitude");
+                    double dbLon = loc.getDouble("longitude");
+                    double maxLat = loc.optDouble("max_latitude", 0.0);
+                    double maxLon = loc.optDouble("max_longtitude", 0.0);
+                    if (maxLon == 0.0) {
+                        maxLon = loc.optDouble("max_longitude", 0.0);
+                    }
+                    String tempId = loc.optString("projectid", loc.optString("id", ""));
+
+                    if (lockedLocationId != null && !lockedLocationId.trim().isEmpty()) {
+                        String target = lockedLocationId.trim();
+                        String locId = loc.optString("id", "").trim();
+                        String projId = loc.optString("projectid", "").trim();
+                        if (!tempId.equalsIgnoreCase(target) && !locId.equalsIgnoreCase(target) && !projId.equalsIgnoreCase(target)) {
+                            continue;
+                        }
+                    }
+
+                    boolean hasBoundaryBox = (maxLat != 0.0) && (maxLon != 0.0);
+
+                    double minLat = hasBoundaryBox ? Math.min(dbLat, maxLat) : dbLat;
+                    double maxLatBound = hasBoundaryBox ? Math.max(dbLat, maxLat) : dbLat;
+                    double minLon = hasBoundaryBox ? Math.min(dbLon, maxLon) : dbLon;
+                    double maxLonBound = hasBoundaryBox ? Math.max(dbLon, maxLon) : dbLon;
+
+                    double centerLat = hasBoundaryBox ? (minLat + maxLatBound) / 2.0 : dbLat;
+                    double centerLon = hasBoundaryBox ? (minLon + maxLonBound) / 2.0 : dbLon;
+
+                    float[] centerDistResults = new float[1];
+                    Location.distanceBetween(liveLat, liveLon, centerLat, centerLon, centerDistResults);
+                    float distanceToCenter = centerDistResults[0];
+
+                    float boxHalfDiagonal = 0f;
+                    if (hasBoundaryBox) {
+                        float[] diagResults = new float[1];
+                        Location.distanceBetween(centerLat, centerLon, maxLatBound, maxLonBound, diagResults);
+                        boxHalfDiagonal = diagResults[0];
+                    }
+
+                    String locName = loc.optString("projname", loc.optString("locationname", loc.optString("location_name", loc.optString("name", ""))));
+
+                    if (distanceToCenter < minDistanceToClosestSite) {
+                        minDistanceToClosestSite = distanceToCenter;
+                        closestLoc = loc;
+                        closestSiteName = locName;
+                    }
+
+                    // Adaptive tolerance buffer incorporating boundary size, 30m base tolerance, and 75% of GPS accuracy
+                    float accuracyBuffer = Math.min(liveAccuracy * 0.75f, 150.0f);
+                    float effectiveRadius = (hasBoundaryBox ? boxHalfDiagonal : 0f) + 30.0f + accuracyBuffer;
+                    boolean isCenterMatch = distanceToCenter <= effectiveRadius;
+
+                    double bufferMeters = 30.0 + accuracyBuffer;
+                    double latBuffer = bufferMeters / 111111.0;
+                    double lngBuffer = bufferMeters / (111111.0 * Math.cos(Math.toRadians(liveLat)));
+
+                    boolean isBoxMatch = hasBoundaryBox &&
+                            (liveLat >= (minLat - latBuffer) && liveLat <= (maxLatBound + latBuffer) &&
+                             liveLon >= (minLon - lngBuffer) && liveLon <= (maxLonBound + lngBuffer));
+
+                    if (isCenterMatch || isBoxMatch) {
+                        verified = true;
+                        matchedPointId = loc.optString("id", tempId);
+                        if (matchedPointId.isEmpty()) {
+                            matchedPointId = tempId;
+                        }
+                        matchedPointName = locName;
+                        if (matchedPointName.isEmpty()) {
+                            matchedPointName = loc.optString("locationname", projectId != null ? projectId : "");
+                        }
+                        selectedProjectId = matchedPointId;
+                        projectId = matchedPointName;
+                        if (myProjectSpinner != null) {
+                            myProjectSpinner.setText(matchedPointName, false);
+                        }
+                        new SessionPrefs(this).saveProject(selectedProjectId, matchedPointName, loc.optString("break_hours", ""));
+                        matchType = isBoxMatch ? "Authorized site matched: " + matchedPointName
+                                : "Site matched: " + matchedPointName + " (" + Math.round(distanceToCenter) + "m from center).";
+                        Log.d("GPS", "Matched Site for ID " + tempId + " (" + matchedPointName + "): dist=" + distanceToCenter + "m");
+                        break;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            String currentUserId = (empId != null && !empId.isEmpty()) ? empId : ((managerUid != null && !managerUid.isEmpty()) ? managerUid : "unknown");
+            if (verified) {
+                RuntimeLogger.log(this, currentUserId, "DEBUG", "Geofence", "MATCH: User successfully verified inside geofence at Point ID " + matchedPointId + " (" + matchType + ")");
+                showBlueprintSuccess(matchType, matchedPointId, matchedPointName, liveLat, liveLon, liveAccuracy);
+            } else {
+                RuntimeLogger.log(this, currentUserId, "DEBUG", "Geofence", "FAIL: User outside boundary (GPS: " + liveLat + ", " + liveLon + ")");
+                if (!closestSiteName.isEmpty() && minDistanceToClosestSite < 100000) {
+                    projectId = closestSiteName;
+                    updateSelectedLocationDisplay();
+                    showBlueprintFailure("OUTSIDE SITE BOUNDARY\nNearest Site: " + closestSiteName + " (" + Math.round(minDistanceToClosestSite) + "m away).", liveAccuracy);
+                } else if (lockedLocationId != null && !lockedLocationId.trim().isEmpty()) {
+                    showBlueprintFailure("NOT AT LOCKED LOCATION\nYour location does not match the supervisor's verified site.", liveAccuracy);
+                } else {
+                    showBlueprintFailure("OUTSIDE SITE BOUNDARY\nPlease move inside the authorized project site or select manually.", liveAccuracy);
+                }
+            }
+        } else {
+            String currentUserId = (empId != null && !empId.isEmpty()) ? empId : ((managerUid != null && !managerUid.isEmpty()) ? managerUid : "unknown");
+            RuntimeLogger.log(this, currentUserId, "ERROR", "Geofence", "FAIL: Unable to get current location");
+            showBlueprintFailure("Unable to get current location. Ensure GPS is ON.", 0.0f);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @androidx.annotation.NonNull String[] permissions, @androidx.annotation.NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permission granted, starting verification...", Toast.LENGTH_SHORT).show();
+                performGpsCheck();
+            } else {
+                Toast.makeText(this, "Location permission is required for verification.", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private void showRetryProjectsDialog() {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Connection Error")
+            .setMessage("Failed to load projects from server. Please check your network connection.")
+            .setPositiveButton("Retry", (dialog, which) -> {
+                dialog.dismiss();
+                loadAllProjectNames();
+            })
+            .setNegativeButton("Exit", (dialog, which) -> {
+                dialog.dismiss();
+                finish();
+            })
+            .setCancelable(false)
+            .show();
+    }
+
+    private void showRetryLocationsDialog(String selectedProjId) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Connection Error")
+            .setMessage("Failed to load geofenced boundaries for selected project.")
+            .setPositiveButton("Retry", (dialog, which) -> {
+                dialog.dismiss();
+                fetchGeofenceBoundaries(selectedProjId);
+            })
+            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+            .setCancelable(false)
+            .show();
+    }
+
+    private void submitAttendance(final String eid, final String action, final String uid, final String projectId,
+                                  final String locationId, final double lat, final double lng, final String photoPath) {
+        if (loadingManager != null) {
+            loadingManager.showLoading(this);
+        }
+        new Thread(() -> {
+            try {
+                String boundary = "----AndroidBridgeBoundary";
+                String lineEnd = "\r\n";
+                String twoHyphens = "--";
+                java.io.File file = new java.io.File(photoPath);
+                if (!file.exists()) {
+                    runOnUiThread(() -> {
+                        if (loadingManager != null) loadingManager.hideLoading();
+                        Toast.makeText(LocationVerifyActivity.this, "Photo file missing", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+
+                String urlString = "https://4scontracting.com/SMCS_APP/subcontractor/submit_attendance.php";
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(urlString).openConnection();
+                connection.setDoInput(true);
+                connection.setDoOutput(true);
+                connection.setUseCaches(false);
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Connection", "Keep-Alive");
+                connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+                try (java.io.DataOutputStream outputStream = new java.io.DataOutputStream(connection.getOutputStream())) {
+                    writeFormField(outputStream, boundary, "eid", eid);
+                    writeFormField(outputStream, boundary, "action", action);
+                    writeFormField(outputStream, boundary, "location_id", locationId);
+                    writeFormField(outputStream, boundary, "lat", String.valueOf(lat));
+                    writeFormField(outputStream, boundary, "lng", String.valueOf(lng));
+                    writeFormField(outputStream, boundary, "uid", uid);
+                    writeFormField(outputStream, boundary, "project_id", projectId);
+                    outputStream.writeBytes(twoHyphens + boundary + lineEnd);
+                    outputStream.writeBytes("Content-Disposition: form-data; name=\"photo\"; filename=\"attendance.jpg\"" + lineEnd);
+                    outputStream.writeBytes("Content-Type: image/jpeg" + lineEnd);
+                    outputStream.writeBytes("Content-Transfer-Encoding: binary" + lineEnd + lineEnd);
+                    try (java.io.FileInputStream fileInputStream = new java.io.FileInputStream(file)) {
+                        byte[] buffer = new byte[8192];
+                        int count;
+                        while ((count = fileInputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, count);
+                        }
+                    }
+                    outputStream.writeBytes(lineEnd);
+                    outputStream.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+                    outputStream.flush();
+                }
+
+                int responseCode = connection.getResponseCode();
+                runOnUiThread(() -> {
+                    if (loadingManager != null) {
+                        loadingManager.hideLoading();
+                    }
+                    if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                        Toast.makeText(LocationVerifyActivity.this, "Attendance submitted", Toast.LENGTH_SHORT).show();
+                        Intent intentHome = new Intent(LocationVerifyActivity.this, DashboardActivity.class);
+                        intentHome.putExtra("attendance_submitted", true);
+                        intentHome.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        startActivity(intentHome);
+                        finish();
+                    } else {
+                        Toast.makeText(LocationVerifyActivity.this, "Attendance submission failed", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (loadingManager != null) {
+                        loadingManager.hideLoading();
+                    }
+                    Toast.makeText(LocationVerifyActivity.this, "Unable to submit attendance", Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
+    }
+
+    private void writeFormField(java.io.DataOutputStream outputStream, String boundary, String fieldName, String value) throws Exception {
+        outputStream.writeBytes("--" + boundary + "\r\n");
+        outputStream.writeBytes("Content-Disposition: form-data; name=\"" + fieldName + "\"\r\n\r\n");
+        outputStream.write(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        outputStream.writeBytes("\r\n");
+    }
+
+    /**
+     * Starts a silent GPS pre-warm request from screen open.
+     * Samples are stored in the shared {@code locationSamples} list so that
+     * {@link #startHybridVerification()} can skip the 15 s wait if good fixes
+     * are already available when the user taps Verify.
+     */
+    private void startGpsPreWarm() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            return; // no permission yet — Verify button will handle it
+        }
+        try {
+            locationSamples.clear();
+            goodAccuracySampleCount = 0;
+
+            warmUpCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@androidx.annotation.NonNull LocationResult result) {
+                    if (isSampling || hasCompletedVerification || (isAutoStartVerify && hasStartedAutoVerify)) return; // actual verification already running or completed
+                    for (Location location : result.getLocations()) {
+                        if (location == null) continue;
+                        long ageMs = Math.abs(System.currentTimeMillis() - location.getTime());
+                        if (ageMs > 60000L) continue; // skip stale fixes
+                        locationSamples.add(location);
+                        updateGpsDisplay(location);
+                        Log.d("GPS_PREWARM", "Pre-warm sample: accuracy=" + location.getAccuracy() + "m age=" + ageMs + "ms");
+                        if (isAutoStartVerify && !locationData.isEmpty() && !isSampling && !hasStartedAutoVerify && !hasCompletedVerification) {
+                            performGpsCheck();
+                            break;
+                        }
+                    }
+                }
+            };
+
+            // Use BALANCED_POWER during pre-warm to save battery; HIGH_ACCURACY kicks in at verify time
+            com.google.android.gms.location.LocationRequest preWarmRequest =
+                    new com.google.android.gms.location.LocationRequest.Builder(
+                            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                            1500  // poll every 1.5 s — slower than verify, saves battery
+                    ).setMinUpdateIntervalMillis(800)
+                     .setMaxUpdateAgeMillis(0)
+                     .setWaitForAccurateLocation(false)
+                     .build();
+
+            fusedLocationClient.requestLocationUpdates(
+                    preWarmRequest, warmUpCallback, android.os.Looper.getMainLooper());
+            Log.d("GPS_PREWARM", "Pre-warm started.");
+        } catch (Exception e) {
+            Log.e("GPS_PREWARM", "Failed to start pre-warm", e);
+        }
+    }
+
+    /** Stops the silent pre-warm GPS request. Always call before starting actual verification. */
+    private void stopGpsPreWarm() {
+        if (warmUpCallback != null && fusedLocationClient != null) {
+            try {
+                fusedLocationClient.removeLocationUpdates(warmUpCallback);
+                Log.d("GPS_PREWARM", "Pre-warm stopped. " + locationSamples.size() + " samples collected.");
+            } catch (Exception e) {
+                Log.e("GPS_PREWARM", "Error stopping pre-warm", e);
+            }
+            warmUpCallback = null;
+        }
+    }
+
+    private boolean isLocationInsideSite(Location loc, JSONObject siteObj) {
+        if (loc == null || siteObj == null) return false;
+        try {
+            double dbLat = siteObj.getDouble("latitude");
+            double dbLon = siteObj.getDouble("longitude");
+            double maxLat = siteObj.optDouble("max_latitude", 0.0);
+            double maxLon = siteObj.optDouble("max_longtitude", 0.0);
+            if (maxLon == 0.0) {
+                maxLon = siteObj.optDouble("max_longitude", 0.0);
+            }
+            boolean hasBoundaryBox = (maxLat != 0.0) && (maxLon != 0.0);
+            double minLat = hasBoundaryBox ? Math.min(dbLat, maxLat) : dbLat;
+            double maxLatBound = hasBoundaryBox ? Math.max(dbLat, maxLat) : dbLat;
+            double minLon = hasBoundaryBox ? Math.min(dbLon, maxLon) : dbLon;
+            double maxLonBound = hasBoundaryBox ? Math.max(dbLon, maxLon) : dbLon;
+
+            double centerLat = hasBoundaryBox ? (minLat + maxLatBound) / 2.0 : dbLat;
+            double centerLon = hasBoundaryBox ? (minLon + maxLonBound) / 2.0 : dbLon;
+
+            float[] centerDistResults = new float[1];
+            Location.distanceBetween(loc.getLatitude(), loc.getLongitude(), centerLat, centerLon, centerDistResults);
+            float distanceToCenter = centerDistResults[0];
+
+            float boxHalfDiagonal = 0f;
+            if (hasBoundaryBox) {
+                float[] diagResults = new float[1];
+                Location.distanceBetween(centerLat, centerLon, maxLatBound, maxLonBound, diagResults);
+                boxHalfDiagonal = diagResults[0];
+            }
+
+            float accuracyBuffer = Math.min(loc.getAccuracy() * 0.75f, 150.0f);
+            float effectiveRadius = (hasBoundaryBox ? boxHalfDiagonal : 0f) + 30.0f + accuracyBuffer;
+            boolean isCenterMatch = distanceToCenter <= effectiveRadius;
+
+            double bufferMeters = 30.0 + accuracyBuffer;
+            double latBuffer = bufferMeters / 111111.0;
+            double lngBuffer = bufferMeters / (111111.0 * Math.cos(Math.toRadians(loc.getLatitude())));
+
+            boolean isBoxMatch = hasBoundaryBox &&
+                    (loc.getLatitude() >= (minLat - latBuffer) && loc.getLatitude() <= (maxLatBound + latBuffer) &&
+                     loc.getLongitude() >= (minLon - lngBuffer) && loc.getLongitude() <= (maxLonBound + lngBuffer));
+
+            return isCenterMatch || isBoxMatch;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isSampleAcceptableForVerification(Location loc) {
+        if (loc == null) return false;
+        long ageInSeconds = Math.abs(System.currentTimeMillis() - loc.getTime()) / 1000;
+        if (ageInSeconds > 90) return false;
+
+        float accuracy = loc.getAccuracy();
+        if (accuracy <= 0.0f || accuracy > ACCURACY_GUARD) return false;
+
+        if (accuracy <= EARLY_EXIT_ACCURACY_M) return true;
+
+        if (locationData != null && !locationData.isEmpty()) {
+            for (JSONObject site : locationData) {
+                if (isLocationInsideSite(loc, site)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         isVerificationActive = false;
-        liveClockHandler.removeCallbacks(liveClockRunnable);
-        autoDetectTimeoutHandler.removeCallbacksAndMessages(null);
+        cancelCountDown();
+        stopGpsPreWarm(); // always release pre-warm on exit
+        stopLocationPulseAnimation();
+        if (loadingManager != null) {
+            loadingManager.hideLoading();
+        }
+        if (isSampling && fusedLocationClient != null && locationCallback != null) {
+            try {
+                fusedLocationClient.removeLocationUpdates(locationCallback);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (samplingHandler != null && samplingTimeoutRunnable != null) {
+            samplingHandler.removeCallbacks(samplingTimeoutRunnable);
+        }
+        cancelFallbackTimeout();
+        if (fallbackLocationManager != null && fallbackListener != null) {
+            try {
+                fallbackLocationManager.removeUpdates(fallbackListener);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            fallbackListener = null;
+        }
+        super.onDestroy();
     }
 }
